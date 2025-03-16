@@ -1,0 +1,14 @@
+{
+  "name": "kcauth",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "test"
+  },
+  "author": "",
+  "description": "",
+  "dependencies": {
+    "vue": "^3.5.13",
+    "vue-router": "^4.5.0"
+  }
+}
