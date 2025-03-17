@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"time"
 )
@@ -23,11 +24,11 @@ type ServerConfig struct {
 
 // AuthConfig 认证配置
 type AuthConfig struct {
-	EnabledProviders []string      `json:"enabled_providers"` // "account", "google", "weixin"
+	EnabledProviders []string `json:"enabled_providers"` // "account", "google", "weixin"
 	// JWT             JWTConfig      `json:"jwt"`
-	Google          GoogleConfig   `json:"google"`
-	Weixin          WeixinConfig   `json:"weixin"`
-	TwoFactor       TwoFactorConfig `json:"two_factor"`
+	Google    GoogleConfig    `json:"google"`
+	Weixin    WeixinConfig    `json:"weixin"`
+	TwoFactor TwoFactorConfig `json:"two_factor"`
 }
 
 // JWTConfig JWT配置
@@ -96,10 +97,10 @@ func LoadConfig(path string) (*Config, error) {
 
 // GetDSN 获取数据库连接字符串
 func (dc *DatabaseConfig) GetDSN() string {
-	return dc.Username + ":" + dc.Password + "@tcp(" + dc.Host + ":" + string(dc.Port) + ")/" + dc.Database + "?charset=" + dc.Charset + "&parseTime=True&loc=Local"
+	return dc.Username + ":" + dc.Password + "@tcp(" + dc.Host + ":" + fmt.Sprintf("%d", dc.Port) + ")/" + dc.Database + "?charset=" + dc.Charset + "&parseTime=True&loc=Local"
 }
 
 // GetRedisAddr 获取Redis连接地址
 func (rc *RedisConfig) GetRedisAddr() string {
-	return rc.Host + ":" + string(rc.Port)
-} 
+	return rc.Host + ":" + fmt.Sprintf("%d", rc.Port)
+}
