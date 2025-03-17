@@ -23,7 +23,7 @@ type WeixinConfig struct {
 // Validate 验证配置
 func (c *WeixinConfig) Validate() error {
     if c.AppID == "" || c.AppSecret == "" || c.RedirectURL == "" {
-        return ErrInvalidConfig
+        return ErrInvalidConfig("微信登录配置无效")
     }
     return nil
 }
@@ -84,7 +84,7 @@ func (w *WeixinLogin) GetAuthURL(state string) string {
 // HandleCallback 处理微信回调
 func (w *WeixinLogin) HandleCallback(code string) (*WeixinLoginResponse, error) {
     if code == "" {
-        return nil, ErrInvalidCode
+        return nil, ErrInvalidCode("授权码为空")
     }
 
     url := fmt.Sprintf(

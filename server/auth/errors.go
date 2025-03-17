@@ -37,6 +37,10 @@ const (
 	ErrCodeInvalidEmail
 	ErrCodeTooManyAttempts
 	
+	// 第三方登录相关错误码 (3000-3999)
+	ErrCodeInvalidConfig ErrorCode = 3000 + iota
+	ErrCodeInvalidCode
+	ErrCodeAPIRequest
 )
 
 // AppError 应用错误类型
@@ -228,5 +232,20 @@ func ErrEmailTaken(details string) error {
 		Message: "Email already taken",
 		Details: details,
 	}
+}
+
+// ErrInvalidConfig 返回无效配置错误
+func ErrInvalidConfig(details string) error {
+	return NewAppError(ErrCodeInvalidConfig, "无效的配置", fmt.Errorf(details))
+}
+
+// ErrInvalidCode 返回无效授权码错误
+func ErrInvalidCode(details string) error {
+	return NewAppError(ErrCodeInvalidCode, "无效的授权码", fmt.Errorf(details))
+}
+
+// ErrAPIRequest 返回API请求错误
+func ErrAPIRequest(details string) error {
+	return NewAppError(ErrCodeAPIRequest, "API请求失败", fmt.Errorf(details))
 }
 
