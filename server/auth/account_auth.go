@@ -559,11 +559,24 @@ func (a *AccountAuth) Register(username, password, email string) error {
 		return fmt.Errorf("failed to hash password: %v", err)
 	}
 
+	// 为本地用户生成唯一的 social_id
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return fmt.Errorf("failed to generate random bytes: %v", err)
+	}
+	localID := fmt.Sprintf("local_%s", hex.EncodeToString(b))
+
+	now := time.Now()
 	user := &User{
-		Username: username,
-		Password: string(hashedPassword),
-		Email:    email,
-		Status:   UserStatusActive,
+		Username:    username,
+		Password:    string(hashedPassword),
+		Email:       email,
+		Status:      UserStatusActive,
+		Provider:    "local",
+		SocialID:    localID, // 设置唯一的 SocialID
+		LastAttempt: now,
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 
 	if err := a.db.Create(user).Error; err != nil {
