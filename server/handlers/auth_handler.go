@@ -10,26 +10,26 @@ import (
 
 // AuthHandler 认证处理器
 type AuthHandler struct {
-	accountAuth  *auth.AccountAuth
-	googleOAuth  *auth.GoogleOAuth
-	weixinLogin  *auth.WeixinLogin
-	twoFactor    *auth.TwoFactorAuth
-	jwtService   *auth.JWTService
-	rateLimiter  *auth.RateLimiter
-	logger       *log.Logger
+	accountAuth *auth.AccountAuth
+	googleOAuth *auth.GoogleOAuth
+	weixinLogin *auth.WeixinLogin
+	twoFactor   *auth.TwoFactorAuth
+	jwtService  *auth.JWTService
+	rateLimiter *auth.RateLimiter
+	logger      *log.Logger
 }
 
 // NewAuthHandler 创建新的认证处理器
-func NewAuthHandler(accountAuth *auth.AccountAuth, googleOAuth *auth.GoogleOAuth, weixinLogin *auth.WeixinLogin, 
+func NewAuthHandler(accountAuth *auth.AccountAuth, googleOAuth *auth.GoogleOAuth, weixinLogin *auth.WeixinLogin,
 	twoFactor *auth.TwoFactorAuth, jwtService *auth.JWTService, rateLimiter *auth.RateLimiter) *AuthHandler {
 	return &AuthHandler{
-		accountAuth:  accountAuth,
-		googleOAuth:  googleOAuth,
-		weixinLogin:  weixinLogin,
-		twoFactor:    twoFactor,
-		jwtService:   jwtService,
-		rateLimiter:  rateLimiter,
-		logger:       log.New(os.Stdout, "[AUTH] ", log.LstdFlags|log.Lshortfile),
+		accountAuth: accountAuth,
+		googleOAuth: googleOAuth,
+		weixinLogin: weixinLogin,
+		twoFactor:   twoFactor,
+		jwtService:  jwtService,
+		rateLimiter: rateLimiter,
+		logger:      log.New(os.Stdout, "[AUTH] ", log.LstdFlags|log.Lshortfile),
 	}
 }
 
@@ -37,7 +37,7 @@ func NewAuthHandler(accountAuth *auth.AccountAuth, googleOAuth *auth.GoogleOAuth
 func (h *AuthHandler) RegisterRoutes(r *gin.Engine) {
 	// 添加错误处理中间件
 	r.Use(auth.ErrorHandler())
-	
+
 	// 添加监控中间件
 	r.Use(auth.MetricsMiddleware())
 
@@ -63,10 +63,12 @@ func (h *AuthHandler) RegisterRoutes(r *gin.Engine) {
 		if h.googleOAuth != nil {
 			authGroup.GET("/google/login", h.GoogleLogin)
 			authGroup.GET("/google/callback", h.GoogleCallback)
+			authGroup.POST("/google", h.GoogleLoginPost)
 		}
 
 		// 微信登录相关路由
 		if h.weixinLogin != nil {
+			authGroup.GET("/weixin/url", h.WeixinLoginURL)
 			authGroup.GET("/weixin/login", h.WeixinLoginHandler)
 			authGroup.GET("/weixin/callback", h.WeixinCallback)
 		}
@@ -83,4 +85,4 @@ func (h *AuthHandler) RegisterRoutes(r *gin.Engine) {
 		authGroup.GET("/user", h.AuthRequired(), h.GetUserInfo)
 		authGroup.PUT("/user", h.AuthRequired(), h.UpdateUserInfo)
 	}
-} 
+}

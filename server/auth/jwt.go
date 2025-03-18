@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/go-redis/redis/v8"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // JWTService JWT服务
@@ -20,7 +20,7 @@ type CustomClaims struct {
 	UserID    int64  `json:"user_id"`
 	Email     string `json:"email"`
 	SessionID string `json:"session_id"`
-	KeyID     string `json:"kid"`      // 用于密钥轮换
+	KeyID     string `json:"kid"`        // 用于密钥轮换
 	TokenType string `json:"token_type"` // 标识是访问令牌还是刷新令牌
 	jwt.RegisteredClaims
 }
@@ -32,12 +32,12 @@ type TokenPair struct {
 }
 
 const (
-	jwtKeyPrefix    = "jwt:key:"      // Redis中JWT密钥的前缀
-	defaultKeyTTL   = 24 * time.Hour  // 密钥默认过期时间
-	tokenExpiration = 2 * time.Hour   // Token默认过期时间
+	jwtKeyPrefix           = "jwt:key:"         // Redis中JWT密钥的前缀
+	defaultKeyTTL          = 24 * time.Hour     // 密钥默认过期时间
+	tokenExpiration        = 2 * time.Hour      // Token默认过期时间
 	refreshTokenExpiration = 7 * 24 * time.Hour // 刷新令牌过期时间
-	AccessTokenType = "access"        // 访问令牌类型
-	RefreshTokenType = "refresh"      // 刷新令牌类型
+	AccessTokenType        = "access"           // 访问令牌类型
+	RefreshTokenType       = "refresh"          // 刷新令牌类型
 )
 
 // NewJWTService 创建新的JWT服务
@@ -63,9 +63,9 @@ func (s *JWTService) generateSecretKey(userID int64, sessionID string) []byte {
 
 // storeKey 将密钥存储到Redis
 func (s *JWTService) storeKey(keyID string, key []byte, ttl time.Duration) error {
-	return s.redis.client.Set(s.redis.ctx, 
-		jwtKeyPrefix+keyID, 
-		hex.EncodeToString(key), 
+	return s.redis.client.Set(s.redis.ctx,
+		jwtKeyPrefix+keyID,
+		hex.EncodeToString(key),
 		ttl,
 	).Err()
 }
@@ -156,7 +156,7 @@ func (s *JWTService) ValidateJWT(tokenString string) (*CustomClaims, error) {
 
 	if claims, ok := token.Claims.(*CustomClaims); ok {
 		keyID := claims.KeyID
-		
+
 		// 从Redis获取密钥
 		secretKey, err := s.getKey(keyID)
 		if err != nil {
@@ -260,3 +260,19 @@ func (s *JWTService) RevokeAllUserTokens(sessionID string) error {
 	return nil
 }
 
+// GenerateToken 生成JWT令牌
+func (s *JWTService) GenerateToken(userID uint, username string, role UserRole) (string, error) {
+	// 将 uint 转换为 int64
+	userId := int64(userID)
+
+	// 生成唯一的会话ID
+	sessionID := fmt.Sprintf("session_%d_%d", userId, time.Now().UnixNano())
+
+	// 生成令牌
+	token, _, err := s.generateToken(userId, username, sessionID, AccessTokenType, tokenExpiration)
+	if err != nil {
+		return "", fmt.Errorf("生成令牌失败: %w", err)
+	}
+
+	return token, nil
+}

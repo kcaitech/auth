@@ -92,14 +92,17 @@
     <div class="divider">或</div>
     
     <div class="social-login">
-      <button @click="handleGoogleLogin" :disabled="loading" class="social-btn google-btn">
-        <img src="@/assets/google-icon.svg" alt="Google" />
-        使用Google账号
-      </button>
-      <button @click="handleWechatLogin" :disabled="loading" class="social-btn wechat-btn">
-        <img src="@/assets/wechat-icon.svg" alt="WeChat" />
-        使用微信账号
-      </button>
+      <!-- 社交登录按钮容器，确保所有按钮宽度一致 -->
+      <div class="social-buttons">
+        <!-- 谷歌登录按钮容器 -->
+        <div id="google-signin-button" class="google-btn-container"></div>
+        
+        <!-- 微信登录按钮 -->
+        <button @click="handleWechatLogin" :disabled="loading" class="social-btn wechat-btn">
+          <img src="@/assets/wechat-icon.svg" alt="WeChat" />
+          使用微信账号
+        </button>
+      </div>
     </div>
 
     <div v-if="errorMessage" class="error-message">
@@ -109,9 +112,10 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
 
 interface FormErrors {
   username?: string
@@ -177,16 +181,33 @@ const handleLogin = async () => {
   }
 }
 
-const handleGoogleLogin = async () => {
+const handleGoogleLogin = async (response: any) => {
   try {
+    if (!response || !response.credential) {
+      errorMessage.value = '谷歌登录失败：未获取到凭证'
+      return
+    }
+    
     loading.value = true
     errorMessage.value = ''
-    const googleAuth = await authStore.initGoogleAuth()
-    const user = await googleAuth.signIn()
-    await authStore.handleGoogleLogin(user)
+    
+    // 将JWT令牌发送到后端验证
+    const authResponse = await axios.post('/auth/google', {
+      credential: response.credential
+    })
+    
+    // 处理登录结果
+    const { user, token } = authResponse.data
+    
+    authStore.user = user
+    authStore.token = token
+    localStorage.setItem('token', token)
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+    
+    // 登录成功后跳转到仪表盘
     router.push('/dashboard')
   } catch (error: any) {
-    errorMessage.value = 'Google登录失败，请重试'
+    errorMessage.value = error.message || 'Google登录失败，请重试'
   } finally {
     loading.value = false
   }
@@ -267,6 +288,52 @@ const validateRegisterForm = () => {
 
   return isValid
 }
+
+// 在组件挂载后渲染谷歌登录按钮
+onMounted(() => {
+  // 确保谷歌库已加载
+  authStore.initGoogleAuth().then(() => {
+    if (window.google && window.google.accounts && window.google.accounts.id) {
+      // 初始化谷歌登录
+      window.google.accounts.id.initialize({
+        client_id: '你的谷歌客户端ID.apps.googleusercontent.com',
+        callback: handleGoogleLogin,
+        auto_select: false,
+        cancel_on_tap_outside: true
+      })
+      
+      // 渲染登录按钮
+      const buttonElement = document.getElementById('google-signin-button')
+      if (buttonElement) {
+        window.google.accounts.id.renderButton(buttonElement, {
+          type: 'standard',
+          theme: 'filled_blue',
+          size: 'large',
+          text: 'continue_with',
+          shape: 'rectangular',
+          logo_alignment: 'center',
+          locale: 'zh_CN',
+          width: '100%'
+        })
+        
+        // 为了确保按钮宽度一致，我们监听iframe加载完成
+        const observer = new MutationObserver((mutations) => {
+          const iframe = buttonElement.querySelector('iframe')
+          if (iframe) {
+            // iframe.style.width = '100%'
+            // iframe.style.height = '0px'
+            observer.disconnect()
+          }
+        })
+        
+        observer.observe(buttonElement, { childList: true, subtree: true })
+      }
+    }
+  }).catch(error => {
+    console.error('加载谷歌登录失败', error)
+    errorMessage.value = '加载谷歌登录服务失败'
+  })
+})
 </script>
 
 <style scoped>
@@ -382,40 +449,75 @@ input.error {
 }
 
 .social-login {
+  margin-bottom: 16px;
+  width: 100%;
+}
+
+.social-buttons {
   display: flex;
+  flex-direction: column;
   gap: 16px;
+  width: 100%;
+}
+
+/* 通用按钮样式 */
+.social-btn, 
+.google-btn-container {
+  width: 100%;
+  height: 44px; /* 固定高度 */
+  border-radius: 8px;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .social-btn {
-  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 12px;
-  border-radius: 8px;
+  padding: 0 16px;
   font-size: 14px;
   transition: all 0.3s;
+  outline: none;
+  cursor: pointer;
 }
 
-.google-btn {
-  background: white;
-  border: 1px solid #ddd;
-  color: #333;
-}
-
-.google-btn:hover {
-  background: #f5f5f5;
+.google-btn-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .wechat-btn {
   background: #07C160;
   color: white;
   border: none;
+  text-align: center;
+  font-weight: 500;
+  gap: 8px;
+}
+
+.wechat-btn img {
+  margin-right: 4px;
 }
 
 .wechat-btn:hover {
   background: #06ae56;
+}
+
+.wechat-btn:disabled {
+  background: #92ddb5;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+/* 谷歌按钮样式覆盖 */
+:deep(.google-btn-container iframe) {
+  width: 100% !important;
+  height: 0px !important;
+}
+
+:deep(.google-btn-container > div) {
+  width: 100% !important;
 }
 
 .error-message {
@@ -428,8 +530,18 @@ input.error {
   font-size: 14px;
 }
 
+@media screen and (max-width: 450px) {
+  .google-btn-container {
+    transform: scale(0.95);
+    transform-origin: center;
+  }
+}
+
+/* 图标样式 */
 img {
   width: 20px;
   height: 20px;
+  vertical-align: middle;
+  object-fit: contain;
 }
 </style>
