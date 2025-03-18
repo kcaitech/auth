@@ -42,5 +42,26 @@
         "port": 6379,
         "password": "",
         "db": 0
+    },
+    "admin": {
+        "enabled": true,
+        "port": 8081,
+        "secret_key": "change-this-to-a-secure-random-string",
+        "accounts": [
+            {
+                "username": "admin",
+                "password": "$2a$10$fG44fQ/dghOcCqLJUHWJterKptRWn4DNbnb1H9QK5ec9Lij2srSA2",
+                "roles": ["super_admin"]
+            },
+            {
+                "username": "operator",
+                "password": "hashed-password-here",
+                "roles": ["user_manager"]
+            }
+        ],
+        "allowed_ips": ["127.0.0.1", "::1"],
+        "require_tls": false,
+        "session_ttl": 30,
+        "login_timeout": 60
     }
 } 

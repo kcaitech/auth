@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -15,6 +19,7 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
+	"kcaitech.com/kcauth/server/admin"
 	"kcaitech.com/kcauth/server/auth"
 	"kcaitech.com/kcauth/server/config"
 	"kcaitech.com/kcauth/server/handlers"
@@ -94,19 +99,60 @@ func main() {
 	// 注册路由
 	authHandler.RegisterRoutes(r)
 
-	// 启动服务器
-	addr := fmt.Sprintf(":%d", cfg.Server.Port)
-	srv := &http.Server{
-		Addr:         addr,
+	// 创建主HTTP服务器
+	mainServer := &http.Server{
+		Addr:         fmt.Sprintf(":%d", cfg.Server.Port),
 		Handler:      r,
 		ReadTimeout:  cfg.Server.ReadTimeout,
 		WriteTimeout: cfg.Server.WriteTimeout,
 	}
 
-	log.Printf("服务器启动在 %s", addr)
-	if err := srv.ListenAndServe(); err != nil {
-		log.Fatalf("服务器启动失败: %v", err)
+	// 创建并启动管理服务器（如果启用）
+	var adminServer *admin.AdminServer
+	if cfg.Admin.Enabled {
+		logger := log.New(os.Stdout, "[ADMIN] ", log.LstdFlags)
+		adminServer = admin.NewAdminServer(cfg, db, logger)
+
+		if adminServer != nil {
+			go func() {
+				if err := adminServer.Start(); err != nil && err != http.ErrServerClosed {
+					log.Fatalf("管理服务器启动失败: %v", err)
+				}
+			}()
+		}
 	}
+
+	// 启动主服务器（非阻塞）
+	go func() {
+		log.Printf("主服务器启动在 :%d", cfg.Server.Port)
+		if err := mainServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("主服务器启动失败: %v", err)
+		}
+	}()
+
+	// 设置优雅关闭
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Println("正在关闭服务器...")
+
+	// 创建关闭超时上下文
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// 关闭管理服务器（如果已启动）
+	if adminServer != nil {
+		if err := adminServer.Shutdown(ctx); err != nil {
+			log.Fatalf("管理服务器关闭失败: %v", err)
+		}
+		log.Println("管理服务器已关闭")
+	}
+
+	// 关闭主服务器
+	if err := mainServer.Shutdown(ctx); err != nil {
+		log.Fatalf("主服务器关闭失败: %v", err)
+	}
+	log.Println("主服务器已关闭")
 }
 
 func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, redisStore *auth.RedisStore, handler **handlers.AuthHandler) error {

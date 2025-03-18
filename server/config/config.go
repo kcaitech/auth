@@ -13,6 +13,7 @@ type Config struct {
 	Auth     AuthConfig     `json:"auth"`
 	Database DatabaseConfig `json:"database"`
 	Redis    RedisConfig    `json:"redis"`
+	Admin    AdminConfig    `json:"admin"`
 }
 
 // ServerConfig 服务器配置
@@ -59,6 +60,25 @@ type TwoFactorConfig struct {
 	Period     uint   `json:"period"`
 	Digits     uint   `json:"digits"`
 	SecretSize uint   `json:"secret_size"`
+}
+
+// AdminConfig 管理员配置
+type AdminConfig struct {
+	Enabled      bool      `json:"enabled"`       // 是否启用管理页面
+	Port         int       `json:"port"`          // 管理页面监听端口，与主服务分离
+	SecretKey    string    `json:"secret_key"`    // 管理页面会话密钥
+	Accounts     []Account `json:"accounts"`      // 管理员账号列表
+	AllowedIPs   []string  `json:"allowed_ips"`   // 允许访问的IP列表
+	RequireTLS   bool      `json:"require_tls"`   // 是否强制使用TLS
+	SessionTTL   int       `json:"session_ttl"`   // 会话有效期（分钟）
+	LoginTimeout int       `json:"login_timeout"` // 登录超时（秒）
+}
+
+// Account 管理员账号
+type Account struct {
+	Username string   `json:"username"` // 用户名
+	Password string   `json:"password"` // 密码（加密存储）
+	Roles    []string `json:"roles"`    // 角色列表
 }
 
 // DatabaseConfig 数据库配置
