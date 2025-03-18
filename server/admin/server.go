@@ -35,6 +35,7 @@ type AdminServer struct {
 	sessions  map[string]*AdminSession
 	sessionMu sync.Mutex
 	logger    *log.Logger
+	redis     *auth.RedisStore // 添加Redis存储字段
 }
 
 // AdminSession 管理会话
@@ -59,12 +60,21 @@ func NewAdminServer(cfg *config.Config, db *gorm.DB, logger *log.Logger) *AdminS
 		return nil
 	}
 
+	// 初始化RedisStore
+	redisAddr := cfg.Redis.GetRedisAddr()
+	redisStore, err := auth.NewRedisStore(redisAddr, cfg.Redis.Password, cfg.Redis.DB)
+	if err != nil {
+		logger.Printf("警告: 初始化Redis连接失败: %v", err)
+		logger.Println("部分功能可能无法正常工作，例如JWT会话管理")
+	}
+
 	// 创建管理服务器
 	server := &AdminServer{
 		config:   &cfg.Admin,
 		db:       db,
 		sessions: make(map[string]*AdminSession),
 		logger:   logger,
+		redis:    redisStore,
 	}
 
 	// 设置Gin模式
@@ -116,6 +126,12 @@ func (s *AdminServer) Start() error {
 
 // Shutdown 关闭管理服务器
 func (s *AdminServer) Shutdown(ctx context.Context) error {
+	// 关闭Redis连接
+	if s.redis != nil {
+		if err := s.redis.Close(); err != nil {
+			s.logger.Printf("关闭Redis连接失败: %v", err)
+		}
+	}
 	return s.server.Shutdown(ctx)
 }
 
@@ -126,28 +142,33 @@ func (s *AdminServer) registerRoutes(r *gin.Engine) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
-	// 登录路由
-	r.POST("/login", s.handleLogin)
-
 	// API路由组（需要认证）
-	api := r.Group("/api")
-	api.Use(s.authMiddleware())
+	admin := r.Group("/admin")
+	// 登录路由
+	admin.POST("/login", s.handleLogin)
+
+	admin.Use(s.authMiddleware())
 	{
 		// 用户统计信息
-		api.GET("/stats", s.handleGetStats)
+		admin.GET("/stats", s.handleGetStats)
 
 		// 用户列表
-		api.GET("/users", s.handleGetUsers)
+		admin.GET("/users", s.handleGetUsers)
 
 		// 用户活跃情况
-		api.GET("/activity", s.handleGetActivity)
+		admin.GET("/activity", s.handleGetActivity)
+
+		// 用户会话信息
+		admin.GET("/user/:id/sessions", s.handleGetUserSessions)
+		admin.DELETE("/user/:id/sessions/:session_id", s.handleTerminateUserSession)
+		admin.DELETE("/user/:id/sessions", s.handleTerminateAllUserSessions)
 
 		// 注销
-		api.POST("/logout", s.handleLogout)
+		admin.POST("/logout", s.handleLogout)
 	}
 
 	// 静态文件路由
-	r.Static("/assets", "./admin/assets")
+	// r.Static("/assets", "./admin/assets")
 
 	// 所有其他路由重定向到管理页面入口点
 	r.NoRoute(func(c *gin.Context) {
@@ -183,7 +204,15 @@ func (s *AdminServer) loggerMiddleware() gin.HandlerFunc {
 // CORS中间件
 func (s *AdminServer) corsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		origin := c.Request.Header.Get("Origin")
+		if origin != "" {
+			// 使用请求的实际Origin而不是通配符
+			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+			// 允许请求带有凭据
+			c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		} else {
+			c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		}
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Content-Length, Accept-Encoding, Authorization")
 
@@ -541,4 +570,113 @@ func (s *AdminServer) handleGetActivity(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, result)
+}
+
+// 获取用户会话列表
+func (s *AdminServer) handleGetUserSessions(c *gin.Context) {
+	userIDStr := c.Param("id")
+	var userID int
+	if _, err := fmt.Sscanf(userIDStr, "%d", &userID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "用户ID无效"})
+		return
+	}
+
+	// 查询用户会话
+	var sessions []auth.Session
+	err := s.db.Where("user_id = ?", userID).Order("created_at DESC").Find(&sessions).Error
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询会话失败"})
+		return
+	}
+
+	// 查询JWT会话（如果使用了JWT）
+	jwtSessions := []auth.JWTSession{}
+	if s.redis != nil {
+		jwtService := auth.NewJWTService(s.redis)
+
+		tempJwtSessions, err := jwtService.GetUserActiveSessions(int64(userID))
+		if err != nil {
+			// 仅记录错误，不中断响应
+			s.logger.Printf("获取JWT会话失败: %v", err)
+		} else {
+			jwtSessions = tempJwtSessions
+		}
+	} else {
+		s.logger.Println("Redis连接未初始化，无法获取JWT会话信息")
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"sessions":     sessions,
+		"jwt_sessions": jwtSessions,
+	})
+}
+
+// 终止用户特定会话
+func (s *AdminServer) handleTerminateUserSession(c *gin.Context) {
+	userIDStr := c.Param("id")
+	sessionID := c.Param("session_id")
+
+	var userID int
+	if _, err := fmt.Sscanf(userIDStr, "%d", &userID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "用户ID无效"})
+		return
+	}
+
+	// 判断会话类型（普通会话或JWT会话）
+	if strings.HasPrefix(sessionID, "jwt:") {
+		// 处理JWT会话
+		if s.redis == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Redis连接未初始化，无法终止JWT会话"})
+			return
+		}
+
+		jwtID := strings.TrimPrefix(sessionID, "jwt:")
+		jwtService := auth.NewJWTService(s.redis)
+
+		err := jwtService.RevokeJWT(jwtID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("终止JWT会话失败: %v", err)})
+			return
+		}
+	} else {
+		// 处理普通会话
+		if err := s.db.Where("id = ? AND user_id = ?", sessionID, userID).Delete(&auth.Session{}).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "终止会话失败"})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "会话已成功终止"})
+}
+
+// 终止用户所有会话
+func (s *AdminServer) handleTerminateAllUserSessions(c *gin.Context) {
+	userIDStr := c.Param("id")
+	var userID int
+	if _, err := fmt.Sscanf(userIDStr, "%d", &userID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "用户ID无效"})
+		return
+	}
+
+	// 终止所有普通会话
+	if err := s.db.Where("user_id = ?", userID).Delete(&auth.Session{}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "终止普通会话失败"})
+		return
+	}
+
+	// 终止所有JWT会话
+	if s.redis == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Redis连接未初始化，无法终止JWT会话"})
+		return
+	}
+
+	jwtService := auth.NewJWTService(s.redis)
+
+	err := jwtService.RevokeAllUserTokens(fmt.Sprintf("user_%d", userID))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("终止JWT会话失败: %v", err)})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "用户所有会话已成功终止"})
 }

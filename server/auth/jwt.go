@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -29,6 +30,16 @@ type CustomClaims struct {
 type TokenPair struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
+}
+
+// JWTSession 表示JWT会话信息
+type JWTSession struct {
+	KeyID     string    `json:"key_id"`
+	TokenType string    `json:"token_type"`
+	IssuedAt  time.Time `json:"issued_at"`
+	ExpiresAt time.Time `json:"expires_at"`
+	IP        string    `json:"ip,omitempty"`
+	UserAgent string    `json:"user_agent,omitempty"`
 }
 
 const (
@@ -275,4 +286,51 @@ func (s *JWTService) GenerateToken(userID uint, username string, role UserRole) 
 	}
 
 	return token, nil
+}
+
+// GetUserActiveSessions 获取用户的所有活跃JWT会话
+func (s *JWTService) GetUserActiveSessions(userID int64) ([]JWTSession, error) {
+	// 使用模式匹配查找与用户相关的所有密钥
+	pattern := jwtKeyPrefix + "*"
+	keys, err := s.redis.client.Keys(s.redis.ctx, pattern).Result()
+	if err != nil {
+		return nil, fmt.Errorf("查找会话密钥失败: %w", err)
+	}
+
+	// 收集用户的会话数据
+	sessions := make([]JWTSession, 0)
+	now := time.Now()
+
+	for _, key := range keys {
+		// 解析键中的信息
+		keyID := strings.TrimPrefix(key, jwtKeyPrefix)
+
+		// 获取令牌信息
+		tokenData, err := s.redis.client.Get(s.redis.ctx, key).Result()
+		if err != nil {
+			continue // 跳过获取失败的令牌
+		}
+
+		// 获取过期时间
+		ttl, err := s.redis.client.TTL(s.redis.ctx, key).Result()
+		if err != nil {
+			continue
+		}
+
+		// 尝试解析数据以提取更多信息
+		expiresAt := now.Add(ttl)
+		issuedAt := expiresAt.Add(-defaultKeyTTL) // 估计发行时间
+
+		// 只收集当前用户的会话
+		if strings.Contains(tokenData, fmt.Sprintf("user_%d", userID)) {
+			sessions = append(sessions, JWTSession{
+				KeyID:     keyID,
+				TokenType: "access", // 默认类型，实际应该从令牌中解析
+				IssuedAt:  issuedAt,
+				ExpiresAt: expiresAt,
+			})
+		}
+	}
+
+	return sessions, nil
 }

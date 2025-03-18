@@ -8,16 +8,17 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@element-plus/icons-vue": "^2.1.0",
     "axios": "^1.4.0",
     "chart.js": "^3.9.1",
+    "element-plus": "^2.3.8",
     "pinia": "^2.1.4",
     "vue": "^3.3.4",
-    "vue-chart-3": "^3.1.8",
-    "vue-router": "^4.2.4",
-    "element-plus": "^2.3.8",
-    "@element-plus/icons-vue": "^2.1.0"
+    "vue-chartjs": "^4.1.2",
+    "vue-router": "^4.2.4"
   },
   "devDependencies": {
+    "@types/chart.js": "^2.9.41",
     "@types/node": "^20.4.5",
     "@vitejs/plugin-vue": "^4.2.3",
     "sass": "^1.64.1",
@@ -25,4 +26,4 @@
     "vite": "^4.4.7",
     "vue-tsc": "^1.8.8"
   }
-} 
+}

@@ -1,27 +1,19 @@
 <template>
   <div class="chart-wrapper">
-    <Line
-      v-if="chartData"
-      :data="chartData"
-      :options="chartOptions"
-    />
+    <canvas ref="chartCanvas"></canvas>
   </div>
 </template>
 
 <script lang="ts">
-import { defineComponent, computed, PropType } from 'vue'
-import { Line } from 'vue-chart-3'
+import { defineComponent, PropType, onMounted, ref, watch } from 'vue'
 import { Chart, registerables } from 'chart.js'
 import { ActivityData } from '@/api'
 
-// 注册Chart.js组件
+// 注册所有Chart.js组件
 Chart.register(...registerables)
 
 export default defineComponent({
   name: 'ActivityChart',
-  components: {
-    Line
-  },
   props: {
     data: {
       type: Array as PropType<ActivityData[]>,
@@ -29,84 +21,107 @@ export default defineComponent({
     }
   },
   setup(props) {
-    // 处理图表数据
-    const chartData = computed(() => {
+    const chartCanvas = ref<HTMLCanvasElement | null>(null)
+    let chart: Chart | null = null
+
+    const createChart = () => {
+      if (!chartCanvas.value || !props.data || props.data.length === 0) return
+
+      const ctx = chartCanvas.value.getContext('2d')
+      if (!ctx) return
+
       const dates = props.data.map(item => item.date)
       const newUsers = props.data.map(item => item.new_users)
       const activeUsers = props.data.map(item => item.active_users)
       const loginAttempts = props.data.map(item => item.login_attempts)
-      
-      return {
-        labels: dates,
-        datasets: [
-          {
-            label: '新用户',
-            data: newUsers,
-            borderColor: '#67C23A',
-            backgroundColor: 'rgba(103, 194, 58, 0.1)',
-            borderWidth: 2,
-            fill: true,
-            tension: 0.4
-          },
-          {
-            label: '活跃用户',
-            data: activeUsers,
-            borderColor: '#409EFF',
-            backgroundColor: 'rgba(64, 158, 255, 0.1)',
-            borderWidth: 2,
-            fill: true,
-            tension: 0.4
-          },
-          {
-            label: '登录尝试',
-            data: loginAttempts,
-            borderColor: '#E6A23C',
-            backgroundColor: 'rgba(230, 162, 60, 0.1)',
-            borderWidth: 2,
-            fill: true,
-            tension: 0.4
-          }
-        ]
+
+      // 销毁之前的图表实例
+      if (chart) {
+        chart.destroy()
       }
-    })
-    
-    // 图表配置选项
-    const chartOptions = {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          position: 'top' as const,
+
+      // 创建新的图表
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: dates,
+          datasets: [
+            {
+              label: '新用户',
+              data: newUsers,
+              backgroundColor: 'rgba(103, 194, 58, 0.1)',
+              borderColor: '#67C23A',
+              borderWidth: 2,
+              fill: true,
+              tension: 0.4
+            },
+            {
+              label: '活跃用户',
+              data: activeUsers,
+              backgroundColor: 'rgba(64, 158, 255, 0.1)',
+              borderColor: '#409EFF',
+              borderWidth: 2,
+              fill: true,
+              tension: 0.4
+            },
+            {
+              label: '登录尝试',
+              data: loginAttempts,
+              backgroundColor: 'rgba(230, 162, 60, 0.1)',
+              borderColor: '#E6A23C',
+              borderWidth: 2,
+              fill: true,
+              tension: 0.4
+            }
+          ]
         },
-        title: {
-          display: true,
-          text: '用户活跃趋势'
-        },
-        tooltip: {
-          mode: 'index' as const,
-          intersect: false
-        }
-      },
-      scales: {
-        x: {
-          title: {
-            display: true,
-            text: '日期'
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'top'
+            },
+            title: {
+              display: true,
+              text: '用户活跃趋势'
+            },
+            tooltip: {
+              mode: 'index',
+              intersect: false
+            }
+          },
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: '日期'
+              }
+            },
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: '数量'
+              }
+            }
           }
-        },
-        y: {
-          beginAtZero: true,
-          title: {
-            display: true,
-            text: '数量'
-          }
         }
-      }
+      })
     }
-    
+
+    // 在组件挂载后创建图表
+    onMounted(() => {
+      createChart()
+    })
+
+    // 当数据变化时更新图表
+    watch(() => props.data, () => {
+      createChart()
+    }, { deep: true })
+
     return {
-      chartData,
-      chartOptions
+      chartCanvas
     }
   }
 })

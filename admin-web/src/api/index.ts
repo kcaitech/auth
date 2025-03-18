@@ -1,7 +1,15 @@
 import axios from 'axios'
 
+// Vite环境变量类型声明
+declare interface ImportMeta {
+  readonly env: {
+    readonly VITE_API_BASE_URL: string
+  }
+}
+
 // 创建 axios 实例
 const api = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL || '',
   timeout: 10000,
   withCredentials: true
 })
@@ -61,6 +69,9 @@ export interface User {
   verified: boolean
   created_at: string
   last_login: string | null
+  two_factor_enabled?: boolean
+  login_attempts?: number
+  last_attempt?: string
 }
 
 export interface UserListResponse {
@@ -80,20 +91,59 @@ export interface ActivityData {
   failed_auth: number
 }
 
+export interface SessionData {
+  id: string
+  user_id: number
+  ip: string
+  user_agent: string
+  expires_at: string
+  created_at: string
+  updated_at: string
+}
+
+export interface JWTSessionData {
+  key_id: string
+  token_type: string
+  issued_at: string
+  expires_at: string
+  ip?: string
+  user_agent?: string
+}
+
+export interface UserSessionsResponse {
+  sessions: SessionData[]
+  jwt_sessions: JWTSessionData[]
+}
+
 // API 方法
 export default {
   // 获取统计数据
   getStats(): Promise<StatsData> {
-    return api.get('/api/stats').then(res => res.data)
+    return api.get('/admin/stats').then(res => res.data)
   },
 
   // 获取用户列表
   getUsers(params: { page?: number, size?: number, status?: string, provider?: string, verified?: string, search?: string }): Promise<UserListResponse> {
-    return api.get('/api/users', { params }).then(res => res.data)
+    return api.get('/admin/users', { params }).then(res => res.data)
   },
 
   // 获取活跃情况
   getActivity(days: number): Promise<ActivityData[]> {
-    return api.get('/api/activity', { params: { days } }).then(res => res.data)
+    return api.get('/admin/activity', { params: { days } }).then(res => res.data)
+  },
+
+  // 获取用户会话列表
+  getUserSessions(userId: number): Promise<UserSessionsResponse> {
+    return api.get(`/admin/user/${userId}/sessions`).then(res => res.data)
+  },
+
+  // 终止用户特定会话
+  terminateUserSession(userId: number, sessionId: string): Promise<{ message: string }> {
+    return api.delete(`/admin/user/${userId}/sessions/${sessionId}`).then(res => res.data)
+  },
+
+  // 终止用户所有会话
+  terminateAllUserSessions(userId: number): Promise<{ message: string }> {
+    return api.delete(`/admin/user/${userId}/sessions`).then(res => res.data)
   }
 } 

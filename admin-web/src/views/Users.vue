@@ -115,6 +115,21 @@
         />
       </div>
     </el-card>
+    
+    <!-- 用户详情对话框 -->
+    <el-dialog
+      v-model="userDetailVisible"
+      title="用户详情"
+      width="80%"
+      destroy-on-close
+    >
+      <UserDetail
+        v-if="userDetailVisible && selectedUser"
+        :user="selectedUser"
+        @update:user="handleUserUpdated"
+        @close="userDetailVisible = false"
+      />
+    </el-dialog>
   </div>
 </template>
 
@@ -122,9 +137,13 @@
 import { defineComponent, reactive, ref, onMounted, computed } from 'vue'
 import api, { User } from '@/api'
 import { ElMessage } from 'element-plus'
+import UserDetail from '@/components/UserDetail.vue'
 
 export default defineComponent({
   name: 'UsersView',
+  components: {
+    UserDetail
+  },
   setup() {
     // 用户列表数据
     const users = ref<User[]>([])
@@ -146,6 +165,10 @@ export default defineComponent({
       total: 0,
       totalPages: 0
     })
+    
+    // 用户详情
+    const userDetailVisible = ref(false)
+    const selectedUser = ref<User | null>(null)
     
     // 获取用户数据
     const fetchUsers = async () => {
@@ -202,7 +225,17 @@ export default defineComponent({
     
     // 查看用户详情
     const viewUserDetail = (user: User) => {
-      ElMessage.info(`查看用户 ${user.username} 的详情功能暂未实现`)
+      selectedUser.value = user
+      userDetailVisible.value = true
+    }
+    
+    // 处理用户信息更新
+    const handleUserUpdated = (updatedUser: User) => {
+      // 更新用户列表中的用户信息
+      const index = users.value.findIndex(u => u.id === updatedUser.id)
+      if (index !== -1) {
+        users.value[index] = updatedUser
+      }
     }
     
     // 格式化日期
@@ -268,7 +301,10 @@ export default defineComponent({
       formatDate,
       getStatusType,
       getStatusText,
-      getProviderText
+      getProviderText,
+      userDetailVisible,
+      selectedUser,
+      handleUserUpdated
     }
   }
 })
