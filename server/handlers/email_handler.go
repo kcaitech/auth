@@ -1,0 +1,169 @@
+package handlers
+
+import (
+	"net/http"
+	"time"
+
+	"github.com/gin-gonic/gin"
+)
+
+// EmailLogin 邮箱登录
+func (h *AuthHandler) EmailLogin(c *gin.Context) {
+	var req struct {
+		Email    string `json:"email" binding:"required,email"`
+		Password string `json:"password" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		return
+	}
+
+	// 检查登录尝试次数限制
+	clientIP := c.ClientIP()
+	if err := h.accountAuth.CheckLoginAttempts(req.Email, clientIP); err != nil {
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 使用邮箱登录
+	user, err := h.emailAuth.EmailLogin(req.Email, req.Password)
+	if err != nil {
+		// 记录失败的登录尝试
+		h.accountAuth.RecordLoginAttempt(req.Email, clientIP, false)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 记录成功的登录尝试
+	h.accountAuth.RecordLoginAttempt(req.Email, clientIP, true)
+
+	// 创建用户会话
+	session, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), time.Hour*24*7)
+	if err != nil {
+		h.logger.Printf("创建会话失败: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建会话失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"user_id":     user.UserID,
+		"session_id":  session.ID,
+		"profile":     user.Profile,
+		"expire_time": session.ExpiresAt,
+	})
+}
+
+// EmailRegister 邮箱注册
+func (h *AuthHandler) EmailRegister(c *gin.Context) {
+	var req struct {
+		Email    string `json:"email" binding:"required,email"`
+		Password string `json:"password" binding:"required"`
+		Nickname string `json:"nickname"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		return
+	}
+
+	// 注册邮箱用户
+	userID, err := h.emailAuth.RegisterEmailUser(req.Email, req.Password, req.Nickname)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"user_id": userID,
+		"message": "注册成功，请查收验证邮件",
+	})
+}
+
+// EmailVerify 邮箱验证
+func (h *AuthHandler) EmailVerify(c *gin.Context) {
+	token := c.Query("token")
+	if token == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "缺少验证令牌"})
+		return
+	}
+
+	// 验证邮箱
+	if err := h.emailAuth.VerifyEmail(token); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "邮箱验证成功"})
+}
+
+// ResendEmailVerification 重新发送邮箱验证邮件
+func (h *AuthHandler) ResendEmailVerification(c *gin.Context) {
+	var req struct {
+		Email string `json:"email" binding:"required,email"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		return
+	}
+
+	// 获取用户信息
+	user, err := h.emailAuth.GetUserByEmail(req.Email)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "未找到该邮箱对应的用户"})
+		return
+	}
+
+	// 重新发送验证邮件
+	if err := h.emailAuth.SendVerificationEmail(user.UserID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "发送验证邮件失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "验证邮件已重新发送，请查收"})
+}
+
+// EmailPasswordReset 邮箱密码重置
+func (h *AuthHandler) EmailPasswordReset(c *gin.Context) {
+	var req struct {
+		Email string `json:"email" binding:"required,email"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		return
+	}
+
+	// 发起密码重置
+	_, err := h.emailAuth.InitiatePasswordReset(req.Email)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "密码重置邮件已发送，请查收",
+	})
+}
+
+// CompleteEmailPasswordReset 完成邮箱密码重置
+func (h *AuthHandler) CompleteEmailPasswordReset(c *gin.Context) {
+	var req struct {
+		Token       string `json:"token" binding:"required"`
+		NewPassword string `json:"new_password" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		return
+	}
+
+	// 完成密码重置
+	if err := h.emailAuth.CompletePasswordReset(req.Token, req.NewPassword); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "密码重置成功"})
+}

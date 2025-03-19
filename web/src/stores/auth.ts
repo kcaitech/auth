@@ -27,12 +27,14 @@ declare global {
 
 interface User {
   id: string
-  username: string
+  userID: string
+  nickname: string
   email: string
 }
 
 interface RegisterForm {
-  username: string
+  userID: string
+  nickname: string
   email: string
   password: string
   confirmPassword: string
@@ -52,14 +54,14 @@ export const useAuthStore = defineStore('auth', {
   },
   
   actions: {
-    async login(username: string, password: string) {
+    async login(usernameOrEmail: string, password: string) {
       try {
         this.loading = true
         this.error = null
         
         // 这里应该调用实际的 API 端点
         const response = await axios.post('/auth/login', {
-          username,
+          username: usernameOrEmail, // 为了保持API兼容性，仍然使用username作为参数名称
           password
         })
         

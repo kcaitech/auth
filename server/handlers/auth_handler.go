@@ -6,30 +6,46 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"kcaitech.com/kcauth/server/auth"
+	"kcaitech.com/kcauth/server/middleware"
 )
 
 // AuthHandler 认证处理器
 type AuthHandler struct {
-	accountAuth *auth.AccountAuth
-	googleOAuth *auth.GoogleOAuth
-	weixinLogin *auth.WeixinLogin
-	twoFactor   *auth.TwoFactorAuth
-	jwtService  *auth.JWTService
-	rateLimiter *auth.RateLimiter
-	logger      *log.Logger
+	useAccountAuth bool
+	accountAuth    auth.AccountAuth
+	emailAuth      *auth.EmailAuth
+	googleOAuth    *auth.GoogleOAuth
+	weixinLogin    *auth.WeixinLogin
+	twoFactor      *auth.TwoFactorAuth
+	jwtService     *auth.JWTService
+	// rateLimiter    *middleware.RateLimiter
+	sessionMgr *auth.SessionManager
+	// emailService   *auth.EmailService
+	logger *log.Logger
 }
 
 // NewAuthHandler 创建新的认证处理器
-func NewAuthHandler(accountAuth *auth.AccountAuth, googleOAuth *auth.GoogleOAuth, weixinLogin *auth.WeixinLogin,
-	twoFactor *auth.TwoFactorAuth, jwtService *auth.JWTService, rateLimiter *auth.RateLimiter) *AuthHandler {
+func NewAuthHandler(
+	useAccountAuth bool,
+	accountAuth auth.AccountAuth,
+	emailAuth *auth.EmailAuth,
+	googleOAuth *auth.GoogleOAuth,
+	weixinLogin *auth.WeixinLogin,
+	twoFactor *auth.TwoFactorAuth,
+	jwtService *auth.JWTService,
+	// rateLimiter *middleware.RateLimiter,
+	sessionMgr *auth.SessionManager) *AuthHandler {
 	return &AuthHandler{
-		accountAuth: accountAuth,
-		googleOAuth: googleOAuth,
-		weixinLogin: weixinLogin,
-		twoFactor:   twoFactor,
-		jwtService:  jwtService,
-		rateLimiter: rateLimiter,
-		logger:      log.New(os.Stdout, "[AUTH] ", log.LstdFlags|log.Lshortfile),
+		useAccountAuth: useAccountAuth,
+		accountAuth:    accountAuth,
+		emailAuth:      emailAuth,
+		googleOAuth:    googleOAuth,
+		weixinLogin:    weixinLogin,
+		twoFactor:      twoFactor,
+		jwtService:     jwtService,
+		// rateLimiter:    rateLimiter,
+		sessionMgr: sessionMgr,
+		logger:     log.New(os.Stdout, "[AUTH] ", log.LstdFlags|log.Lshortfile),
 	}
 }
 
@@ -39,24 +55,39 @@ func (h *AuthHandler) RegisterRoutes(r *gin.Engine) {
 	r.Use(auth.ErrorHandler())
 
 	// 添加监控中间件
-	r.Use(auth.MetricsMiddleware())
+	r.Use(middleware.MetricsMiddleware())
 
 	// 添加速率限制中间件（如果启用）
-	if h.rateLimiter != nil {
-		r.Use(h.rateLimiter.RateLimitMiddleware())
-	}
-
+	// if h.rateLimiter != nil {
+	// 	r.Use(h.rateLimiter.RateLimitMiddleware())
+	// }
+	rateLimiter := middleware.RateLimiter{}
+	r.Use(rateLimiter.RateLimitMiddleware())
 	// 认证相关路由组
 	authGroup := r.Group("/auth")
 	{
 		// 账号登录相关路由
-		if h.accountAuth != nil {
+		if h.useAccountAuth {
 			authGroup.POST("/register", h.Register)
+			// authGroup.POST("/register/email", h.RegisterByEmail)
 			authGroup.POST("/login", h.Login)
 			authGroup.POST("/logout", h.AuthRequired(), h.Logout)
-			authGroup.POST("/refresh", h.RefreshToken)
-			authGroup.POST("/password/reset", h.InitiatePasswordReset)
-			authGroup.POST("/password/reset/complete", h.CompletePasswordReset)
+			authGroup.POST("/password/reset", h.ResetPassword)
+			// authGroup.POST("/password/reset/complete", h.CompletePasswordReset)
+			// authGroup.GET("/verify-email", h.VerifyEmail)
+			// authGroup.POST("/resend-verification", h.ResendVerificationEmail)
+		}
+		authGroup.POST("/refresh-session", h.RefreshSession)
+		authGroup.POST("/refresh-token", h.RefreshToken)
+
+		// 邮箱登录相关路由
+		if h.emailAuth != nil {
+			authGroup.POST("/email/login", h.EmailLogin)
+			authGroup.POST("/email/register", h.EmailRegister)
+			authGroup.GET("/email/verify", h.EmailVerify)
+			authGroup.POST("/email/resend-verification", h.ResendEmailVerification)
+			authGroup.POST("/email/password/reset", h.EmailPasswordReset)
+			authGroup.POST("/email/password/reset/complete", h.CompleteEmailPasswordReset)
 		}
 
 		// Google OAuth相关路由

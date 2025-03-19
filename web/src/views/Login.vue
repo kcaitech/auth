@@ -46,12 +46,22 @@
     <form v-else @submit.prevent="handleRegister" class="auth-form">
       <div class="form-item">
         <input 
-          v-model="registerForm.username" 
+          v-model="registerForm.userID" 
           type="text" 
-          placeholder="用户名"
-          :class="{ 'error': registerErrors.username }"
+          placeholder="账号ID"
+          :class="{ 'error': registerErrors.userID }"
         >
-        <span v-if="registerErrors.username" class="error-text">{{ registerErrors.username }}</span>
+        <span v-if="registerErrors.userID" class="error-text">{{ registerErrors.userID }}</span>
+      </div>
+      
+      <div class="form-item">
+        <input 
+          v-model="registerForm.nickname" 
+          type="text" 
+          placeholder="昵称"
+          :class="{ 'error': registerErrors.nickname }"
+        >
+        <span v-if="registerErrors.nickname" class="error-text">{{ registerErrors.nickname }}</span>
       </div>
       
       <div class="form-item">
@@ -119,13 +129,16 @@ import axios from 'axios'
 
 interface FormErrors {
   username?: string
+  userID?: string
+  nickname?: string
   password?: string
   email?: string
   confirmPassword?: string
 }
 
 interface RegisterForm {
-  username: string
+  userID: string
+  nickname: string
   email: string
   password: string
   confirmPassword: string
@@ -140,7 +153,8 @@ const loading = ref(false)
 const errorMessage = ref('')
 
 const registerForm = reactive<RegisterForm>({
-  username: '',
+  userID: '',
+  nickname: '',
   email: '',
   password: '',
   confirmPassword: ''
@@ -252,13 +266,19 @@ const handleRegister = async () => {
 
 const validateRegisterForm = () => {
   let isValid = true
-  registerErrors.username = ''
+  registerErrors.userID = ''
+  registerErrors.nickname = ''
   registerErrors.email = ''
   registerErrors.password = ''
   registerErrors.confirmPassword = ''
 
-  if (!registerForm.username) {
-    registerErrors.username = '请输入用户名'
+  if (!registerForm.userID) {
+    registerErrors.userID = '请输入账号ID'
+    isValid = false
+  }
+
+  if (!registerForm.nickname) {
+    registerErrors.nickname = '请输入昵称'
     isValid = false
   }
 

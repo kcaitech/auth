@@ -3,6 +3,7 @@ package auth
 import (
 	"fmt"
 	"net/http"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -18,6 +19,7 @@ const (
 	ErrCodeNotFound
 	ErrCodeConflict
 	ErrCodeTooManyRequests
+	ErrCodeInvalidInput
 
 	// 认证相关错误码 (2000-2999)
 	ErrCodeInvalidCredentials ErrorCode = 2000 + iota
@@ -32,13 +34,20 @@ const (
 	ErrCodeOAuthFailed
 	ErrCodeInvalidPassword
 	ErrCodeUsernameTaken
-	ErrCodeEmailTaken
 	ErrCodeInvalidUsername
-	ErrCodeInvalidEmail
 	ErrCodeTooManyAttempts
-	
+	ErrCodeEmailNotVerified
+	ErrCodeExpiredToken
+	ErrCodePermissionDenied
+	ErrCodeUserIDTaken  // 用户ID已被占用
+	ErrCodeInvalidLogin // 登录凭证无效
+	ErrCodeUserLocked   // 用户账号已被锁定
+
 	// 第三方登录相关错误码 (3000-3999)
 	ErrCodeInvalidConfig ErrorCode = 3000 + iota
+	ErrCodeEmailTaken              // 邮箱已被占用
+	ErrCodeInvalidEmail
+	ErrCodeUnverifiedEmail
 	ErrCodeInvalidCode
 	ErrCodeAPIRequest
 )
@@ -48,7 +57,7 @@ type AppError struct {
 	Code    ErrorCode `json:"code"`
 	Message string    `json:"message"`
 	Details string    `json:"details,omitempty"`
-	Err     error    `json:"-"`
+	Err     error     `json:"-"`
 }
 
 func (e *AppError) Error() string {
@@ -56,6 +65,11 @@ func (e *AppError) Error() string {
 		return fmt.Sprintf("%s: %v", e.Message, e.Err)
 	}
 	return e.Message
+}
+
+// Unwrap 支持error unwrapping
+func (e *AppError) Unwrap() error {
+	return e.Err
 }
 
 // NewAppError 创建新的应用错误
@@ -216,13 +230,14 @@ func ErrOAuthFailed(details string) error {
 	}
 }
 
-// ErrUsernameTaken 用户名已存在
-func ErrUsernameTaken(details string) error {
-	return &AppError{
-		Code:    ErrCodeUsernameTaken,
-		Message: "Username already taken",
-		Details: details,
-	}
+// ErrUsernameTaken 用户名已被占用错误
+func ErrUsernameTaken(msg string) error {
+	return NewAppError(ErrCodeUsernameTaken, msg, nil)
+}
+
+// ErrUserIDTaken 用户ID已被占用错误
+func ErrUserIDTaken(msg string) error {
+	return NewAppError(ErrCodeUsernameTaken, msg, nil)
 }
 
 // ErrEmailTaken 邮箱已存在
@@ -236,16 +251,130 @@ func ErrEmailTaken(details string) error {
 
 // ErrInvalidConfig 返回无效配置错误
 func ErrInvalidConfig(details string) error {
-	return NewAppError(ErrCodeInvalidConfig, "无效的配置", fmt.Errorf(details))
+	return NewAppError(ErrCodeInvalidConfig, "无效的配置", fmt.Errorf("%s", details))
 }
 
 // ErrInvalidCode 返回无效授权码错误
 func ErrInvalidCode(details string) error {
-	return NewAppError(ErrCodeInvalidCode, "无效的授权码", fmt.Errorf(details))
+	return NewAppError(ErrCodeInvalidCode, "无效的授权码", fmt.Errorf("%s", details))
 }
 
 // ErrAPIRequest 返回API请求错误
 func ErrAPIRequest(details string) error {
-	return NewAppError(ErrCodeAPIRequest, "API请求失败", fmt.Errorf(details))
+	return NewAppError(ErrCodeAPIRequest, "API请求失败", fmt.Errorf("%s", details))
 }
 
+// ErrInvalidInput 返回无效输入错误
+func ErrInvalidInput(details string) error {
+	return &AppError{
+		Code:    ErrCodeInvalidInput,
+		Message: "无效的输入参数",
+		Details: details,
+	}
+}
+
+// ErrEmailNotVerified 返回邮箱未验证错误
+func ErrEmailNotVerified(details string) error {
+	return &AppError{
+		Code:    ErrCodeEmailNotVerified,
+		Message: "邮箱未验证",
+		Details: details,
+	}
+}
+
+var ErrInvalidSession = NewAppError(ErrCodeInvalidSession, "无效的会话", nil)
+
+// 预定义错误变量
+var (
+
+	// ErrInvalidLogin 登录凭证无效
+	ErrInvalidLogin = NewAppError(ErrCodeInvalidLogin, "登录凭证无效", nil)
+
+	// ErrUserLocked 用户账号已被锁定
+	ErrUserLocked = NewAppError(ErrCodeUserLocked, "账号已被锁定，请稍后再试或联系管理员", nil)
+
+	// ErrUnverifiedEmail 邮箱未验证
+	ErrUnverifiedEmail = NewAppError(ErrCodeUnverifiedEmail, "邮箱未验证，请先验证邮箱", nil)
+
+	// ErrExpiredToken 令牌已过期
+	ErrExpiredToken = NewAppError(ErrCodeExpiredToken, "令牌已过期", nil)
+
+	// ErrPermissionDenied 权限不足
+	ErrPermissionDenied = NewAppError(ErrCodePermissionDenied, "权限不足", nil)
+
+	// ErrServerError 服务器错误
+	// ErrServerError = NewAppError(ErrCodeServerError, "服务器内部错误", nil)
+)
+
+// 常用错误构造函数 - 保持向后兼容
+// 注意：这些函数将在未来版本中被移除，请使用预定义的错误变量
+
+// ErrInvalidInput 输入数据无效错误
+func NewInvalidInputError(details string) error {
+	return NewAppError(ErrCodeInvalidInput, details, nil)
+}
+
+// ErrWeakPassword 密码强度不足错误
+func NewWeakPasswordError(details string) error {
+	return NewAppError(ErrCodeWeakPassword, details, nil)
+}
+
+// ErrUsernameTaken 用户名已被占用错误
+func NewUsernameTakenError(details string) error {
+	return NewAppError(ErrCodeUsernameTaken, details, nil)
+}
+
+// ErrUserIDTaken 用户ID已被占用错误
+func NewUserIDTakenError(details string) error {
+	return NewAppError(ErrCodeUserIDTaken, details, nil)
+}
+
+// ErrEmailTaken 邮箱已被占用错误
+func NewEmailTakenError(details string) error {
+	return NewAppError(ErrCodeEmailTaken, details, nil)
+}
+
+// ErrUserNotFound 用户不存在错误
+func NewUserNotFoundError(details string) error {
+	return NewAppError(ErrCodeUserNotFound, details, nil)
+}
+
+// ErrInvalidLogin 登录凭证无效错误
+func NewInvalidLoginError(details string) error {
+	return NewAppError(ErrCodeInvalidLogin, details, nil)
+}
+
+// ErrUserLocked 用户账号已被锁定错误
+func NewUserLockedError(details string) error {
+	return NewAppError(ErrCodeUserLocked, details, nil)
+}
+
+// ErrUnverifiedEmail 邮箱未验证错误
+func NewUnverifiedEmailError(details string) error {
+	return NewAppError(ErrCodeUnverifiedEmail, details, nil)
+}
+
+// ErrInvalidToken 令牌无效错误
+func NewInvalidTokenError(details string) error {
+	return NewAppError(ErrCodeInvalidToken, details, nil)
+}
+
+// ErrExpiredToken 令牌已过期错误
+func NewExpiredTokenError(details string) error {
+	return NewAppError(ErrCodeExpiredToken, details, nil)
+}
+
+// ErrPermissionDenied 权限不足错误
+func NewPermissionDeniedError(details string) error {
+	return NewAppError(ErrCodePermissionDenied, details, nil)
+}
+
+// ErrDuplicateUser 用户已存在错误
+func NewDuplicateUserError(details string) error {
+	return NewAppError(ErrCodeDuplicateUser, details, nil)
+}
+
+// ErrServerError 服务器错误
+// func NewServerError(details string, err error) error {
+// 	return NewAppError(ErrCodeServerError, details, err)
+// }

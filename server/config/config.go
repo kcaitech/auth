@@ -18,18 +18,19 @@ type Config struct {
 
 // ServerConfig 服务器配置
 type ServerConfig struct {
-	Port         int           `json:"port"`
-	ReadTimeout  time.Duration `json:"read_timeout"`
-	WriteTimeout time.Duration `json:"write_timeout"`
+	Port         int    `json:"port"`
+	ReadTimeout  string `json:"read_timeout"`  // 使用字符串格式如 "15s", "5m"
+	WriteTimeout string `json:"write_timeout"` // 使用字符串格式如 "15s", "5m"
 }
 
 // AuthConfig 认证配置
 type AuthConfig struct {
-	EnabledProviders []string `json:"enabled_providers"` // "account", "google", "weixin"
+	EnabledProviders []string `json:"enabled_providers"` // "account", "email", "google", "weixin"
 	// JWT             JWTConfig      `json:"jwt"`
 	Google    GoogleConfig    `json:"google"`
 	Weixin    WeixinConfig    `json:"weixin"`
 	TwoFactor TwoFactorConfig `json:"two_factor"`
+	Smtp      SmtpConfig      `json:"smtp"`
 }
 
 // JWTConfig JWT配置
@@ -100,6 +101,16 @@ type RedisConfig struct {
 	DB       int    `json:"db"`
 }
 
+// SmtpConfig 邮件配置
+type SmtpConfig struct {
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	From     string `json:"from"`
+	BaseURL  string `json:"base_url"` // 用于生成验证链接
+}
+
 // LoadConfig 从文件加载配置
 func LoadConfig(path string) (*Config, error) {
 	file, err := os.ReadFile(path)
@@ -123,4 +134,14 @@ func (dc *DatabaseConfig) GetDSN() string {
 // GetRedisAddr 获取Redis连接地址
 func (rc *RedisConfig) GetRedisAddr() string {
 	return rc.Host + ":" + fmt.Sprintf("%d", rc.Port)
+}
+
+// GetReadTimeout 将字符串格式的读取超时转换为time.Duration
+func (sc *ServerConfig) GetReadTimeout() (time.Duration, error) {
+	return time.ParseDuration(sc.ReadTimeout)
+}
+
+// GetWriteTimeout 将字符串格式的写入超时转换为time.Duration
+func (sc *ServerConfig) GetWriteTimeout() (time.Duration, error) {
+	return time.ParseDuration(sc.WriteTimeout)
 }

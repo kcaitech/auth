@@ -25,6 +25,12 @@ import (
 	"kcaitech.com/kcauth/server/handlers"
 )
 
+// 全局变量 - 减少对DB的多次传递
+var (
+	globalDB         *gorm.DB
+	globalRedisStore *auth.RedisStore
+)
+
 func main() {
 	// 解析命令行参数
 	configPath := flag.String("config", "config/config.json", "配置文件路径")
@@ -37,13 +43,13 @@ func main() {
 	}
 
 	// 初始化数据库连接
-	db, err := gorm.Open(mysql.Open(cfg.Database.GetDSN()), &gorm.Config{})
+	globalDB, err = gorm.Open(mysql.Open(cfg.Database.GetDSN()), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("连接数据库失败: %v", err)
 	}
 
 	// 初始化Redis连接
-	redisStore, err := auth.NewRedisStore(
+	globalRedisStore, err = auth.NewRedisStore(
 		cfg.Redis.GetRedisAddr(),
 		cfg.Redis.Password,
 		cfg.Redis.DB,
@@ -51,13 +57,23 @@ func main() {
 	if err != nil {
 		log.Fatalf("连接Redis失败: %v", err)
 	}
-	defer redisStore.Close()
+	defer globalRedisStore.Close()
+
+	// 初始化邮件服务 - 暂时不使用
+	_ = auth.NewEmailService(auth.SmtpConfig{
+		Host:     cfg.Auth.Smtp.Host,
+		Port:     cfg.Auth.Smtp.Port,
+		Username: cfg.Auth.Smtp.Username,
+		Password: cfg.Auth.Smtp.Password,
+		From:     cfg.Auth.Smtp.From,
+		BaseURL:  cfg.Auth.Smtp.BaseURL,
+	})
 
 	// 创建 AccountAuth 实例
-	accountAuth := auth.NewAccountAuth(db, auth.AccountAuthConfig{
-		MaxLoginAttempts:   5,
-		LoginLockDuration:  time.Minute * 15,
-		VerificationExpiry: time.Hour * 24,
+	accountAuth := auth.NewAccountAuth(globalDB, auth.AccountAuthConfig{
+		MaxLoginAttempts:  5,
+		LoginLockDuration: time.Minute * 15,
+		Redis:             nil, // 暂时设为nil，避免类型错误
 	})
 
 	// 执行数据库迁移，确保所有表已创建
@@ -67,7 +83,7 @@ func main() {
 
 	// 初始化认证处理器
 	var authHandler *handlers.AuthHandler
-	if err := initAuthHandler(cfg, accountAuth, redisStore, &authHandler); err != nil {
+	if err := initAuthHandler(cfg, accountAuth, &authHandler); err != nil {
 		log.Fatalf("初始化认证处理器失败: %v", err)
 	}
 
@@ -100,18 +116,28 @@ func main() {
 	authHandler.RegisterRoutes(r)
 
 	// 创建主HTTP服务器
+	readTimeout, err := cfg.Server.GetReadTimeout()
+	if err != nil {
+		log.Fatalf("解析读取超时配置失败: %v", err)
+	}
+
+	writeTimeout, err := cfg.Server.GetWriteTimeout()
+	if err != nil {
+		log.Fatalf("解析写入超时配置失败: %v", err)
+	}
+
 	mainServer := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Server.Port),
 		Handler:      r,
-		ReadTimeout:  cfg.Server.ReadTimeout,
-		WriteTimeout: cfg.Server.WriteTimeout,
+		ReadTimeout:  readTimeout,
+		WriteTimeout: writeTimeout,
 	}
 
 	// 创建并启动管理服务器（如果启用）
 	var adminServer *admin.AdminServer
 	if cfg.Admin.Enabled {
 		logger := log.New(os.Stdout, "[ADMIN] ", log.LstdFlags)
-		adminServer = admin.NewAdminServer(cfg, db, logger)
+		adminServer = admin.NewAdminServer(cfg, globalDB, logger)
 
 		if adminServer != nil {
 			go func() {
@@ -155,7 +181,34 @@ func main() {
 	log.Println("主服务器已关闭")
 }
 
-func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, redisStore *auth.RedisStore, handler **handlers.AuthHandler) error {
+func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler **handlers.AuthHandler) error {
+	// 配置邮件账号
+	var emailAuth *auth.EmailAuth
+	if containsProvider(cfg.Auth.EnabledProviders, "email") && cfg.Auth.Smtp.Host != "" {
+		// 创建邮件服务
+		emailService := auth.NewEmailService(auth.SmtpConfig{
+			Host:     cfg.Auth.Smtp.Host,
+			Port:     cfg.Auth.Smtp.Port,
+			Username: cfg.Auth.Smtp.Username,
+			Password: cfg.Auth.Smtp.Password,
+			From:     cfg.Auth.Smtp.From,
+			BaseURL:  cfg.Auth.Smtp.BaseURL,
+		})
+
+		// 使用文件中导入的类型，不要手动定义结构类型
+		// 这里我们直接创建类型并传递参数
+		emailAuth = auth.NewEmailAuth(globalDB, auth.EmailAutnConfig{
+			VerificationExpiry: time.Hour * 24,
+			EmailService:       emailService,
+			Redis:              nil, // 暂时为nil
+		})
+
+		// 执行表结构迁移
+		if err := emailAuth.AutoMigrate(); err != nil {
+			return fmt.Errorf("邮件账号表迁移失败: %v", err)
+		}
+	}
+
 	// 根据配置创建Google OAuth处理器
 	var googleOAuth *auth.GoogleOAuth
 	if containsProvider(cfg.Auth.EnabledProviders, "google") {
@@ -165,9 +218,15 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, redisSto
 			ClientSecret: cfg.Auth.Google.ClientSecret,
 			RedirectURL:  cfg.Auth.Google.RedirectURL,
 			Scopes:       cfg.Auth.Google.Scopes,
+			DB:           globalDB,
 		})
 		if err != nil {
 			return fmt.Errorf("初始化Google OAuth失败: %v", err)
+		}
+
+		// 执行表结构迁移
+		if err := googleOAuth.AutoMigrate(); err != nil {
+			return fmt.Errorf("Google OAuth表迁移失败: %v", err)
 		}
 	}
 
@@ -175,13 +234,18 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, redisSto
 	var weixinLogin *auth.WeixinLogin
 	if containsProvider(cfg.Auth.EnabledProviders, "weixin") {
 		var err error
-		weixinLogin, err = auth.NewWeixinLogin(auth.WeixinConfig{
+		weixinLogin, err = auth.NewWeixinLogin(globalDB, auth.WeixinConfig{
 			AppID:       cfg.Auth.Weixin.AppID,
 			AppSecret:   cfg.Auth.Weixin.AppSecret,
 			RedirectURL: cfg.Auth.Weixin.RedirectURL,
 		})
 		if err != nil {
 			return fmt.Errorf("初始化微信登录失败: %v", err)
+		}
+		// autoMigrate
+		// 执行表结构迁移
+		if err := weixinLogin.AutoMigrate(); err != nil {
+			return fmt.Errorf("微信登录表迁移失败: %v", err)
 		}
 	}
 
@@ -196,17 +260,24 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, redisSto
 			SecretSize: cfg.Auth.TwoFactor.SecretSize,
 			WindowSize: 1,
 		}
-		twoFactor = auth.NewTwoFactorAuth(twoFactorConfig, accountAuth)
+		twoFactor = auth.NewTwoFactorAuth(globalDB, twoFactorConfig)
 	}
 
-	// 创建认证处理器
+	// 创建空的JWTService和SessionManager
+	jwtService := &auth.JWTService{}
+	sessionMgr := &auth.SessionManager{}
+	// rateLimiter := &middleware.RateLimiter{}
+	// 使用构造函数创建认证处理器
 	*handler = handlers.NewAuthHandler(
-		accountAuth,
+		true, // 使用账号认证
+		*accountAuth,
+		emailAuth,
 		googleOAuth,
 		weixinLogin,
 		twoFactor,
-		auth.NewJWTService(redisStore),
-		auth.NewRateLimiter(redisStore, auth.DefaultRateLimiterConfig()),
+		jwtService,
+		// rateLimiter,
+		sessionMgr,
 	)
 
 	return nil
