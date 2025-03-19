@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -64,21 +63,21 @@ func (s *SessionManager) RefreshSession(sessionID string, duration time.Duration
 }
 
 // 生成会话ID
-func (s *SessionManager) GenerateSessionID() (string, error) {
-	b := make([]byte, 32)
-	_, err := rand.Read(b)
-	if err != nil {
-		return "", fmt.Errorf("生成随机字节失败: %w", err)
-	}
+// func (s *SessionManager) GenerateSessionID() (string, error) {
+// 	b := make([]byte, 32)
+// 	_, err := rand.Read(b)
+// 	if err != nil {
+// 		return "", fmt.Errorf("生成随机字节失败: %w", err)
+// 	}
 
-	// 使用62进制编码（数字+大小写字母）来缩短ID长度
-	return Base62Encode(b), nil
-}
+// 	// 使用62进制编码（数字+大小写字母）来缩短ID长度
+// 	return Base62Encode(b), nil
+// }
 
 // 创建新的用户会话
 func (s *SessionManager) CreateUserSession(userID string, ip, userAgent string, duration time.Duration) (*Session, error) {
 	// 生成会话ID
-	sessionID, err := s.GenerateSessionID()
+	sessionID, err := GenerateBase62ID()
 	if err != nil {
 		return nil, err
 	}

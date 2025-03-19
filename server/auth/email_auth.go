@@ -258,15 +258,15 @@ func (a *EmailAuth) CheckDuplicateEmail(email string) error {
 }
 
 // RegisterEmailUser 邮箱用户注册
-func (a *EmailAuth) RegisterEmailUser(email, password, nickname string) (string, error) {
+func (a *EmailAuth) RegisterEmailUser(email, password, nickname string) (*User, error) {
 	// 邮箱必须提供
 	if email == "" {
-		return "", ErrInvalidInput("必须提供有效邮箱")
+		return nil, ErrInvalidInput("必须提供有效邮箱")
 	}
 
 	// 检查邮箱是否重复
 	if err := a.CheckDuplicateEmail(email); err != nil {
-		return "", err
+		return nil, err
 	}
 
 	// 生成随机UserID
@@ -294,19 +294,19 @@ func (a *EmailAuth) RegisterEmailUser(email, password, nickname string) (string,
 
 	// 验证密码强度
 	if err := a.ValidatePassword(password); err != nil {
-		return "", err
+		return nil, err
 	}
 
 	// 加密密码
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return "", fmt.Errorf("密码加密失败: %v", err)
+		return nil, fmt.Errorf("密码加密失败: %v", err)
 	}
 
 	// 开始事务
 	tx := a.db.Begin()
 	if tx.Error != nil {
-		return "", tx.Error
+		return nil, tx.Error
 	}
 	defer func() {
 		if r := recover(); r != nil {
@@ -330,7 +330,7 @@ func (a *EmailAuth) RegisterEmailUser(email, password, nickname string) (string,
 
 	if err := tx.Create(user).Error; err != nil {
 		tx.Rollback()
-		return "", fmt.Errorf("创建用户失败: %v", err)
+		return nil, fmt.Errorf("创建用户失败: %v", err)
 	}
 
 	// 创建邮箱用户关联记录
@@ -344,12 +344,12 @@ func (a *EmailAuth) RegisterEmailUser(email, password, nickname string) (string,
 
 	if err := tx.Create(emailUser).Error; err != nil {
 		tx.Rollback()
-		return "", fmt.Errorf("创建邮箱用户关联失败: %v", err)
+		return nil, fmt.Errorf("创建邮箱用户关联失败: %v", err)
 	}
 
 	// 提交事务
 	if err := tx.Commit().Error; err != nil {
-		return "", fmt.Errorf("保存数据失败: %v", err)
+		return nil, fmt.Errorf("保存数据失败: %v", err)
 	}
 
 	// 发送验证邮件
@@ -358,7 +358,7 @@ func (a *EmailAuth) RegisterEmailUser(email, password, nickname string) (string,
 		fmt.Printf("发送验证邮件失败: %v\n", err)
 	}
 
-	return userID, nil
+	return user, nil
 }
 
 // ValidatePassword 验证密码强度

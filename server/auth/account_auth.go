@@ -136,10 +136,7 @@ func (a *AccountAuth) CheckLoginAttempts(userID string, ip string) error {
 
 // Login 用户登录
 func (a *AccountAuth) Login(userID string, password string) (*User, error) {
-	var user User
-
-	// 尝试使用userID或邮箱登录
-	err := a.db.Where("user_id = ?", userID).First(&user).Error
+	user, err := a.GetUserByID(userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrInvalidPassword("无效的账号密码")
@@ -158,8 +155,20 @@ func (a *AccountAuth) Login(userID string, password string) (*User, error) {
 		return nil, err
 	}
 
-	return &user, nil
+	return user, nil
 }
+
+// VerifyPassword 验证密码
+// func (a *AccountAuth) VerifyPassword(userID string, password string) error {
+// 	user, err := a.GetUserByID(userID)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+// 		return ErrInvalidPassword("无效的账号密码")
+// 	}
+// 	return nil
+// }
 
 // CreateUser 创建新用户
 func (a *AccountAuth) CreateUser(user *User) error {

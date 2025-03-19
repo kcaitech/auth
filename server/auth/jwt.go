@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"crypto/rand"
 	"fmt"
 	"time"
 
@@ -71,15 +70,15 @@ func (s *JWTService) getKeyID(userID string, sessionID string, tokenType string)
 }
 
 // generateSecretKey 生成密钥
-func (s *JWTService) generateSecretKey() (string, error) {
-	b := make([]byte, 32)
-	_, err := rand.Read(b)
-	if err != nil {
-		return "", fmt.Errorf("生成随机字节失败: %w", err)
-	}
-	// 使用62进制编码（数字+大小写字母）来缩短ID长度
-	return Base62Encode(b), nil
-}
+// func (s *JWTService) generateSecretKey() (string, error) {
+// 	b := make([]byte, 32)
+// 	_, err := rand.Read(b)
+// 	if err != nil {
+// 		return "", fmt.Errorf("生成随机字节失败: %w", err)
+// 	}
+// 	// 使用62进制编码（数字+大小写字母）来缩短ID长度
+// 	return Base62Encode(b), nil
+// }
 
 // storeKey 将密钥存储到Redis
 func (s *JWTService) storeKey(keyID string, key string, ttl time.Duration) error {
@@ -107,7 +106,7 @@ func (s *JWTService) getKey(keyID string) (string, error) {
 func (s *JWTService) generateToken(userID string, sessionID, tokenType string, expiration time.Duration) (string, string, error) {
 	// 生成新的密钥ID和密钥
 	keyID := s.getKeyID(userID, sessionID, tokenType)
-	secretKey, err := s.generateSecretKey()
+	secretKey, err := GenerateBase62ID()
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate secret key: %w", err)
 	}

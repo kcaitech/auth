@@ -20,6 +20,7 @@ type AuthHandler struct {
 	jwtService     *auth.JWTService
 	// rateLimiter    *middleware.RateLimiter
 	sessionMgr *auth.SessionManager
+	redisStore *auth.RedisStore
 	// emailService   *auth.EmailService
 	logger *log.Logger
 }
@@ -34,7 +35,8 @@ func NewAuthHandler(
 	twoFactor *auth.TwoFactorAuth,
 	jwtService *auth.JWTService,
 	// rateLimiter *middleware.RateLimiter,
-	sessionMgr *auth.SessionManager) *AuthHandler {
+	sessionMgr *auth.SessionManager,
+	redisStore *auth.RedisStore) *AuthHandler {
 	return &AuthHandler{
 		useAccountAuth: useAccountAuth,
 		accountAuth:    accountAuth,
@@ -45,6 +47,7 @@ func NewAuthHandler(
 		jwtService:     jwtService,
 		// rateLimiter:    rateLimiter,
 		sessionMgr: sessionMgr,
+		redisStore: redisStore,
 		logger:     log.New(os.Stdout, "[AUTH] ", log.LstdFlags|log.Lshortfile),
 	}
 }

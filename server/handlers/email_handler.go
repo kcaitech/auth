@@ -2,9 +2,9 @@ package handlers
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
+	"kcaitech.com/kcauth/server/auth"
 )
 
 // EmailLogin 邮箱登录
@@ -38,19 +38,25 @@ func (h *AuthHandler) EmailLogin(c *gin.Context) {
 	// 记录成功的登录尝试
 	h.accountAuth.RecordLoginAttempt(req.Email, clientIP, true)
 
-	// 创建用户会话
-	session, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), time.Hour*24*7)
+	// 创建会话
+	session, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), auth.RefreshTokenExpiration)
 	if err != nil {
-		h.logger.Printf("创建会话失败: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建会话失败"})
 		return
 	}
 
+	tokenPair, err := h.jwtService.GenerateTokenPair(user.UserID, session.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成令牌失败"})
+		return
+	}
+
+	c.SetCookie("refreshToken", tokenPair.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
 	c.JSON(http.StatusOK, gin.H{
 		"user_id":     user.UserID,
-		"session_id":  session.ID,
+		"token":       tokenPair.AccessToken,
 		"profile":     user.Profile,
-		"expire_time": session.ExpiresAt,
+		"expire_time": auth.TokenExpiration,
 	})
 }
 
@@ -68,15 +74,32 @@ func (h *AuthHandler) EmailRegister(c *gin.Context) {
 	}
 
 	// 注册邮箱用户
-	userID, err := h.emailAuth.RegisterEmailUser(req.Email, req.Password, req.Nickname)
+	user, err := h.emailAuth.RegisterEmailUser(req.Email, req.Password, req.Nickname)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
+	// 创建会话
+	clientIP := c.ClientIP()
+	session, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), auth.RefreshTokenExpiration)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建会话失败"})
+		return
+	}
+
+	tokenPair, err := h.jwtService.GenerateTokenPair(user.UserID, session.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成令牌失败"})
+		return
+	}
+
+	c.SetCookie("refreshToken", tokenPair.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
 	c.JSON(http.StatusOK, gin.H{
-		"user_id": userID,
-		"message": "注册成功，请查收验证邮件",
+		"user_id":     user.UserID,
+		"token":       tokenPair.AccessToken,
+		"profile":     user.Profile,
+		"expire_time": auth.TokenExpiration,
 	})
 }
 

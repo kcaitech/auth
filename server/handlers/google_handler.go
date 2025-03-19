@@ -4,9 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"time"
 
-	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions" // todo 不对的。不一定回调回当前服务实例中。需要存到redis中。
 	"github.com/gin-gonic/gin"
 	"kcaitech.com/kcauth/server/auth"
 )
@@ -43,39 +42,44 @@ func (h *AuthHandler) GoogleLoginPost(c *gin.Context) {
 
 	// 创建会话
 	clientIP := c.ClientIP()
-	userAgent := c.Request.UserAgent()
-	appSession, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, userAgent, time.Hour*24*7) // 7天过期
+	session, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), auth.RefreshTokenExpiration)
 	if err != nil {
-		h.logger.Printf("创建会话失败: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建会话失败"})
 		return
 	}
 
-	// 返回用户和会话信息
+	tokenPair, err := h.jwtService.GenerateTokenPair(user.UserID, session.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成令牌失败"})
+		return
+	}
+
+	c.SetCookie("refreshToken", tokenPair.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
 	c.JSON(http.StatusOK, gin.H{
-		"user":       user,
-		"session_id": appSession.ID,
-		"expires_at": appSession.ExpiresAt,
+		"user_id":     user.UserID,
+		"token":       tokenPair.AccessToken,
+		"profile":     user.Profile,
+		"expire_time": auth.TokenExpiration,
 	})
 }
 
 // GoogleLogout 谷歌登出
-func (h *AuthHandler) GoogleLogout(c *gin.Context) {
-	// 获取会话ID
-	sessionID := c.GetHeader("Session-ID")
-	if sessionID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "未提供会话ID"})
-		return
-	}
+// func (h *AuthHandler) GoogleLogout(c *gin.Context) {
+// 	// 获取会话ID
+// 	sessionID := c.GetHeader("Session-ID")
+// 	if sessionID == "" {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "未提供会话ID"})
+// 		return
+// 	}
 
-	// 删除会话
-	if err := h.sessionMgr.DeleteSession(sessionID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "登出失败"})
-		return
-	}
+// 	// 删除会话
+// 	if err := h.sessionMgr.DeleteSession(sessionID); err != nil {
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "登出失败"})
+// 		return
+// 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "登出成功"})
-}
+// 	c.JSON(http.StatusOK, gin.H{"message": "登出成功"})
+// }
 
 // GoogleLogin 处理Google登录
 func (h *AuthHandler) GoogleLogin(c *gin.Context) {
@@ -144,27 +148,34 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 
 	// 创建会话
 	clientIP := c.ClientIP()
-	userAgent := c.Request.UserAgent()
-	appSession, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, userAgent, time.Hour*24*7) // 7天过期
+	session1, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), auth.RefreshTokenExpiration)
 	if err != nil {
-		h.logger.Printf("创建会话失败: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建会话失败"})
+		return
+	}
+
+	tokenPair, err := h.jwtService.GenerateTokenPair(user.UserID, session1.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成令牌失败"})
 		return
 	}
 
 	// 返回用户和会话信息，或重定向到前端应用
 	if redirectURL := c.Query("redirect"); redirectURL != "" {
-		// 重定向到前端，带上会话ID参数
-		redirectWithSession := redirectURL + "?session_id=" + appSession.ID
-		c.Redirect(http.StatusTemporaryRedirect, redirectWithSession)
+		// 重定向到前端，带上token参数
+		redirectWithToken := redirectURL + "?token=" + tokenPair.AccessToken
+		c.SetCookie("refreshToken", tokenPair.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
+		c.Redirect(http.StatusTemporaryRedirect, redirectWithToken)
 		return
 	}
 
 	// 直接返回JSON响应
+	c.SetCookie("refreshToken", tokenPair.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
 	c.JSON(http.StatusOK, gin.H{
-		"user":       user,
-		"session_id": appSession.ID,
-		"expires_at": appSession.ExpiresAt,
+		"user_id":     user.UserID,
+		"token":       tokenPair.AccessToken,
+		"profile":     user.Profile,
+		"expire_time": auth.TokenExpiration,
 	})
 }
 

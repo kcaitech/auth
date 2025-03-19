@@ -279,6 +279,7 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 		jwtService,
 		// rateLimiter,
 		sessionMgr,
+		globalRedisStore,
 	)
 
 	return nil

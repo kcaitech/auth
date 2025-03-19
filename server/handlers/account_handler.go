@@ -228,8 +228,8 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 // ResetPassword 重置密码
 func (h *AuthHandler) ResetPassword(c *gin.Context) {
 	var req struct {
-		Token    string `json:"token" binding:"required"`
-		Password string `json:"password" binding:"required"`
+		OldPassword string `json:"old_password" binding:"required"`
+		NewPassword string `json:"new_password" binding:"required,min=6,max=32"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -237,17 +237,25 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 		return
 	}
 
-	// 这里需要实现完成密码重置的逻辑
-	// if h.emailAuth != nil {
-	//     if err := h.emailAuth.CompletePasswordReset(req.Token, req.Password); err != nil {
-	//         c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-	//         return
-	//     }
-	//     c.JSON(http.StatusOK, gin.H{"message": "密码重置成功"})
-	//     return
-	// }
+	refreshToken, err := c.Cookie("refreshToken")
+	if err != nil || refreshToken == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "未提供刷新令牌"})
+		return
+	}
+	
+	claims, err := h.jwtService.ValidateJWT(refreshToken)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的刷新令牌"})
+		return
+	}
 
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "密码重置功能尚未实现"})
+	if err := h.accountAuth.ChangePassword(claims.UserID, req.OldPassword, req.NewPassword); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "密码修改成功"})
+
 }
 
 // GetUserInfo 获取用户信息

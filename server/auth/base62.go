@@ -1,6 +1,10 @@
 package auth
 
-import "math/big"
+import (
+	"crypto/rand"
+	"fmt"
+	"math/big"
+)
 
 // 62进制字符集（0-9, a-z, A-Z）
 const base62Chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -38,4 +42,14 @@ func Base62Encode(data []byte) string {
 	}
 
 	return string(result)
+}
+
+func GenerateBase62ID() (string, error) {
+	b := make([]byte, 32)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", fmt.Errorf("生成随机字节失败: %w", err)
+	}
+	// 使用62进制编码（数字+大小写字母）来缩短ID长度
+	return Base62Encode(b), nil
 }
