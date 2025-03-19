@@ -1,7 +1,7 @@
 <template>
   <div class="dashboard-container">
     <header class="dashboard-header">
-      <h1>欢迎回来，{{ user?.username || '用户' }}</h1>
+      <h1>欢迎回来，{{ user?.nickname || '用户' }}</h1>
       <button @click="logout" class="logout-btn">退出登录</button>
     </header>
     

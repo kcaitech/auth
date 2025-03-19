@@ -22,8 +22,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	var req struct {
 		Username string `json:"username" binding:"required"`
 		Password string `json:"password" binding:"required"`
-		Email    string `json:"email"`
-		Nickname string `json:"nickname"`
+		// Email    string `json:"email"`
+		// Nickname string `json:"nickname"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -36,9 +36,9 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		UserID:   req.Username,
 		Password: req.Password,
 		Status:   auth.UserStatusActive,
-		Profile: auth.UserProfile{
-			Nickname: req.Nickname,
-		},
+		// Profile:  auth.UserProfile{
+		// Nickname: req.Nickname,
+		// },
 	}
 
 	if err := h.accountAuth.CreateUser(user); err != nil {

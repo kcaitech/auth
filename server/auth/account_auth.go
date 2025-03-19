@@ -55,7 +55,7 @@ type User struct { // 系统自动生成的ID
 	Profile       UserProfile `json:"profile" gorm:"embedded"`
 	LastLogin     *time.Time  `json:"last_login"`
 	LoginAttempts int         `json:"login_attempts" gorm:"default:0"`
-	LastAttempt   time.Time   `json:"last_attempt"`
+	LastAttempt   *time.Time  `json:"last_attempt"`
 	CreatedAt     time.Time   `json:"created_at"`
 	UpdatedAt     time.Time   `json:"updated_at"`
 }
@@ -183,6 +183,7 @@ func (a *AccountAuth) CreateUser(user *User) error {
 	now := time.Now()
 	user.CreatedAt = now
 	user.UpdatedAt = now
+	// user.LastAttempt = now
 
 	return a.db.Create(user).Error
 }
@@ -280,12 +281,12 @@ func (a *AccountAuth) Register(userID string, password string) error {
 
 	now := time.Now()
 	user := &User{
-		UserID:      userID,
-		Password:    string(hashedPassword),
-		Status:      UserStatusActive,
-		LastAttempt: now,
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		UserID:   userID,
+		Password: string(hashedPassword),
+		Status:   UserStatusActive,
+		// LastAttempt: now,
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 
 	if err := a.db.Create(user).Error; err != nil {

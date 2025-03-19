@@ -340,9 +340,9 @@ func (w *WeixinLogin) CreateUserFromWeixin(weixinInfo *WeixinUserInfo) (*User, e
 			Gender:   gender,
 			Location: fmt.Sprintf("%s %s %s", weixinInfo.Country, weixinInfo.Province, weixinInfo.City),
 		},
-		LastAttempt: now,
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		// LastAttempt: now,
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 
 	if err := tx.Create(user).Error; err != nil {

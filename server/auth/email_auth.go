@@ -323,9 +323,9 @@ func (a *EmailAuth) RegisterEmailUser(email, password, nickname string) (string,
 		Profile: UserProfile{
 			Nickname: nickname,
 		},
-		LastAttempt: now,
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		// LastAttempt: now,
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 
 	if err := tx.Create(user).Error; err != nil {

@@ -73,7 +73,7 @@ func main() {
 	accountAuth := auth.NewAccountAuth(globalDB, auth.AccountAuthConfig{
 		MaxLoginAttempts:  5,
 		LoginLockDuration: time.Minute * 15,
-		Redis:             nil, // 暂时设为nil，避免类型错误
+		Redis:             auth.NewAccountRedisStore(globalRedisStore.GetClient()), // 暂时设为nil，避免类型错误
 	})
 
 	// 执行数据库迁移，确保所有表已创建
@@ -200,7 +200,7 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 		emailAuth = auth.NewEmailAuth(globalDB, auth.EmailAutnConfig{
 			VerificationExpiry: time.Hour * 24,
 			EmailService:       emailService,
-			Redis:              nil, // 暂时为nil
+			Redis:              auth.NewAccountRedisStore(globalRedisStore.GetClient()), // 暂时为nil
 		})
 
 		// 执行表结构迁移
@@ -226,7 +226,7 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 
 		// 执行表结构迁移
 		if err := googleOAuth.AutoMigrate(); err != nil {
-			return fmt.Errorf("Google OAuth表迁移失败: %v", err)
+			return fmt.Errorf("google OAuth表迁移失败: %v", err)
 		}
 	}
 
@@ -264,12 +264,12 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 	}
 
 	// 创建空的JWTService和SessionManager
-	jwtService := &auth.JWTService{}
-	sessionMgr := &auth.SessionManager{}
+	jwtService := auth.NewJWTService(globalRedisStore)
+	sessionMgr := auth.NewSessionManager(auth.NewSessionRedisStore(globalRedisStore.GetClient()))
 	// rateLimiter := &middleware.RateLimiter{}
 	// 使用构造函数创建认证处理器
 	*handler = handlers.NewAuthHandler(
-		true, // 使用账号认证
+		containsProvider(cfg.Auth.EnabledProviders, "account"), // 使用账号认证
 		*accountAuth,
 		emailAuth,
 		googleOAuth,

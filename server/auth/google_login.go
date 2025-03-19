@@ -360,9 +360,9 @@ func (g *GoogleOAuth) CreateUserFromGoogle(googleInfo *GoogleUserInfo) (*User, e
 			Nickname: nickname,
 			Avatar:   googleInfo.Picture,
 		},
-		LastAttempt: now,
-		CreatedAt:   now,
-		UpdatedAt:   now,
+		// LastAttempt: now,
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 
 	if err := tx.Create(user).Error; err != nil {

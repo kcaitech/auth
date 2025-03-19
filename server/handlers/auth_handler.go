@@ -66,6 +66,9 @@ func (h *AuthHandler) RegisterRoutes(r *gin.Engine) {
 	// 认证相关路由组
 	authGroup := r.Group("/auth")
 	{
+		// 获取支持的登录方式
+		authGroup.GET("/providers", h.GetSupportedProviders)
+
 		// 账号登录相关路由
 		if h.useAccountAuth {
 			authGroup.POST("/register", h.Register)
@@ -116,4 +119,33 @@ func (h *AuthHandler) RegisterRoutes(r *gin.Engine) {
 		authGroup.GET("/user", h.AuthRequired(), h.GetUserInfo)
 		authGroup.PUT("/user", h.AuthRequired(), h.UpdateUserInfo)
 	}
+}
+
+// GetSupportedProviders 获取支持的登录方式
+func (h *AuthHandler) GetSupportedProviders(c *gin.Context) {
+	providers := []string{}
+
+	// 添加账号登录方式
+	if h.useAccountAuth {
+		providers = append(providers, "account")
+	}
+
+	// 添加邮箱登录方式
+	if h.emailAuth != nil {
+		providers = append(providers, "email")
+	}
+
+	// 添加Google登录方式
+	if h.googleOAuth != nil {
+		providers = append(providers, "google")
+	}
+
+	// 添加微信登录方式
+	if h.weixinLogin != nil {
+		providers = append(providers, "weixin")
+	}
+
+	c.JSON(200, gin.H{
+		"providers": providers,
+	})
 }

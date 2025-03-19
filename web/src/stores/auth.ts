@@ -32,28 +32,55 @@ interface User {
   email: string
 }
 
-interface RegisterForm {
-  userID: string
-  nickname: string
-  email: string
+// interface RegisterForm {
+//   userID: string
+//   nickname: string
+//   email: string
+//   password: string
+//   confirmPassword: string
+// }
+
+interface AccountRegisterForm {
+  username: string
+  // nickname: string
   password: string
   confirmPassword: string
 }
+
+// 登录提供者
+export type AuthProvider = 'account' | 'email' | 'google' | 'weixin'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null as User | null,
     token: localStorage.getItem('token') || '',
     loading: false,
-    error: null as string | null
+    error: null as string | null,
+    supportedProviders: [] as AuthProvider[]
   }),
   
   getters: {
     isAuthenticated: (state) => !!state.token,
-    currentUser: (state) => state.user
+    currentUser: (state) => state.user,
+    hasProvider: (state) => (provider: AuthProvider) => state.supportedProviders.includes(provider)
   },
   
   actions: {
+    // 获取后端支持的登录方式
+    async fetchSupportedProviders() {
+      try {
+        this.loading = true
+        const response = await axios.get('/auth/providers')
+        this.supportedProviders = response.data.providers || []
+        return this.supportedProviders
+      } catch (error: any) {
+        console.error('获取支持的登录方式失败', error)
+        return []
+      } finally {
+        this.loading = false
+      }
+    },
+    
     async login(usernameOrEmail: string, password: string) {
       try {
         this.loading = true
@@ -85,18 +112,38 @@ export const useAuthStore = defineStore('auth', {
       }
     },
     
-    async register(registerData: RegisterForm) {
+    // async register(registerData: RegisterForm) {
+    //   try {
+    //     this.loading = true
+    //     this.error = null
+        
+    //     // 这里应该调用实际的 API 端点
+    //     const response = await axios.post('/auth/register', registerData)
+        
+    //     return response.data
+    //   } catch (error: any) {
+    //     this.error = error.response?.data?.message || '注册失败，请重试'
+    //     throw new Error(this.error || '注册失败，请重试')
+    //   } finally {
+    //     this.loading = false
+    //   }
+    // },
+    
+    async registerAccount(registerData: AccountRegisterForm) {
       try {
         this.loading = true
         this.error = null
         
-        // 这里应该调用实际的 API 端点
-        const response = await axios.post('/auth/register', registerData)
+        // 使用账号注册API
+        const response = await axios.post('/auth/register', {
+          ...registerData,
+          // email: '' // 传递空邮箱
+        })
         
         return response.data
       } catch (error: any) {
-        this.error = error.response?.data?.message || '注册失败，请重试'
-        throw new Error(this.error || '注册失败，请重试')
+        this.error = error.response?.data?.message || '账号注册失败，请重试'
+        throw new Error(this.error || '账号注册失败，请重试')
       } finally {
         this.loading = false
       }
@@ -122,8 +169,8 @@ export const useAuthStore = defineStore('auth', {
         if (!this.token) return null
         
         this.loading = true
-        const response = await axios.get('/auth/me')
-        this.user = response.data
+        const response = await axios.get('/auth/user')
+        this.user = response.data.user
         return this.user
       } catch (error) {
         this.logout()
@@ -169,7 +216,7 @@ export const useAuthStore = defineStore('auth', {
               resolve();
             }
           };
-          script.onerror = (error) => {
+          script.onerror = () => {
             reject(new Error('加载谷歌登录SDK失败'));
           };
           document.head.appendChild(script);
