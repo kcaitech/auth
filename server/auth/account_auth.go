@@ -287,6 +287,9 @@ func (a *AccountAuth) Register(userID string, password string) error {
 		// LastAttempt: now,
 		CreatedAt: now,
 		UpdatedAt: now,
+		Profile: UserProfile{
+			Nickname: userID,
+		},
 	}
 
 	if err := a.db.Create(user).Error; err != nil {

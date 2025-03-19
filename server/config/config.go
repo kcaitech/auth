@@ -23,14 +23,18 @@ type ServerConfig struct {
 	WriteTimeout string `json:"write_timeout"` // 使用字符串格式如 "15s", "5m"
 }
 
+type JWTConfig struct {
+	Issuer string `json:"issuer"`
+}
+
 // AuthConfig 认证配置
 type AuthConfig struct {
-	EnabledProviders []string `json:"enabled_providers"` // "account", "email", "google", "weixin"
-	// JWT             JWTConfig      `json:"jwt"`
-	Google    GoogleConfig    `json:"google"`
-	Weixin    WeixinConfig    `json:"weixin"`
-	TwoFactor TwoFactorConfig `json:"two_factor"`
-	Smtp      SmtpConfig      `json:"smtp"`
+	EnabledProviders []string        `json:"enabled_providers"` // "account", "email", "google", "weixin"
+	JWT              JWTConfig       `json:"jwt"`
+	Google           GoogleConfig    `json:"google"`
+	Weixin           WeixinConfig    `json:"weixin"`
+	TwoFactor        TwoFactorConfig `json:"two_factor"`
+	Smtp             SmtpConfig      `json:"smtp"`
 }
 
 // JWTConfig JWT配置

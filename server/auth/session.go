@@ -71,7 +71,8 @@ func (s *SessionManager) GenerateSessionID() (string, error) {
 		return "", fmt.Errorf("生成随机字节失败: %w", err)
 	}
 
-	return fmt.Sprintf("%x", b), nil
+	// 使用62进制编码（数字+大小写字母）来缩短ID长度
+	return Base62Encode(b), nil
 }
 
 // 创建新的用户会话

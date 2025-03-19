@@ -27,7 +27,7 @@ func AuthRequired(jwtService *auth.JWTService) gin.HandlerFunc {
 
 		// 将用户信息存储到上下文中
 		c.Set("user_id", claims.UserID)
-		c.Set("email", claims.Email)
+		// c.Set("email", claims.Email)
 		c.Next()
 	}
 }

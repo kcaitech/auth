@@ -60,14 +60,14 @@ func main() {
 	defer globalRedisStore.Close()
 
 	// 初始化邮件服务 - 暂时不使用
-	_ = auth.NewEmailService(auth.SmtpConfig{
-		Host:     cfg.Auth.Smtp.Host,
-		Port:     cfg.Auth.Smtp.Port,
-		Username: cfg.Auth.Smtp.Username,
-		Password: cfg.Auth.Smtp.Password,
-		From:     cfg.Auth.Smtp.From,
-		BaseURL:  cfg.Auth.Smtp.BaseURL,
-	})
+	// _ = auth.NewEmailService(auth.SmtpConfig{
+	// 	Host:     cfg.Auth.Smtp.Host,
+	// 	Port:     cfg.Auth.Smtp.Port,
+	// 	Username: cfg.Auth.Smtp.Username,
+	// 	Password: cfg.Auth.Smtp.Password,
+	// 	From:     cfg.Auth.Smtp.From,
+	// 	BaseURL:  cfg.Auth.Smtp.BaseURL,
+	// })
 
 	// 创建 AccountAuth 实例
 	accountAuth := auth.NewAccountAuth(globalDB, auth.AccountAuthConfig{
@@ -105,6 +105,7 @@ func main() {
 	corsConfig.AllowCredentials = true
 	r.Use(cors.New(corsConfig))
 
+	// todo
 	// 初始化session中间件
 	store, err := redis.NewStore(10, "tcp", cfg.Redis.GetRedisAddr(), cfg.Redis.Password, []byte("secret"))
 	if err != nil {
@@ -264,7 +265,7 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 	}
 
 	// 创建空的JWTService和SessionManager
-	jwtService := auth.NewJWTService(globalRedisStore)
+	jwtService := auth.NewJWTService(globalRedisStore, auth.JWTConfig{Issuer: cfg.Auth.JWT.Issuer})
 	sessionMgr := auth.NewSessionManager(auth.NewSessionRedisStore(globalRedisStore.GetClient()))
 	// rateLimiter := &middleware.RateLimiter{}
 	// 使用构造函数创建认证处理器

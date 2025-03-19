@@ -3,7 +3,6 @@ package handlers
 import (
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"kcaitech.com/kcauth/server/auth"
@@ -46,14 +45,55 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "注册成功"})
+	// 直接返回登陆信息
+	// 检查登录尝试次数限制
+	clientIP := c.ClientIP()
+	// if err := h.accountAuth.CheckLoginAttempts(req.Username, clientIP); err != nil {
+	// 	c.JSON(http.StatusTooManyRequests, gin.H{"error": err.Error()})
+	// 	return
+	// }
+
+	// user, err := h.accountAuth.Login(req.Username, req.Password)
+	// if err != nil {
+	// 	// 记录失败的登录尝试
+	// 	h.accountAuth.RecordLoginAttempt(req.Username, clientIP, false)
+	// 	c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+	// 	return
+	// }
+
+	// 记录成功的登录尝试
+	// h.accountAuth.RecordLoginAttempt(req.Username, clientIP, true)
+
+	// 创建JWT令牌
+	// token, err := h.jwtService.GenerateJWT(user.UserID, "", "")
+
+	// 或者创建会话
+	session, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), auth.RefreshTokenExpiration)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建会话失败"})
+		return
+	}
+
+	tokenPair, err := h.jwtService.GenerateTokenPair(user.UserID, session.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成令牌失败"})
+		return
+	}
+
+	c.SetCookie("refreshToken", tokenPair.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
+	c.JSON(http.StatusOK, gin.H{
+		"user_id":     user.UserID,
+		"token":       tokenPair.AccessToken,
+		"profile":     user.Profile,
+		"expire_time": auth.TokenExpiration,
+	})
 }
 
 // Login 普通登录
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req struct {
-		UsernameOrEmail string `json:"username" binding:"required"` // 用户名或邮箱
-		Password        string `json:"password" binding:"required"`
+		Username string `json:"username" binding:"required"` // 用户名或邮箱
+		Password string `json:"password" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -63,82 +103,127 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	// 检查登录尝试次数限制
 	clientIP := c.ClientIP()
-	if err := h.accountAuth.CheckLoginAttempts(req.UsernameOrEmail, clientIP); err != nil {
+	if err := h.accountAuth.CheckLoginAttempts(req.Username, clientIP); err != nil {
 		c.JSON(http.StatusTooManyRequests, gin.H{"error": err.Error()})
 		return
 	}
 
-	user, err := h.accountAuth.Login(req.UsernameOrEmail, req.Password)
+	user, err := h.accountAuth.Login(req.Username, req.Password)
 	if err != nil {
 		// 记录失败的登录尝试
-		h.accountAuth.RecordLoginAttempt(req.UsernameOrEmail, clientIP, false)
+		h.accountAuth.RecordLoginAttempt(req.Username, clientIP, false)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
 	// 记录成功的登录尝试
-	h.accountAuth.RecordLoginAttempt(req.UsernameOrEmail, clientIP, true)
+	h.accountAuth.RecordLoginAttempt(req.Username, clientIP, true)
 
 	// 创建JWT令牌
 	// token, err := h.jwtService.GenerateJWT(user.UserID, "", "")
 
 	// 或者创建会话
-	session, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), time.Hour*24*7)
+	session, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), auth.RefreshTokenExpiration)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建会话失败"})
 		return
 	}
 
+	tokenPair, err := h.jwtService.GenerateTokenPair(user.UserID, session.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成令牌失败"})
+		return
+	}
+
+	c.SetCookie("refreshToken", tokenPair.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
 	c.JSON(http.StatusOK, gin.H{
 		"user_id":     user.UserID,
-		"session_id":  session.ID,
+		"token":       tokenPair.AccessToken,
 		"profile":     user.Profile,
-		"expire_time": session.ExpiresAt,
+		"expire_time": auth.TokenExpiration,
 	})
 }
 
 // Logout 登出处理
 func (h *AuthHandler) Logout(c *gin.Context) {
-	sessionID := c.GetHeader("Session-ID")
-	if sessionID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "未提供会话ID"})
+	var claims *auth.CustomClaims
+	var err error
+	// 获取认证头中的访问令牌
+	// authHeader := c.GetHeader("Authorization")
+	// accessToken := ""
+	// if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+	// 	accessToken = authHeader[7:]
+	// }
+	// if accessToken != "" {
+	// 	claims, err = h.jwtService.ValidateJWT(accessToken)
+	// 	if err != nil {
+	// 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的访问令牌"})
+	// 		return
+	// 	}
+	// } else {
+	// 从Cookie获取refreshtoken
+	refreshCookie, err := c.Cookie("refreshToken")
+	if err != nil || refreshCookie == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "未提供令牌"})
 		return
+	}
+	// 验证刷新令牌获取会话信息
+	claims, err = h.jwtService.ValidateJWT(refreshCookie)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的刷新令牌"})
+		return
+	}
+	// }
+
+	// 获取会话ID
+	sessionID := claims.SessionID
+
+	// 删除会话
+	if err := h.sessionMgr.DeleteSession(sessionID); err != nil {
+		// 即使会话删除失败也继续尝试撤销令牌
+		h.logger.Printf("删除会话失败: %v", err)
 	}
 
-	if err := h.sessionMgr.DeleteSession(sessionID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "登出失败"})
-		return
+	// 撤销刷新令牌
+	if err := h.jwtService.RevokeJWTByID(claims.UserID, sessionID, auth.RefreshTokenType); err != nil {
+		h.logger.Printf("撤销刷新令牌失败: %v", err)
 	}
+	if err := h.jwtService.RevokeJWTByID(claims.UserID, sessionID, auth.AccessTokenType); err != nil {
+		h.logger.Printf("撤销access令牌失败: %v", err)
+	}
+
+	// 清除客户端Cookie
+	c.SetCookie("refreshToken", "", -1, "/", "", true, true)
 
 	c.JSON(http.StatusOK, gin.H{"message": "登出成功"})
 }
 
 // RefreshSession 刷新会话
-func (h *AuthHandler) RefreshSession(c *gin.Context) {
-	sessionID := c.GetHeader("Session-ID")
-	if sessionID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "未提供会话ID"})
-		return
-	}
+// func (h *AuthHandler) RefreshSession(c *gin.Context) {
+// 	sessionID := c.GetHeader("Session-ID")
+// 	if sessionID == "" {
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "未提供会话ID"})
+// 		return
+// 	}
 
-	// 刷新会话，延长有效期为7天
-	if err := h.sessionMgr.RefreshSession(sessionID, time.Hour*24*7); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "刷新会话失败"})
-		return
-	}
+// 	// 刷新会话，延长有效期为7天
+// 	if err := h.sessionMgr.RefreshSession(sessionID, auth.RefreshTokenExpiration); err != nil {
+// 		c.JSON(http.StatusUnauthorized, gin.H{"error": "刷新会话失败"})
+// 		return
+// 	}
 
-	// 获取刷新后的会话
-	session, err := h.sessionMgr.GetSession(sessionID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取会话失败"})
-		return
-	}
+// 	// 获取刷新后的会话
+// 	session, err := h.sessionMgr.GetSession(sessionID)
+// 	if err != nil {
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取会话失败"})
+// 		return
+// 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"session_id":  session.ID,
-		"expire_time": session.ExpiresAt,
-	})
-}
+// 	c.JSON(http.StatusOK, gin.H{
+// 		"session_id":  session.ID,
+// 		"expire_time": session.ExpiresAt,
+// 	})
+// }
 
 // ResetPassword 重置密码
 func (h *AuthHandler) ResetPassword(c *gin.Context) {
@@ -292,17 +377,17 @@ func (h *AuthHandler) UpdateUserInfo(c *gin.Context) {
 func (h *AuthHandler) AuthRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 从请求头中获取会话ID
-		sessionID := c.GetHeader("Session-ID")
-		if sessionID != "" {
-			// 验证会话
-			session, err := h.sessionMgr.GetSession(sessionID)
-			if err == nil && session != nil {
-				// 会话有效，设置用户ID并继续
-				c.Set("user_id", session.UserID)
-				c.Next()
-				return
-			}
-		}
+		// sessionID := c.GetHeader("Session-ID")
+		// if sessionID != "" {
+		// 	// 验证会话
+		// 	session, err := h.sessionMgr.GetSession(sessionID)
+		// 	if err == nil && session != nil {
+		// 		// 会话有效，设置用户ID并继续
+		// 		c.Set("user_id", session.UserID)
+		// 		c.Next()
+		// 		return
+		// 	}
+		// }
 
 		// 没有有效会话，尝试验证JWT
 		authHeader := c.GetHeader("Authorization")
@@ -328,24 +413,46 @@ func (h *AuthHandler) AuthRequired() gin.HandlerFunc {
 
 // RefreshToken JWT刷新令牌
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
-	var req struct {
-		Token string `json:"token" binding:"required"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+	// 从Cookie获取refreshtoken
+	refreshToken, err := c.Cookie("refreshToken")
+	if err != nil || refreshToken == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "未提供刷新令牌"})
 		return
 	}
 
+	// var req struct {
+	// 	Token string `json:"token" binding:"required"`
+	// }
+
+	// if err := c.ShouldBindJSON(&req); err != nil {
+	// 	c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+	// 	return
+	// }
+
+	claims, err := h.jwtService.ValidateJWT(refreshToken)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "无效的访问令牌"})
+		return
+	}
+
+	// 刷新session
+	if err := h.sessionMgr.RefreshSession(claims.SessionID, auth.RefreshTokenExpiration); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "刷新会话失败"})
+		return
+	}
 	// 刷新JWT令牌
-	tokenPair, err := h.jwtService.RefreshJWT(req.Token)
+	tokenPair, err := h.jwtService.RefreshJWT(refreshToken)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
+	// 自动更新refreshToken
+	c.SetCookie("refreshToken", tokenPair.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
 	c.JSON(http.StatusOK, gin.H{
-		"access_token":  tokenPair.AccessToken,
-		"refresh_token": tokenPair.RefreshToken,
+		// "user_id":     user.UserID,
+		"token": tokenPair.AccessToken,
+		// "profile":     user.Profile,
+		"expire_time": auth.TokenExpiration,
 	})
 }

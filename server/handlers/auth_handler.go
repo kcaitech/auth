@@ -80,7 +80,7 @@ func (h *AuthHandler) RegisterRoutes(r *gin.Engine) {
 			// authGroup.GET("/verify-email", h.VerifyEmail)
 			// authGroup.POST("/resend-verification", h.ResendVerificationEmail)
 		}
-		authGroup.POST("/refresh-session", h.RefreshSession)
+		// authGroup.POST("/refresh-session", h.RefreshSession)
 		authGroup.POST("/refresh-token", h.RefreshToken)
 
 		// 邮箱登录相关路由
