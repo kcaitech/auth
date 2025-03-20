@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"kcaitech.com/kcauth/server/auth"
@@ -68,7 +69,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	// token, err := h.jwtService.GenerateJWT(user.UserID, "", "")
 
 	// 或者创建会话
-	session, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), auth.RefreshTokenExpiration)
+	session, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), auth.RefreshTokenExpiration+time.Hour)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建会话失败"})
 		return
@@ -123,7 +124,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	// token, err := h.jwtService.GenerateJWT(user.UserID, "", "")
 
 	// 或者创建会话
-	session, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), auth.RefreshTokenExpiration)
+	session, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), auth.RefreshTokenExpiration+time.Hour)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

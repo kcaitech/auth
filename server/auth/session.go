@@ -85,6 +85,17 @@ func (s *SessionManager) RefreshSession(userID string, sessionID string, duratio
 
 // 创建新的用户会话
 func (s *SessionManager) CreateUserSession(userID string, ip, userAgent string, duration time.Duration) (*Session, error) {
+	// 检查是否存在相同IP和UserAgent的会话
+	session, err := s.HasSessionWithIPAndUserAgent(userID, ip, userAgent)
+	// 如果存在相同IP和UserAgent的会话，则返回该会话
+	if session != nil && err == nil {
+		// refresh session
+		if err := s.RefreshSession(userID, session.ID, duration); err != nil {
+			return nil, err
+		}
+		return session, nil
+	}
+
 	// 生成会话ID
 	sessionID, err := GenerateBase62ID()
 	if err != nil {
@@ -93,7 +104,7 @@ func (s *SessionManager) CreateUserSession(userID string, ip, userAgent string, 
 
 	// 创建会话记录
 	now := time.Now()
-	session := &Session{
+	session = &Session{
 		ID:        sessionID,
 		UserID:    userID,
 		IP:        ip,
@@ -220,12 +231,17 @@ func (s *SessionManager) GetSessionStats() (*SessionStats, error) {
 }
 
 // 检查是否存在指定IP和UserAgent的会话（防止会话固定攻击）
-func (s *SessionManager) HasSessionWithIPAndUserAgent(ip, userAgent string) (bool, error) {
+func (s *SessionManager) HasSessionWithIPAndUserAgent(userId, ip, userAgent string) (*Session, error) {
 	// 使用模式匹配获取所有会话键
-	pattern := "session:*"
-	keys, err := s.redis.client.Keys(context.Background(), pattern).Result()
+	// pattern := "session:*"
+	// keys, err := s.redis.client.Keys(context.Background(), pattern).Result()
+	// if err != nil {
+	// 	return false, fmt.Errorf("获取会话键失败: %w", err)
+	// }
+
+	keys, err := s.redis.GetUserSessionList(userId)
 	if err != nil {
-		return false, fmt.Errorf("获取会话键失败: %w", err)
+		return nil, fmt.Errorf("获取用户会话列表失败: %w", err)
 	}
 
 	// 遍历所有会话键
@@ -237,7 +253,7 @@ func (s *SessionManager) HasSessionWithIPAndUserAgent(ip, userAgent string) (boo
 			if errors.Is(err, redis.Nil) {
 				continue
 			}
-			return false, fmt.Errorf("获取会话数据失败: %w", err)
+			return nil, fmt.Errorf("获取会话数据失败: %w", err)
 		}
 
 		// 解析会话数据
@@ -249,11 +265,11 @@ func (s *SessionManager) HasSessionWithIPAndUserAgent(ip, userAgent string) (boo
 
 		// 检查IP和UserAgent是否匹配
 		if session.IP == ip && session.UserAgent == userAgent {
-			return true, nil
+			return &session, nil
 		}
 	}
 
-	return false, nil
+	return nil, nil
 }
 
 // 使用Redis扫描批量获取用户会话（优化性能）

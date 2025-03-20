@@ -42,7 +42,7 @@ func (h *AuthHandler) GoogleLoginPost(c *gin.Context) {
 
 	// 创建会话
 	clientIP := c.ClientIP()
-	session, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), auth.RefreshTokenExpiration)
+	session, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), auth.RefreshTokenExpiration+time.Hour)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建会话失败"})
 		return
@@ -181,7 +181,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 
 	// 创建会话
 	clientIP := c.ClientIP()
-	session1, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), auth.RefreshTokenExpiration)
+	session1, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), auth.RefreshTokenExpiration+time.Hour+time.Hour)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建会话失败"})
 		return

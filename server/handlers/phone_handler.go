@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"kcaitech.com/kcauth/server/auth"
@@ -140,7 +141,7 @@ func (h *PhoneHandler) Login(c *gin.Context) {
 	}
 
 	// 创建会话和JWT令牌
-	session, err := h.sessionMgr.CreateUserSession(user.UserID, c.ClientIP(), c.GetHeader("User-Agent"), auth.TokenExpiration)
+	session, err := h.sessionMgr.CreateUserSession(user.UserID, c.ClientIP(), c.GetHeader("User-Agent"), auth.TokenExpiration+time.Hour)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建会话失败"})
 		return
@@ -180,7 +181,7 @@ func (h *PhoneHandler) CodeLogin(c *gin.Context) {
 	}
 
 	// 创建会话和JWT令牌
-	session, err := h.sessionMgr.CreateUserSession(user.UserID, c.ClientIP(), c.GetHeader("User-Agent"), auth.TokenExpiration)
+	session, err := h.sessionMgr.CreateUserSession(user.UserID, c.ClientIP(), c.GetHeader("User-Agent"), auth.TokenExpiration+time.Hour)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建会话失败"})
 		return
