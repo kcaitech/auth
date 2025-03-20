@@ -381,6 +381,28 @@ func (h *AuthHandler) UpdateUserInfo(c *gin.Context) {
 	}
 }
 
+// ValidateToken 验证JWT令牌
+func (h *AuthHandler) ValidateToken(c *gin.Context) {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未提供令牌"})
+		return
+	}
+
+	var err error
+	if authHeader != "" && len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+		token := authHeader[7:]
+		var claims *auth.CustomClaims
+		// 验证JWT
+		claims, err = h.jwtService.ValidateJWT(token)
+		if err == nil && claims != nil {
+			c.JSON(http.StatusOK, gin.H{"user_id": claims.UserID})
+		}
+	}
+
+	c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+}
+
 // AuthRequired 验证用户是否已登录
 func (h *AuthHandler) AuthRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {

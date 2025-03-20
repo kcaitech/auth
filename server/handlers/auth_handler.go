@@ -88,6 +88,7 @@ func (h *AuthHandler) RegisterRoutes(r *gin.Engine) {
 		}
 		// authGroup.POST("/refresh-session", h.RefreshSession)
 		authGroup.POST("/refresh-token", h.RefreshToken)
+		authGroup.POST("/validate", h.ValidateToken)
 
 		// 邮箱登录相关路由
 		if h.emailAuth != nil {
