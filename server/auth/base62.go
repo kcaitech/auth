@@ -53,3 +53,23 @@ func GenerateBase62ID() (string, error) {
 	// 使用62进制编码（数字+大小写字母）来缩短ID长度
 	return Base62Encode(b), nil
 }
+
+// generateBase62String 生成指定长度的随机62进制字符串
+func generateBase62String(length int) string {
+	result := make([]byte, length)
+	// 62进制基数
+	base := big.NewInt(62)
+
+	for i := 0; i < length; i++ {
+		// 生成0-61的随机数
+		n, err := rand.Int(rand.Reader, base)
+		if err != nil {
+			// 如果发生错误，使用简单的回退方法
+			result[i] = base62Chars[i%62]
+			continue
+		}
+		result[i] = base62Chars[n.Int64()]
+	}
+
+	return string(result)
+}

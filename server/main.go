@@ -250,6 +250,32 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 		}
 	}
 
+	// 根据配置创建手机号登录处理器
+	var phoneAuth *auth.PhoneAuth
+	if containsProvider(cfg.Auth.EnabledProviders, "phone") {
+		// 创建短信服务
+		smsService := auth.NewSMSService(auth.SMSConfig{
+			Provider:   cfg.Auth.SMS.Provider,
+			AccessKey:  cfg.Auth.SMS.AccessKey,
+			SecretKey:  cfg.Auth.SMS.SecretKey,
+			SignName:   cfg.Auth.SMS.SignName,
+			TemplateID: cfg.Auth.SMS.TemplateID,
+			Region:     cfg.Auth.SMS.Region,
+		})
+
+		// 创建手机认证
+		phoneAuth = auth.NewPhoneAuth(globalDB, auth.PhoneAuthConfig{
+			VerificationExpiry: time.Hour * 24,
+			SMSService:         smsService,
+			Redis:              auth.NewAccountRedisStore(globalRedisStore.GetClient()),
+		})
+
+		// 执行表结构迁移
+		if err := phoneAuth.AutoMigrate(); err != nil {
+			return fmt.Errorf("手机登录表迁移失败: %v", err)
+		}
+	}
+
 	// 创建双因素认证服务
 	var twoFactor *auth.TwoFactorAuth
 	if cfg.Auth.TwoFactor.Enabled {
@@ -275,6 +301,7 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 		emailAuth,
 		googleOAuth,
 		weixinLogin,
+		phoneAuth,
 		twoFactor,
 		jwtService,
 		// rateLimiter,

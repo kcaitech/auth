@@ -16,6 +16,7 @@ type AuthHandler struct {
 	emailAuth      *auth.EmailAuth
 	googleOAuth    *auth.GoogleOAuth
 	weixinLogin    *auth.WeixinLogin
+	phoneAuth      *auth.PhoneAuth
 	twoFactor      *auth.TwoFactorAuth
 	jwtService     *auth.JWTService
 	// rateLimiter    *middleware.RateLimiter
@@ -32,6 +33,7 @@ func NewAuthHandler(
 	emailAuth *auth.EmailAuth,
 	googleOAuth *auth.GoogleOAuth,
 	weixinLogin *auth.WeixinLogin,
+	phoneAuth *auth.PhoneAuth,
 	twoFactor *auth.TwoFactorAuth,
 	jwtService *auth.JWTService,
 	// rateLimiter *middleware.RateLimiter,
@@ -43,6 +45,7 @@ func NewAuthHandler(
 		emailAuth:      emailAuth,
 		googleOAuth:    googleOAuth,
 		weixinLogin:    weixinLogin,
+		phoneAuth:      phoneAuth,
 		twoFactor:      twoFactor,
 		jwtService:     jwtService,
 		// rateLimiter:    rateLimiter,
@@ -110,6 +113,14 @@ func (h *AuthHandler) RegisterRoutes(r *gin.Engine) {
 			authGroup.GET("/weixin/callback", h.WeixinCallback)
 		}
 
+		// 手机登录相关路由
+		if h.phoneAuth != nil {
+			// 创建手机处理器
+			phoneHandler := NewPhoneHandler(h.phoneAuth, h.sessionMgr, h.jwtService)
+			// 注册手机认证路由
+			phoneHandler.RegisterRoutes(authGroup)
+		}
+
 		// 双因素认证相关路由
 		if h.twoFactor != nil {
 			authGroup.POST("/2fa/enable", h.AuthRequired(), h.Enable2FA)
@@ -146,6 +157,11 @@ func (h *AuthHandler) GetSupportedProviders(c *gin.Context) {
 	// 添加微信登录方式
 	if h.weixinLogin != nil {
 		providers = append(providers, "weixin")
+	}
+
+	// 添加手机登录方式
+	if h.phoneAuth != nil {
+		providers = append(providers, "phone")
 	}
 
 	c.JSON(200, gin.H{

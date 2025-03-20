@@ -1,21 +1,5 @@
 <template>
   <div>
-    <!-- 登录方式切换 -->
-    <div v-if="showLoginTypeSelector" class="login-type-selector">
-      <button 
-        :class="['login-type-btn', { active: true }]" 
-        @click="$emit('switch-type', 'account')"
-      >
-        账号登录
-      </button>
-      <button 
-        :class="['login-type-btn', { active: false }]" 
-        @click="$emit('switch-type', 'email')"
-      >
-        邮箱登录
-      </button>
-    </div>
-
     <!-- 账号登录表单 -->
     <form @submit.prevent="handleLogin" class="auth-form">
       <div class="form-item">
@@ -46,16 +30,11 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, ref, defineProps, defineEmits } from 'vue'
+import { reactive, ref, defineEmits } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
 
-const props = defineProps<{
-  showLoginTypeSelector: boolean
-}>()
-
 const emit = defineEmits<{
-  (e: 'switch-type', type: 'account' | 'email'): void
   (e: 'login-success'): void
   (e: 'login-error', message: string): void
 }>()
@@ -123,30 +102,6 @@ const handleLogin = async () => {
 </script>
 
 <style scoped>
-.login-type-selector {
-  display: flex;
-  margin-bottom: 20px;
-  background: #f5f5f5;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.login-type-btn {
-  flex: 1;
-  padding: 10px;
-  background: none;
-  border: none;
-  color: #666;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.login-type-btn.active {
-  background: #1890ff;
-  color: white;
-}
-
 .auth-form {
   display: flex;
   flex-direction: column;

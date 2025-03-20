@@ -35,6 +35,7 @@ type AuthConfig struct {
 	Weixin           WeixinConfig    `json:"weixin"`
 	TwoFactor        TwoFactorConfig `json:"two_factor"`
 	Smtp             SmtpConfig      `json:"smtp"`
+	SMS              SMSConfig       `json:"sms"` // 新增：短信配置
 }
 
 // JWTConfig JWT配置
@@ -56,6 +57,16 @@ type WeixinConfig struct {
 	AppID       string `json:"app_id"`
 	AppSecret   string `json:"app_secret"`
 	RedirectURL string `json:"redirect_url"`
+}
+
+// SMSConfig 短信配置
+type SMSConfig struct {
+	Provider   string `json:"provider"`    // 短信服务提供商，如 "aliyun", "tencent" 等
+	AccessKey  string `json:"access_key"`  // 访问密钥
+	SecretKey  string `json:"secret_key"`  // 密钥
+	SignName   string `json:"sign_name"`   // 短信签名
+	TemplateID string `json:"template_id"` // 模板ID
+	Region     string `json:"region"`      // 区域
 }
 
 // TwoFactorConfig 双因素认证配置

@@ -50,6 +50,8 @@ const (
 	ErrCodeUnverifiedEmail
 	ErrCodeInvalidCode
 	ErrCodeAPIRequest
+	ErrCodePhoneTaken         // 手机号已被占用
+	ErrCodeInvalidPhoneFormat // 无效的手机号格式
 )
 
 // AppError 应用错误类型
@@ -378,3 +380,13 @@ func NewDuplicateUserError(details string) error {
 // func NewServerError(details string, err error) error {
 // 	return NewAppError(ErrCodeServerError, details, err)
 // }
+
+// ErrPhoneTaken 创建手机号已被占用错误
+func ErrPhoneTaken(details string) error {
+	return NewAppError(ErrCodePhoneTaken, "手机号已被占用", fmt.Errorf(details))
+}
+
+// ErrInvalidPhoneFormat 创建无效手机号格式错误
+func ErrInvalidPhoneFormat(details string) error {
+	return NewAppError(ErrCodeInvalidPhoneFormat, "无效的手机号格式", fmt.Errorf(details))
+}

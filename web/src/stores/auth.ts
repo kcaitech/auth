@@ -48,14 +48,28 @@ interface AccountRegisterForm {
 }
 
 // 登录提供者
-export type AuthProvider = 'account' | 'email' | 'google' | 'weixin'
+export type AuthProvider = 'account' | 'email' | 'google' | 'weixin' | 'phone'
+
+// 手机注册表单
+interface PhoneRegisterForm {
+  phone: string
+  password: string
+  confirmPassword: string
+  nickname: string
+}
+
+// 手机验证码登录表单
+// interface PhoneCodeLoginForm {
+//   phone: string
+//   code: string
+// }
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null as User | null,
     token: localStorage.getItem('token') || '',
     loading: false,
-    error: null as string | null,
+    error: undefined as string | undefined,
     supportedProviders: [] as AuthProvider[]
   }),
   
@@ -84,7 +98,7 @@ export const useAuthStore = defineStore('auth', {
     async login(usernameOrEmail: string, password: string) {
       try {
         this.loading = true
-        this.error = null
+        this.error = undefined
         
         // 这里应该调用实际的 API 端点
         const response = await axios.post('/auth/login', {
@@ -132,7 +146,7 @@ export const useAuthStore = defineStore('auth', {
     async registerAccount(registerData: AccountRegisterForm) {
       try {
         this.loading = true
-        this.error = null
+        this.error = undefined
         
         // 使用账号注册API
         const response = await axios.post('/auth/register', {
@@ -390,7 +404,7 @@ export const useAuthStore = defineStore('auth', {
     async handleWechatLogin(code: string) {
       try {
         this.loading = true
-        this.error = null
+        this.error = undefined
         
         const response = await axios.post('/auth/weixin', { code })
         
@@ -408,6 +422,156 @@ export const useAuthStore = defineStore('auth', {
       } finally {
         this.loading = false
       }
-    }
+    },
+    
+    // 发送手机验证码
+    async sendPhoneVerificationCode(phone: string) {
+      try {
+        this.loading = true
+        this.error = undefined
+        
+        const response = await axios.post('/auth/phone/send-code', { phone })
+        return response.data
+      } catch (error: any) {
+        this.error = error.response?.data?.error || '发送验证码失败，请重试'
+        throw new Error(this.error)
+      } finally {
+        this.loading = false
+      }
+    },
+    
+    // 手机号密码登录
+    async phoneLogin(phone: string, password: string) {
+      try {
+        this.loading = true
+        this.error = undefined
+        
+        const response = await axios.post('/auth/phone/login', {
+          phone,
+          password
+        })
+        
+        const { user, token } = response.data
+        
+        this.user = user
+        this.token = token
+        
+        // 保存 token 到本地存储
+        localStorage.setItem('token', token)
+        
+        // 设置 axios 默认 headers
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+        
+        return user
+      } catch (error: any) {
+        this.error = error.response?.data?.error || '手机号登录失败，请重试'
+        throw new Error(this.error)
+      } finally {
+        this.loading = false
+      }
+    },
+    
+    // 手机验证码登录
+    async phoneCodeLogin(phone: string, code: string) {
+      try {
+        this.loading = true
+        this.error = undefined
+        
+        const response = await axios.post('/auth/phone/code-login', {
+          phone,
+          code
+        })
+        
+        const { user, token } = response.data
+        
+        this.user = user
+        this.token = token
+        
+        // 保存 token 到本地存储
+        localStorage.setItem('token', token)
+        
+        // 设置 axios 默认 headers
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+        
+        return user
+      } catch (error: any) {
+        this.error = error.response?.data?.error || '验证码登录失败，请重试'
+        throw new Error(this.error)
+      } finally {
+        this.loading = false
+      }
+    },
+    
+    // 手机号注册
+    async registerPhone(registerData: PhoneRegisterForm) {
+      try {
+        this.loading = true
+        this.error = undefined
+        
+        const response = await axios.post('/auth/phone/register', registerData)
+        
+        return response.data
+      } catch (error: any) {
+        this.error = error.response?.data?.error || '手机号注册失败，请重试'
+        throw new Error(this.error)
+      } finally {
+        this.loading = false
+      }
+    },
+    
+    // 验证手机号
+    async verifyPhone(code: string) {
+      try {
+        this.loading = true
+        this.error = undefined
+        
+        const response = await axios.post('/auth/phone/verify', { code })
+        
+        return response.data
+      } catch (error: any) {
+        this.error = error.response?.data?.error || '手机号验证失败，请重试'
+        throw new Error(this.error)
+      } finally {
+        this.loading = false
+      }
+    },
+    
+    // 手机号重置密码初始化
+    async initiatePhonePasswordReset(phone: string) {
+      try {
+        this.loading = true
+        this.error = undefined
+        
+        const response = await axios.post('/auth/phone/reset-password-init', { phone })
+        
+        return response.data
+      } catch (error: any) {
+        this.error = error.response?.data?.error || '发起密码重置失败，请重试'
+        throw new Error(this.error)
+      } finally {
+        this.loading = false
+      }
+    },
+    
+    // 完成手机号密码重置
+    async completePhonePasswordReset(phone: string, code: string, newPassword: string) {
+      try {
+        this.loading = true
+        this.error = undefined
+        
+        const response = await axios.post('/auth/phone/reset-password', {
+          phone,
+          code,
+          new_password: newPassword
+        })
+        
+        return response.data
+      } catch (error: any) {
+        this.error = error.response?.data?.error || '重置密码失败，请重试'
+        throw new Error(this.error)
+      } finally {
+        this.loading = false
+      }
+    },
   }
 }) 

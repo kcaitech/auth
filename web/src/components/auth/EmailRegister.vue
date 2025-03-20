@@ -1,21 +1,5 @@
 <template>
   <div>
-    <!-- 注册方式切换 -->
-    <div v-if="showRegisterTypeSelector" class="register-type-selector">
-      <button 
-        :class="['register-type-btn', { active: false }]" 
-        @click="$emit('switch-type', 'account')"
-      >
-        账号注册
-      </button>
-      <button 
-        :class="['register-type-btn', { active: true }]" 
-        @click="$emit('switch-type', 'email')"
-      >
-        邮箱注册
-      </button>
-    </div>
-
     <!-- 邮箱注册表单 -->
     <form @submit.prevent="handleEmailRegister" class="auth-form">
       <div class="form-item">
@@ -66,15 +50,10 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, ref, defineProps, defineEmits } from 'vue'
+import { reactive, ref, defineEmits } from 'vue'
 import axios from 'axios'
 
-const props = defineProps<{
-  showRegisterTypeSelector: boolean
-}>()
-
 const emit = defineEmits<{
-  (e: 'switch-type', type: 'account' | 'email'): void
   (e: 'register-success'): void
   (e: 'register-error', message: string): void
 }>()
@@ -166,30 +145,6 @@ const handleEmailRegister = async () => {
 </script>
 
 <style scoped>
-.register-type-selector {
-  display: flex;
-  margin-bottom: 20px;
-  background: #f5f5f5;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.register-type-btn {
-  flex: 1;
-  padding: 10px;
-  background: none;
-  border: none;
-  color: #666;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.register-type-btn.active {
-  background: #1890ff;
-  color: white;
-}
-
 .auth-form {
   display: flex;
   flex-direction: column;

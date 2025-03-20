@@ -17,20 +17,48 @@
 
     <!-- 登录表单容器 -->
     <div v-if="activeTab === 'login'">
+      <!-- 登录方式选择器 -->
+      <div v-if="hasMultipleLoginMethods" class="login-type-selector">
+        <button 
+          :class="['login-type-btn', { active: loginType === 'account' }]" 
+          @click="loginType = 'account'"
+          v-if="hasProvider('account')"
+        >
+          账号登录
+        </button>
+        <button 
+          :class="['login-type-btn', { active: loginType === 'email' }]" 
+          @click="loginType = 'email'"
+          v-if="hasProvider('email')"
+        >
+          邮箱登录
+        </button>
+        <button 
+          :class="['login-type-btn', { active: loginType === 'phone' }]" 
+          @click="loginType = 'phone'"
+          v-if="hasProvider('phone')"
+        >
+          手机登录
+        </button>
+      </div>
+    
       <!-- 使用账号登录组件 -->
       <AccountLogin
-        v-if="(loginType === 'account' || !hasProvider('email')) && hasProvider('account')"
-        :showLoginTypeSelector="hasProvider('account') && hasProvider('email')"
-        @switch-type="loginType = $event"
+        v-if="(loginType === 'account' || (!hasProvider('email') && !hasProvider('phone'))) && hasProvider('account')"
         @login-success="handleLoginSuccess"
         @login-error="handleLoginError"
       />
 
       <!-- 使用邮箱登录组件 -->
       <EmailLogin
-        v-if="(loginType === 'email' || !hasProvider('account')) && hasProvider('email')"
-        :showLoginTypeSelector="hasProvider('account') && hasProvider('email')"
-        @switch-type="loginType = $event"
+        v-if="(loginType === 'email' || (!hasProvider('account') && !hasProvider('phone'))) && hasProvider('email')"
+        @login-success="handleLoginSuccess"
+        @login-error="handleLoginError"
+      />
+      
+      <!-- 使用手机登录组件 -->
+      <PhoneLogin
+        v-if="(loginType === 'phone' || (!hasProvider('account') && !hasProvider('email'))) && hasProvider('phone')"
         @login-success="handleLoginSuccess"
         @login-error="handleLoginError"
       />
@@ -38,27 +66,55 @@
 
     <!-- 注册表单容器 -->
     <div v-if="activeTab === 'register'">
+      <!-- 注册方式选择器 -->
+      <div v-if="hasMultipleRegisterMethods" class="register-type-selector">
+        <button 
+          :class="['register-type-btn', { active: registerType === 'account' }]" 
+          @click="registerType = 'account'"
+          v-if="hasProvider('account')"
+        >
+          账号注册
+        </button>
+        <button 
+          :class="['register-type-btn', { active: registerType === 'email' }]" 
+          @click="registerType = 'email'"
+          v-if="hasProvider('email')"
+        >
+          邮箱注册
+        </button>
+        <button 
+          :class="['register-type-btn', { active: registerType === 'phone' }]" 
+          @click="registerType = 'phone'"
+          v-if="hasProvider('phone')"
+        >
+          手机注册
+        </button>
+      </div>
+      
       <!-- 使用账号注册组件 -->
       <AccountRegister
-        v-if="(registerType === 'account' || !hasProvider('email')) && hasProvider('account')"
-        :showRegisterTypeSelector="hasProvider('account') && hasProvider('email')"
-        @switch-type="registerType = $event"
+        v-if="(registerType === 'account' || (!hasProvider('email') && !hasProvider('phone'))) && hasProvider('account')"
         @register-success="handleRegisterSuccess"
         @register-error="handleLoginError"
       />
 
       <!-- 使用邮箱注册组件 -->
       <EmailRegister
-        v-if="(registerType === 'email' || !hasProvider('account')) && hasProvider('email')"
-        :showRegisterTypeSelector="hasProvider('account') && hasProvider('email')"
-        @switch-type="registerType = $event"
+        v-if="(registerType === 'email' || (!hasProvider('account') && !hasProvider('phone'))) && hasProvider('email')"
+        @register-success="handleRegisterSuccess"
+        @register-error="handleLoginError"
+      />
+      
+      <!-- 使用手机注册组件 -->
+      <PhoneRegister
+        v-if="(registerType === 'phone' || (!hasProvider('account') && !hasProvider('email'))) && hasProvider('phone')"
         @register-success="handleRegisterSuccess"
         @register-error="handleLoginError"
       />
     </div>
     
     <!-- 只有在有社交登录方式时才显示分隔线和社交登录按钮 -->
-    <div v-if="hasProvider('google') || hasProvider('weixin')" class="divider">或</div>
+    <div v-if="(hasProvider('google') || hasProvider('weixin')) && (hasProvider('account') || hasProvider('email') || hasProvider('phone'))" class="divider">或</div>
     
     <div v-if="hasProvider('google') || hasProvider('weixin')" class="social-login">
       <!-- 社交登录按钮容器，确保所有按钮宽度一致 -->
@@ -90,7 +146,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useAuthStore, type AuthProvider } from '@/stores/auth'
 import { useRouter } from 'vue-router'
 import AccountLogin from '@/components/auth/AccountLogin.vue'
@@ -99,6 +155,8 @@ import GoogleLogin from '@/components/auth/GoogleLogin.vue'
 import WeixinLogin from '@/components/auth/WeixinLogin.vue'
 import AccountRegister from '@/components/auth/AccountRegister.vue'
 import EmailRegister from '@/components/auth/EmailRegister.vue'
+import PhoneLogin from '@/components/auth/PhoneLogin.vue'
+import PhoneRegister from '@/components/auth/PhoneRegister.vue'
 
 interface FormErrors {
   username?: string
@@ -112,8 +170,8 @@ interface FormErrors {
 const router = useRouter()
 const authStore = useAuthStore()
 const activeTab = ref<'login' | 'register'>('login')
-const loginType = ref<'account' | 'email'>('account')
-const registerType = ref<'account' | 'email'>('account')
+const loginType = ref<'account' | 'email' | 'phone'>('account')
+const registerType = ref<'account' | 'email' | 'phone'>('account')
 const initialLoading = ref(true)
 const isLoading = ref(false)
 const errorMessage = ref('')
@@ -134,6 +192,9 @@ onMounted(async () => {
     } else if (hasProvider('email')) {
       loginType.value = 'email'
       registerType.value = 'email'
+    } else if (hasProvider('phone')) {
+      loginType.value = 'phone'
+      registerType.value = 'phone'
     }
   } catch (error) {
     console.error('初始化登录页面失败', error)
@@ -159,10 +220,30 @@ const handleRegisterSuccess = () => {
   activeTab.value = 'login'
   if (registerType.value === 'account') {
     loginType.value = 'account'
-  } else {
+  } else if (registerType.value === 'email') {
     loginType.value = 'email'
+  } else {
+    loginType.value = 'phone'
   }
 }
+
+// 计算是否有多种登录方式
+const hasMultipleLoginMethods = computed(() => {
+  let count = 0
+  if (hasProvider('account')) count++
+  if (hasProvider('email')) count++
+  if (hasProvider('phone')) count++
+  return count > 1
+})
+
+// 计算是否有多种注册方式
+const hasMultipleRegisterMethods = computed(() => {
+  let count = 0
+  if (hasProvider('account')) count++
+  if (hasProvider('email')) count++
+  if (hasProvider('phone')) count++
+  return count > 1
+})
 </script>
 
 <style scoped>
@@ -347,5 +428,29 @@ input.error {
   100% {
     transform: rotate(360deg);
   }
+}
+
+.register-type-selector {
+  display: flex;
+  margin-bottom: 20px;
+  background: #f5f5f5;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.register-type-btn {
+  flex: 1;
+  padding: 10px;
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.register-type-btn.active {
+  background: #1890ff;
+  color: white;
 }
 </style>
