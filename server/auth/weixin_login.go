@@ -4,7 +4,6 @@ package auth
 
 import (
 	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -276,11 +275,10 @@ func (w *WeixinLogin) RegisterOrLoginWithWeixin(code string) (*User, *WeixinLogi
 // CreateUserFromWeixin 从微信用户信息创建系统用户
 func (w *WeixinLogin) CreateUserFromWeixin(weixinInfo *WeixinUserInfo) (*User, error) {
 	// 生成随机UserID
-	b := make([]byte, 8)
-	if _, err := rand.Read(b); err != nil {
+	userID, err := GenerateBase62ID()
+	if err != nil {
 		return nil, fmt.Errorf("生成随机ID失败: %v", err)
 	}
-	userID := fmt.Sprintf("wx_%s", hex.EncodeToString(b))
 
 	// 确保UserID唯一
 	for {
@@ -290,10 +288,10 @@ func (w *WeixinLogin) CreateUserFromWeixin(weixinInfo *WeixinUserInfo) (*User, e
 			break
 		}
 		// 生成新的UserID
-		if _, err := rand.Read(b); err != nil {
+		userID, err = GenerateBase62ID()
+		if err != nil {
 			return nil, fmt.Errorf("生成随机ID失败: %v", err)
 		}
-		userID = fmt.Sprintf("wx_%s", hex.EncodeToString(b))
 	}
 
 	// 使用事务确保数据一致性

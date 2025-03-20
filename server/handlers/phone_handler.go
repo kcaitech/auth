@@ -97,32 +97,13 @@ func (h *PhoneHandler) Register(c *gin.Context) {
 	user, err := h.phoneAuth.RegisterPhoneUser(req.Phone, req.Password, req.Nickname)
 	if err != nil {
 		// 根据错误类型返回相应的状态码和消息
-		var status int
-		var message string
+		var status int = http.StatusInternalServerError
 
-		switch err.(type) {
-		case *auth.AppError:
-			appErr := err.(*auth.AppError)
-			switch appErr.Code {
-			case auth.ErrCodePhoneTaken:
-				status = http.StatusConflict
-				message = "该手机号已被注册"
-			case auth.ErrCodeWeakPassword:
-				status = http.StatusBadRequest
-				message = "密码太弱，请使用更强的密码"
-			case auth.ErrCodeInvalidPhoneFormat:
-				status = http.StatusBadRequest
-				message = "无效的手机号格式"
-			default:
-				status = http.StatusInternalServerError
-				message = "注册失败，请稍后再试"
-			}
-		default:
-			status = http.StatusInternalServerError
-			message = "注册失败，请稍后再试"
+		if appErr, ok := err.(*auth.AppError); ok {
+			status = int(appErr.Code)
 		}
 
-		c.JSON(status, gin.H{"error": message})
+		c.JSON(status, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -339,9 +320,8 @@ func (h *PhoneHandler) ResetPassword(c *gin.Context) {
 		var status int
 		var message string
 
-		switch err.(type) {
+		switch appErr := err.(type) {
 		case *auth.AppError:
-			appErr := err.(*auth.AppError)
 			switch appErr.Code {
 			case auth.ErrCodeInvalidToken:
 				status = http.StatusBadRequest

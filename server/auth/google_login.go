@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -295,11 +294,14 @@ func (g *GoogleOAuth) CreateUserFromGoogle(googleInfo *GoogleUserInfo) (*User, e
 	}
 
 	// 生成随机UserID
-	b := make([]byte, 8)
-	if _, err := rand.Read(b); err != nil {
+	// b := make([]byte, 8)
+	// if _, err := rand.Read(b); err != nil {
+	// 	return nil, fmt.Errorf("生成随机ID失败: %v", err)
+	// }
+	userID, err := GenerateBase62ID()
+	if err != nil {
 		return nil, fmt.Errorf("生成随机ID失败: %v", err)
 	}
-	userID := fmt.Sprintf("g_%s", hex.EncodeToString(b))
 
 	// 确保UserID唯一
 	for {
@@ -309,10 +311,10 @@ func (g *GoogleOAuth) CreateUserFromGoogle(googleInfo *GoogleUserInfo) (*User, e
 			break
 		}
 		// 生成新的UserID
-		if _, err := rand.Read(b); err != nil {
+		userID, err = GenerateBase62ID()
+		if err != nil {
 			return nil, fmt.Errorf("生成随机ID失败: %v", err)
 		}
-		userID = fmt.Sprintf("g_%s", hex.EncodeToString(b))
 	}
 
 	// 使用事务确保数据一致性

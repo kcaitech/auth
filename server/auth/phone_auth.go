@@ -294,8 +294,23 @@ func (a *PhoneAuth) RegisterPhoneUser(phone, password, nickname string) (*User, 
 	}()
 
 	// 生成随机用户ID (使用手机号作为前缀)
-	userID := fmt.Sprintf("p_%s", generateBase62String(8))
-
+	userID, err := GenerateBase62ID()
+	if err != nil {
+		return nil, fmt.Errorf("生成随机ID失败: %v", err)
+	}
+	// 确保UserID唯一
+	for {
+		var count int64
+		a.db.Model(&User{}).Where("user_id = ?", userID).Count(&count) // todo 这也不对，没有在事务中检查
+		if count == 0 {
+			break
+		}
+		// 生成新的UserID
+		userID, err = GenerateBase62ID()
+		if err != nil {
+			return nil, fmt.Errorf("生成随机ID失败: %v", err)
+		}
+	}
 	// 加密密码
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {

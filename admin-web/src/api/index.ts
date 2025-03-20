@@ -28,6 +28,8 @@ api.interceptors.request.use(
 // 响应拦截器
 api.interceptors.response.use(
   response => {
+    // 调试日志，可以在生产环境中移除
+    console.debug(`API响应 [${response.config.url}]:`, response.data)
     return response
   },
   error => {
@@ -36,6 +38,10 @@ api.interceptors.response.use(
       localStorage.removeItem('admin_session')
       window.location.href = '/login'
     }
+    
+    // 调试日志，记录请求错误
+    console.error(`API错误 [${error.config?.url}]:`, error.response?.data || error.message)
+    
     return Promise.reject(error)
   }
 )
@@ -61,25 +67,40 @@ export interface StatsData {
 }
 
 export interface User {
-  id: number
-  username: string
-  email: string
-  status: string
-  provider: string
-  verified: boolean
-  created_at: string
-  last_login: string | null
+  id: string | number
+  user_id?: string | number
+  username?: string
+  user_name?: string
+  name?: string
+  email?: string
+  status?: string
+  provider?: string
+  auth_provider?: string
+  verified?: boolean
+  is_verified?: boolean
+  created_at?: string
+  register_time?: string
+  last_login?: string | null
+  last_login_time?: string | null
   two_factor_enabled?: boolean
   login_attempts?: number
   last_attempt?: string
+  [key: string]: any
 }
 
 export interface UserListResponse {
-  users: User[]
-  total: number
-  page: number
-  page_size: number
-  total_page: number
+  users?: User[]
+  data?: User[]
+  list?: User[]
+  total?: number
+  total_count?: number
+  count?: number
+  page?: number
+  page_size?: number
+  size?: number
+  total_page?: number
+  pages?: number
+  [key: string]: any // 添加索引签名以支持其他可能存在的字段
 }
 
 export interface ActivityData {

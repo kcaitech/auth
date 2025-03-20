@@ -88,7 +88,7 @@ func TestGenerateAndValidateJWT(t *testing.T) {
 
 	// 验证claims中的数据是否正确
 	if claims.UserID != userID {
-		t.Errorf("userID不匹配, 期望: %d, 实际: %d", userID, claims.UserID)
+		t.Errorf("userID不匹配, 期望: %s, 实际: %s", userID, claims.UserID)
 	}
 	// if claims.Email != email {
 	// 	t.Errorf("Email不匹配, 期望: %s, 实际: %s", email, claims.Email)

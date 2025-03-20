@@ -4,18 +4,18 @@
       <!-- 基本信息选项卡 -->
       <el-tab-pane label="基本信息" name="basic">
         <el-descriptions title="用户信息" :column="2" border>
-          <el-descriptions-item label="用户ID">{{ user.id }}</el-descriptions-item>
-          <el-descriptions-item label="用户名">{{ user.username }}</el-descriptions-item>
-          <el-descriptions-item label="电子邮箱">{{ user.email }}</el-descriptions-item>
+          <el-descriptions-item label="用户ID">{{ getUserId(user) }}</el-descriptions-item>
+          <el-descriptions-item label="用户名">{{ getUserName(user) }}</el-descriptions-item>
+          <el-descriptions-item label="电子邮箱">{{ user.email || '无' }}</el-descriptions-item>
           <el-descriptions-item label="状态">
-            <el-tag :type="getStatusType(user.status)">{{ getStatusText(user.status) }}</el-tag>
+            <el-tag :type="getStatusType(getStatus(user))">{{ getStatusText(getStatus(user)) }}</el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="提供商">
-            <el-tag type="info">{{ getProviderText(user.provider) }}</el-tag>
+            <el-tag type="info">{{ getProviderText(getProvider(user)) }}</el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="验证状态">
-            <el-tag :type="user.verified ? 'success' : 'danger'">
-              {{ user.verified ? '已验证' : '未验证' }}
+            <el-tag :type="isVerified(user) ? 'success' : 'danger'">
+              {{ isVerified(user) ? '已验证' : '未验证' }}
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="双因素认证">
@@ -24,10 +24,10 @@
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="注册时间">
-            {{ formatDateTime(user.created_at) }}
+            {{ formatDateTime(getCreatedAt(user)) }}
           </el-descriptions-item>
           <el-descriptions-item label="最后登录">
-            {{ user.last_login ? formatDateTime(user.last_login) : '从未登录' }}
+            {{ getLastLogin(user) ? formatDateTime(getLastLogin(user)) : '从未登录' }}
           </el-descriptions-item>
           <el-descriptions-item label="登录尝试次数">{{ user.login_attempts || 0 }}</el-descriptions-item>
           <el-descriptions-item label="最后尝试时间">
@@ -37,14 +37,14 @@
 
         <div class="action-buttons">
           <el-button type="primary" @click="handleEditUser">编辑用户</el-button>
-          <el-button :type="getActionButtonType(user.status)" @click="handleToggleStatus">
-            {{ getActionButtonText(user.status) }}
+          <el-button :type="getActionButtonType(getStatus(user))" @click="handleToggleStatus">
+            {{ getActionButtonText(getStatus(user)) }}
           </el-button>
           <el-button 
-            :type="user.verified ? 'warning' : 'success'" 
+            :type="isVerified(user) ? 'warning' : 'success'" 
             @click="handleToggleVerified"
           >
-            {{ user.verified ? '取消验证' : '标记为已验证' }}
+            {{ isVerified(user) ? '取消验证' : '标记为已验证' }}
           </el-button>
         </div>
       </el-tab-pane>
@@ -203,7 +203,8 @@ export default defineComponent({
       loadingError.value = ''
       
       try {
-        const response = await api.getUserSessions(props.user.id)
+        const userId = Number(getUserId(props.user))
+        const response = await api.getUserSessions(userId)
         sessions.value = response.sessions || []
         jwtSessions.value = response.jwt_sessions || []
         
@@ -247,7 +248,8 @@ export default defineComponent({
           }
         )
         
-        await api.terminateUserSession(props.user.id, sessionId)
+        const userId = Number(getUserId(props.user))
+        await api.terminateUserSession(userId, sessionId)
         ElMessage.success('会话已成功终止')
         
         // 从列表中移除终止的会话
@@ -290,7 +292,8 @@ export default defineComponent({
           }
         )
         
-        await api.terminateAllUserSessions(props.user.id)
+        const userId = Number(getUserId(props.user))
+        await api.terminateAllUserSessions(userId)
         ElMessage.success('所有会话已成功终止')
         
         // 清空会话列表
@@ -326,8 +329,43 @@ export default defineComponent({
       ElMessage.info('切换验证状态功能暂未实现')
     }
 
+    // 辅助函数：获取用户ID
+    const getUserId = (user: User): string => {
+      return String(user.id || user.user_id || '未知ID')
+    }
+    
+    // 辅助函数：获取用户名
+    const getUserName = (user: User): string => {
+      return user.username || user.user_name || user.name || '未知用户名'
+    }
+    
+    // 辅助函数：获取状态
+    const getStatus = (user: User): string => {
+      return user.status || 'inactive'
+    }
+    
+    // 辅助函数：获取提供商
+    const getProvider = (user: User): string => {
+      return user.provider || user.auth_provider || 'local'
+    }
+    
+    // 辅助函数：检查是否已验证
+    const isVerified = (user: User): boolean => {
+      return user.verified === true || user.is_verified === true
+    }
+    
+    // 辅助函数：获取创建时间
+    const getCreatedAt = (user: User): string => {
+      return user.created_at || user.register_time || ''
+    }
+    
+    // 辅助函数：获取最后登录时间
+    const getLastLogin = (user: User): string | null => {
+      return user.last_login || user.last_login_time || null
+    }
+
     // 格式化日期时间
-    const formatDateTime = (dateStr: string) => {
+    const formatDateTime = (dateStr: string | null) => {
       if (!dateStr) return '无'
       return new Date(dateStr).toLocaleString('zh-CN', {
         year: 'numeric',
@@ -411,7 +449,14 @@ export default defineComponent({
       getStatusText,
       getProviderText,
       getActionButtonType,
-      getActionButtonText
+      getActionButtonText,
+      getUserId,
+      getUserName,
+      getStatus,
+      getProvider,
+      isVerified,
+      getCreatedAt,
+      getLastLogin
     }
   }
 })

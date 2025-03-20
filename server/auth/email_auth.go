@@ -270,9 +270,10 @@ func (a *EmailAuth) RegisterEmailUser(email, password, nickname string) (*User, 
 	}
 
 	// 生成随机UserID
-	b := make([]byte, 8)
-	rand.Read(b)
-	userID := fmt.Sprintf("u_%s", hex.EncodeToString(b))
+	userID, err := GenerateBase62ID()
+	if err != nil {
+		return nil, fmt.Errorf("生成随机ID失败: %v", err)
+	}
 
 	// 确保UserID唯一
 	for {
@@ -282,8 +283,10 @@ func (a *EmailAuth) RegisterEmailUser(email, password, nickname string) (*User, 
 			break
 		}
 		// 生成新的UserID
-		rand.Read(b)
-		userID = fmt.Sprintf("u_%s", hex.EncodeToString(b))
+		userID, err = GenerateBase62ID()
+		if err != nil {
+			return nil, fmt.Errorf("生成随机ID失败: %v", err)
+		}
 	}
 
 	// 如果没有提供昵称，使用邮箱前缀作为默认昵称

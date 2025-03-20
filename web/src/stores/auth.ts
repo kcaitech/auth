@@ -154,7 +154,16 @@ export const useAuthStore = defineStore('auth', {
           // email: '' // 传递空邮箱
         })
         
-        return response.data
+        const { user, token } = response.data
+        
+        this.user = user
+        this.token = token
+        
+        // 保存 token 到本地存储
+        localStorage.setItem('token', token)
+        
+        // 设置 axios 默认 headers
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
       } catch (error: any) {
         this.error = error.response?.data?.message || '账号注册失败，请重试'
         throw new Error(this.error || '账号注册失败，请重试')

@@ -125,13 +125,13 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	// 或者创建会话
 	session, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), auth.RefreshTokenExpiration)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建会话失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	tokenPair, err := h.jwtService.GenerateTokenPair(user.UserID, session.ID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成令牌失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -242,7 +242,7 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "未提供刷新令牌"})
 		return
 	}
-	
+
 	claims, err := h.jwtService.ValidateJWT(refreshToken)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的刷新令牌"})
@@ -397,25 +397,36 @@ func (h *AuthHandler) AuthRequired() gin.HandlerFunc {
 		// 	}
 		// }
 
+		var err error
 		// 没有有效会话，尝试验证JWT
 		authHeader := c.GetHeader("Authorization")
 		if authHeader != "" && len(authHeader) > 7 && authHeader[:7] == "Bearer " {
 			token := authHeader[7:]
-
+			var claims *auth.CustomClaims
 			// 验证JWT
-			claims, err := h.jwtService.ValidateJWT(token)
+			claims, err = h.jwtService.ValidateJWT(token)
 			if err == nil && claims != nil {
 				// JWT有效，设置用户ID
 				// 注意：claims.Subject 应包含用户ID
-				c.Set("user_id", claims.Subject)
+				c.Set("user_id", claims.UserID)
 				c.Next()
 				return
+			} else {
+				// JWT无效，拒绝访问
+				c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+				c.Abort()
+				return
 			}
+		} else {
+			// 未认证，拒绝访问
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "no Authorization header"})
+			c.Abort()
+			return
 		}
 
 		// 未认证，拒绝访问
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "认证失败，请登录"})
-		c.Abort()
+		// c.JSON(http.StatusUnauthorized, gin.H{"error": "认证失败，请登录"})
+		// c.Abort()
 	}
 }
 

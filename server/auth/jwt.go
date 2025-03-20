@@ -81,7 +81,7 @@ func (s *JWTService) getKeyID(userID string, sessionID string, tokenType string)
 // }
 
 // storeKey 将密钥存储到Redis
-func (s *JWTService) storeKey(keyID string, key string, ttl time.Duration) error {
+func (s *JWTService) storeKey(keyID string, key []byte, ttl time.Duration) error {
 	return s.redis.client.Set(s.redis.ctx,
 		jwtKeyPrefix+keyID,
 		key,
@@ -90,13 +90,13 @@ func (s *JWTService) storeKey(keyID string, key string, ttl time.Duration) error
 }
 
 // getKey 从Redis获取密钥
-func (s *JWTService) getKey(keyID string) (string, error) {
-	keyStr, err := s.redis.client.Get(s.redis.ctx, jwtKeyPrefix+keyID).Result()
+func (s *JWTService) getKey(keyID string) ([]byte, error) {
+	keyStr, err := s.redis.client.Get(s.redis.ctx, jwtKeyPrefix+keyID).Bytes()
 	if err != nil {
 		if err == redis.Nil {
-			return "", fmt.Errorf("key not found")
+			return nil, fmt.Errorf("key not found")
 		}
-		return "", err
+		return nil, err
 	}
 
 	return keyStr, nil
@@ -106,7 +106,7 @@ func (s *JWTService) getKey(keyID string) (string, error) {
 func (s *JWTService) generateToken(userID string, sessionID, tokenType string, expiration time.Duration) (string, string, error) {
 	// 生成新的密钥ID和密钥
 	keyID := s.getKeyID(userID, sessionID, tokenType)
-	secretKey, err := GenerateBase62ID()
+	secretKey, err := GenerateByteID()
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate secret key: %w", err)
 	}

@@ -53,43 +53,55 @@
         border
         stripe
       >
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="username" label="用户名" />
-        <el-table-column prop="email" label="邮箱" />
-        
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column label="ID" width="80">
           <template #default="scope">
-            <el-tag :type="getStatusType(scope.row.status)">
-              {{ getStatusText(scope.row.status) }}
+            {{ getUserId(scope.row) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="用户名">
+          <template #default="scope">
+            {{ getUserName(scope.row) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="邮箱">
+          <template #default="scope">
+            {{ scope.row.email || '无' }}
+          </template>
+        </el-table-column>
+        
+        <el-table-column label="状态" width="100">
+          <template #default="scope">
+            <el-tag :type="getStatusType(getStatus(scope.row))">
+              {{ getStatusText(getStatus(scope.row)) }}
             </el-tag>
           </template>
         </el-table-column>
         
-        <el-table-column prop="provider" label="提供商" width="100">
+        <el-table-column label="提供商" width="100">
           <template #default="scope">
             <el-tag type="info">
-              {{ getProviderText(scope.row.provider) }}
+              {{ getProviderText(getProvider(scope.row)) }}
             </el-tag>
           </template>
         </el-table-column>
         
-        <el-table-column prop="verified" label="已验证" width="80">
+        <el-table-column label="已验证" width="80">
           <template #default="scope">
-            <el-tag :type="scope.row.verified ? 'success' : 'danger'" size="small">
-              {{ scope.row.verified ? '是' : '否' }}
+            <el-tag :type="isVerified(scope.row) ? 'success' : 'danger'" size="small">
+              {{ isVerified(scope.row) ? '是' : '否' }}
             </el-tag>
           </template>
         </el-table-column>
         
-        <el-table-column prop="created_at" label="注册时间" width="180">
+        <el-table-column label="注册时间" width="180">
           <template #default="scope">
-            {{ formatDate(scope.row.created_at) }}
+            {{ formatDate(getCreatedAt(scope.row)) || '无' }}
           </template>
         </el-table-column>
         
-        <el-table-column prop="last_login" label="最后登录" width="180">
+        <el-table-column label="最后登录" width="180">
           <template #default="scope">
-            {{ scope.row.last_login ? formatDate(scope.row.last_login) : '未登录' }}
+            {{ getLastLogin(scope.row) ? formatDate(getLastLogin(scope.row) as string) : '未登录' }}
           </template>
         </el-table-column>
         
@@ -184,9 +196,39 @@ export default defineComponent({
         
         const response = await api.getUsers(params)
         
-        users.value = response.users
-        pagination.total = response.total
-        pagination.totalPages = response.total_page
+        // 调试日志：查看返回的用户数据
+        console.debug('获取到的用户数据:', response)
+        
+        // 确保 users 字段存在，否则尝试适配数据结构
+        if (response.users) {
+          users.value = response.users
+        } else if (Array.isArray(response.data)) {
+          // 可能服务器返回的是 data 字段
+          users.value = response.data
+          console.info('使用 response.data 作为用户数据')
+        } else if (Array.isArray(response.list)) {
+          // 或者是 list 字段
+          users.value = response.list
+          console.info('使用 response.list 作为用户数据')
+        } else if (Array.isArray(response)) {
+          // 或者直接是数组
+          users.value = response
+          console.info('使用整个 response 作为用户数据')
+        } else {
+          console.error('无法识别的用户数据格式:', response)
+          users.value = []
+          error.value = '无法识别服务器返回的数据格式'
+        }
+        
+        // 设置分页信息，兼容不同的字段名
+        if (!Array.isArray(response)) {
+          pagination.total = response.total || response.total_count || response.count || 0
+          pagination.totalPages = response.total_page || response.pages || Math.ceil(pagination.total / pagination.size) || 0
+        } else {
+          // 如果响应是数组，则使用数组长度作为总数
+          pagination.total = response.length
+          pagination.totalPages = Math.ceil(response.length / pagination.size)
+        }
       } catch (e: any) {
         error.value = e.response?.data?.error || '加载用户列表失败'
         ElMessage.error(error.value)
@@ -239,7 +281,8 @@ export default defineComponent({
     }
     
     // 格式化日期
-    const formatDate = (dateStr: string) => {
+    const formatDate = (dateStr: string | null | undefined): string => {
+      if (!dateStr) return '无'
       return new Date(dateStr).toLocaleString('zh-CN', {
         year: 'numeric',
         month: '2-digit',
@@ -281,6 +324,41 @@ export default defineComponent({
       return map[provider] || provider
     }
     
+    // 辅助函数：获取用户ID
+    const getUserId = (user: User): string => {
+      return String(user.id || user.user_id || '未知ID')
+    }
+    
+    // 辅助函数：获取用户名
+    const getUserName = (user: User): string => {
+      return user.username || user.user_name || user.name || '未知用户名'
+    }
+    
+    // 辅助函数：获取状态
+    const getStatus = (user: User): string => {
+      return user.status || 'inactive'
+    }
+    
+    // 辅助函数：获取提供商
+    const getProvider = (user: User): string => {
+      return user.provider || user.auth_provider || 'local'
+    }
+    
+    // 辅助函数：检查是否已验证
+    const isVerified = (user: User): boolean => {
+      return user.verified === true || user.is_verified === true
+    }
+    
+    // 辅助函数：获取创建时间
+    const getCreatedAt = (user: User): string => {
+      return user.created_at || user.register_time || ''
+    }
+    
+    // 辅助函数：获取最后登录时间
+    const getLastLogin = (user: User): string | null => {
+      return user.last_login || user.last_login_time || null
+    }
+    
     // 组件挂载时获取数据
     onMounted(() => {
       fetchUsers()
@@ -304,7 +382,14 @@ export default defineComponent({
       getProviderText,
       userDetailVisible,
       selectedUser,
-      handleUserUpdated
+      handleUserUpdated,
+      getUserId,
+      getUserName,
+      getStatus,
+      getProvider,
+      isVerified,
+      getCreatedAt,
+      getLastLogin
     }
   }
 })
