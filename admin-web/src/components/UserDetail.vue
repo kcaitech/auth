@@ -172,7 +172,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, PropType, computed, onMounted } from 'vue'
+import { defineComponent, ref, PropType, computed, onMounted, watch } from 'vue'
 import { User, SessionData, JWTSessionData } from '@/api'
 import api from '@/api'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -183,11 +183,22 @@ export default defineComponent({
     user: {
       type: Object as PropType<User>,
       required: true
+    },
+    // 添加新属性，允许父组件指定初始标签页
+    initialTab: {
+      type: String,
+      default: 'basic'
     }
   },
   emits: ['update:user', 'close'],
   setup(props, { emit }) {
-    const activeTab = ref('basic')
+    const activeTab = ref(props.initialTab)
+    
+    // 监听 initialTab 变化
+    watch(() => props.initialTab, (newVal) => {
+      activeTab.value = newVal
+    })
+
     const sessions = ref<SessionData[]>([])
     const jwtSessions = ref<JWTSessionData[]>([])
     const loadingSessions = ref(false)
@@ -197,13 +208,14 @@ export default defineComponent({
 
     // 获取用户会话
     const fetchSessions = async () => {
-      if (!props.user.id) return
+      console.log('fetchSessions', props.user.user_id)
+      if (!props.user.user_id) return
       
       loadingSessions.value = true
       loadingError.value = ''
       
       try {
-        const userId = Number(getUserId(props.user))
+        const userId = (getUserId(props.user))
         const response = await api.getUserSessions(userId)
         sessions.value = response.sessions || []
         jwtSessions.value = response.jwt_sessions || []
@@ -248,7 +260,7 @@ export default defineComponent({
           }
         )
         
-        const userId = Number(getUserId(props.user))
+        const userId = (getUserId(props.user))
         await api.terminateUserSession(userId, sessionId)
         ElMessage.success('会话已成功终止')
         
@@ -292,7 +304,7 @@ export default defineComponent({
           }
         )
         
-        const userId = Number(getUserId(props.user))
+        const userId = (getUserId(props.user))
         await api.terminateAllUserSessions(userId)
         ElMessage.success('所有会话已成功终止')
         
@@ -331,12 +343,12 @@ export default defineComponent({
 
     // 辅助函数：获取用户ID
     const getUserId = (user: User): string => {
-      return String(user.id || user.user_id || '未知ID')
+      return String(user.user_id || '未知ID')
     }
     
     // 辅助函数：获取用户名
     const getUserName = (user: User): string => {
-      return user.username || user.user_name || user.name || '未知用户名'
+      return user.nickname || user.user_id || '未知用户名'
     }
     
     // 辅助函数：获取状态

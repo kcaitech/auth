@@ -107,9 +107,14 @@
         
         <el-table-column label="操作" width="150" fixed="right">
           <template #default="scope">
-            <el-button size="small" type="primary" @click="viewUserDetail(scope.row)">
-              查看
-            </el-button>
+            <div class="operation-buttons">
+              <el-button size="small" type="primary" @click="viewUserDetail(scope.row)">
+                查看
+              </el-button>
+              <el-button size="small" type="warning" @click="viewUserSessions(scope.row)">
+                会话
+              </el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -138,6 +143,7 @@
       <UserDetail
         v-if="userDetailVisible && selectedUser"
         :user="selectedUser"
+        :initial-tab="sessionTabSelected ? 'sessions' : 'basic'"
         @update:user="handleUserUpdated"
         @close="userDetailVisible = false"
       />
@@ -181,6 +187,10 @@ export default defineComponent({
     // 用户详情
     const userDetailVisible = ref(false)
     const selectedUser = ref<User | null>(null)
+    
+    // 用户会话管理对话框
+    const userSessionsVisible = ref(false)
+    const sessionTabSelected = ref(false)
     
     // 获取用户数据
     const fetchUsers = async () => {
@@ -267,8 +277,24 @@ export default defineComponent({
     
     // 查看用户详情
     const viewUserDetail = (user: User) => {
+      console.log('viewUserDetail', user)
       selectedUser.value = user
       userDetailVisible.value = true
+      sessionTabSelected.value = false
+    }
+    
+    // 查看用户会话
+    const viewUserSessions = (user: User) => {
+      selectedUser.value = user
+      userDetailVisible.value = true
+      sessionTabSelected.value = true
+      // 下一轮事件循环中设置激活标签为会话
+      setTimeout(() => {
+        if (document.querySelector('.user-detail')) {
+          const tabEl = document.querySelector('.user-detail .el-tabs__item[data-name="sessions"]') as HTMLElement
+          if (tabEl) tabEl.click()
+        }
+      }, 0)
     }
     
     // 处理用户信息更新
@@ -376,12 +402,14 @@ export default defineComponent({
       handleSizeChange,
       handleCurrentChange,
       viewUserDetail,
+      viewUserSessions,
       formatDate,
       getStatusType,
       getStatusText,
       getProviderText,
       userDetailVisible,
       selectedUser,
+      sessionTabSelected,
       handleUserUpdated,
       getUserId,
       getUserName,
@@ -424,6 +452,12 @@ export default defineComponent({
     margin-top: 20px;
     display: flex;
     justify-content: flex-end;
+  }
+  
+  .operation-buttons {
+    display: flex;
+    justify-content: space-around;
+    gap: 5px;
   }
 }
 </style> 

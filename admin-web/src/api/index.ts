@@ -67,12 +67,12 @@ export interface StatsData {
 }
 
 export interface User {
-  id: string | number
-  user_id?: string | number
-  username?: string
-  user_name?: string
-  name?: string
-  email?: string
+  // id: string | number
+  user_id?: string
+  nickname?: string
+  // user_name?: string
+  // name?: string
+  // email?: string
   status?: string
   provider?: string
   auth_provider?: string
@@ -154,17 +154,17 @@ export default {
   },
 
   // 获取用户会话列表
-  getUserSessions(userId: number): Promise<UserSessionsResponse> {
+  getUserSessions(userId: string): Promise<UserSessionsResponse> {
     return api.get(`/admin/user/${userId}/sessions`).then(res => res.data)
   },
 
   // 终止用户特定会话
-  terminateUserSession(userId: number, sessionId: string): Promise<{ message: string }> {
+  terminateUserSession(userId: string, sessionId: string): Promise<{ message: string }> {
     return api.delete(`/admin/user/${userId}/sessions/${sessionId}`).then(res => res.data)
   },
 
   // 终止用户所有会话
-  terminateAllUserSessions(userId: number): Promise<{ message: string }> {
+  terminateAllUserSessions(userId: string): Promise<{ message: string }> {
     return api.delete(`/admin/user/${userId}/sessions`).then(res => res.data)
   }
 } 

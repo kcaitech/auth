@@ -178,22 +178,21 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	// 获取会话ID
 	sessionID := claims.SessionID
 
+	// 撤销刷新令牌
+	if err := h.jwtService.RevokeJWTByID(claims.UserID, sessionID); err != nil {
+		h.logger.Printf("撤销刷新令牌失败: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "撤销刷新令牌失败"})
+		return
+	}
+
+	// 清除客户端Cookie
+	c.SetCookie("refreshToken", "", -1, "/", "", true, true)
+
 	// 删除会话
 	if err := h.sessionMgr.DeleteSession(sessionID); err != nil {
 		// 即使会话删除失败也继续尝试撤销令牌
 		h.logger.Printf("删除会话失败: %v", err)
 	}
-
-	// 撤销刷新令牌
-	if err := h.jwtService.RevokeJWTByID(claims.UserID, sessionID, auth.RefreshTokenType); err != nil {
-		h.logger.Printf("撤销刷新令牌失败: %v", err)
-	}
-	if err := h.jwtService.RevokeJWTByID(claims.UserID, sessionID, auth.AccessTokenType); err != nil {
-		h.logger.Printf("撤销access令牌失败: %v", err)
-	}
-
-	// 清除客户端Cookie
-	c.SetCookie("refreshToken", "", -1, "/", "", true, true)
 
 	c.JSON(http.StatusOK, gin.H{"message": "登出成功"})
 }
@@ -455,7 +454,7 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	}
 
 	// 刷新session
-	if err := h.sessionMgr.RefreshSession(claims.SessionID, auth.RefreshTokenExpiration); err != nil {
+	if err := h.sessionMgr.RefreshSession(claims.UserID, claims.SessionID, auth.RefreshTokenExpiration); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "刷新会话失败"})
 		return
 	}

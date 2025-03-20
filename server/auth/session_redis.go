@@ -34,6 +34,30 @@ func (rs *SessionRedisStore) StoreSession(sessionID string, session *Session, ex
 	return rs.client.Set(rs.ctx, key, data, expiry).Err()
 }
 
+// StoreUserSessionList 存储用户会话列表
+func (rs *SessionRedisStore) StoreUserSessionList(userID string, sessionID string) error {
+	key := fmt.Sprintf("user:%s:sessions", userID)
+	return rs.client.SAdd(rs.ctx, key, sessionID).Err()
+}
+
+// GetUserSessionList 获取用户会话列表
+func (rs *SessionRedisStore) GetUserSessionList(userID string) ([]string, error) {
+	key := fmt.Sprintf("user:%s:sessions", userID)
+	return rs.client.SMembers(rs.ctx, key).Result()
+}
+
+// DeleteUserSessionList 删除用户会话列表
+func (rs *SessionRedisStore) DeleteUserSessionList(userID string) error {
+	key := fmt.Sprintf("user:%s:sessions", userID)
+	return rs.client.Del(rs.ctx, key).Err()
+}
+
+// UpdateUserSessionList 更新用户会话列表
+func (rs *SessionRedisStore) RemoveUserSessionList(userID string, sessionIDs []string) error {
+	key := fmt.Sprintf("user:%s:sessions", userID)
+	return rs.client.SRem(rs.ctx, key, sessionIDs).Err()
+}
+
 // GetSession 获取会话信息
 func (rs *SessionRedisStore) GetSession(sessionID string) (*Session, error) {
 	key := fmt.Sprintf("session:%s", sessionID)

@@ -268,9 +268,16 @@ func (s *JWTService) RevokeTokenPair(accessToken, refreshToken string) error {
 }
 
 // RevokeJWTByID 撤销指定ID的令牌
-func (s *JWTService) RevokeJWTByID(userID string, sessionID string, tokenType string) error {
-	keyID := s.getKeyID(userID, sessionID, tokenType)
-	return s.redis.client.Del(s.redis.ctx, jwtKeyPrefix+keyID).Err()
+func (s *JWTService) RevokeJWTByID(userID string, sessionID string) error {
+	keyID := s.getKeyID(userID, sessionID, RefreshTokenType)
+	if err := s.redis.client.Del(s.redis.ctx, jwtKeyPrefix+keyID).Err(); err != nil {
+		return fmt.Errorf("failed to revoke refresh token: %w", err)
+	}
+	keyID = s.getKeyID(userID, sessionID, AccessTokenType)
+	if err := s.redis.client.Del(s.redis.ctx, jwtKeyPrefix+keyID).Err(); err != nil {
+		return fmt.Errorf("failed to revoke access token: %w", err)
+	}
+	return nil
 }
 
 // RevokeAllUserTokens 撤销用户的所有令牌

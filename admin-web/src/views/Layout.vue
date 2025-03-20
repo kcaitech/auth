@@ -12,6 +12,7 @@
             <el-avatar size="small" icon="el-icon-user" />
             <template #dropdown>
               <el-dropdown-menu>
+                <el-dropdown-item command="sessions">我的会话</el-dropdown-item>
                 <el-dropdown-item command="logout">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
@@ -108,6 +109,8 @@ export default defineComponent({
             message: '已成功退出登录'
           })
         }).catch(() => {})
+      } else if (command === 'sessions') {
+        router.push('/sessions')
       }
     }
     
