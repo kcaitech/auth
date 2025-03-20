@@ -91,7 +91,7 @@ func DecodeBase62ID(id string) ([]byte, error) {
 }
 
 func GenerateBase62ID() (string, error) {
-	b := make([]byte, 32)
+	b := make([]byte, 16) // 16个byte，一个uuid的长度，生成字符长度大约22个
 	_, err := rand.Read(b)
 	if err != nil {
 		return "", fmt.Errorf("生成随机字节失败: %w", err)
@@ -101,7 +101,7 @@ func GenerateBase62ID() (string, error) {
 }
 
 func GenerateByteID() ([]byte, error) {
-	b := make([]byte, 32)
+	b := make([]byte, 16)
 	_, err := rand.Read(b)
 	if err != nil {
 		return nil, fmt.Errorf("生成随机字节失败: %w", err)
@@ -109,22 +109,30 @@ func GenerateByteID() ([]byte, error) {
 	return b, nil
 }
 
-// generateBase62String 生成指定长度的随机62进制字符串
-// func generateBase62String(length int) string {
-// 	result := make([]byte, length)
-// 	// 62进制基数
-// 	base := big.NewInt(62)
-
-// 	for i := 0; i < length; i++ {
-// 		// 生成0-61的随机数
-// 		n, err := rand.Int(rand.Reader, base)
-// 		if err != nil {
-// 			// 如果发生错误，使用简单的回退方法
-// 			result[i] = base62Chars[i%62]
-// 			continue
-// 		}
-// 		result[i] = base62Chars[n.Int64()]
+// func GenerateBase62IDWithLen(length int) (string, error) {
+// 	b := make([]byte, length) // 16个byte，一个uuid的长度
+// 	_, err := rand.Read(b)
+// 	if err != nil {
+// 		return "", fmt.Errorf("生成随机字节失败: %w", err)
 // 	}
-
-// 	return string(result)
+// 	// 使用62进制编码（数字+大小写字母）来缩短ID长度
+// 	return Base62Encode(b), nil
 // }
+
+// generateBase62String 生成指定长度的随机62进制字符串
+func GenerateBase62String(length int) (string, error) {
+	result := make([]byte, length)
+	// 62进制基数
+	base := big.NewInt(62)
+	for i := 0; i < length; i++ {
+		// 生成0-61的随机数
+		n, err := rand.Int(rand.Reader, base)
+		if err != nil {
+			// 如果发生错误，使用简单的回退方法
+			result[i] = base62Chars[i%62]
+			continue
+		}
+		result[i] = base62Chars[n.Int64()]
+	}
+	return string(result), nil
+}

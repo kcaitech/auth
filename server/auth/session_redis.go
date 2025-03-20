@@ -24,8 +24,8 @@ func NewSessionRedisStore(client *redis.Client) *SessionRedisStore {
 }
 
 // StoreSession 存储会话信息
-func (rs *SessionRedisStore) StoreSession(sessionID string, session *Session, expiry time.Duration) error {
-	key := fmt.Sprintf("session:%s", sessionID)
+func (rs *SessionRedisStore) StoreSession(userID string, sessionID string, session *Session, expiry time.Duration) error {
+	key := fmt.Sprintf("session:%s:%s", userID, sessionID)
 	data, err := json.Marshal(session)
 	if err != nil {
 		return fmt.Errorf("序列化会话数据失败: %w", err)
@@ -36,31 +36,31 @@ func (rs *SessionRedisStore) StoreSession(sessionID string, session *Session, ex
 
 // StoreUserSessionList 存储用户会话列表
 func (rs *SessionRedisStore) StoreUserSessionList(userID string, sessionID string) error {
-	key := fmt.Sprintf("user:%s:sessions", userID)
+	key := fmt.Sprintf("user_sessions:%s", userID)
 	return rs.client.SAdd(rs.ctx, key, sessionID).Err()
 }
 
 // GetUserSessionList 获取用户会话列表
 func (rs *SessionRedisStore) GetUserSessionList(userID string) ([]string, error) {
-	key := fmt.Sprintf("user:%s:sessions", userID)
+	key := fmt.Sprintf("user_sessions:%s", userID)
 	return rs.client.SMembers(rs.ctx, key).Result()
 }
 
 // DeleteUserSessionList 删除用户会话列表
 func (rs *SessionRedisStore) DeleteUserSessionList(userID string) error {
-	key := fmt.Sprintf("user:%s:sessions", userID)
+	key := fmt.Sprintf("user_sessions:%s", userID)
 	return rs.client.Del(rs.ctx, key).Err()
 }
 
 // UpdateUserSessionList 更新用户会话列表
 func (rs *SessionRedisStore) RemoveUserSessionList(userID string, sessionIDs []string) error {
-	key := fmt.Sprintf("user:%s:sessions", userID)
+	key := fmt.Sprintf("user_sessions:%s", userID)
 	return rs.client.SRem(rs.ctx, key, sessionIDs).Err()
 }
 
 // GetSession 获取会话信息
-func (rs *SessionRedisStore) GetSession(sessionID string) (*Session, error) {
-	key := fmt.Sprintf("session:%s", sessionID)
+func (rs *SessionRedisStore) GetSession(userID, sessionID string) (*Session, error) {
+	key := fmt.Sprintf("session:%s:%s", userID, sessionID)
 	data, err := rs.client.Get(rs.ctx, key).Bytes()
 	if err != nil {
 		if err == redis.Nil {
@@ -78,30 +78,30 @@ func (rs *SessionRedisStore) GetSession(sessionID string) (*Session, error) {
 }
 
 // DeleteSession 删除会话信息
-func (rs *SessionRedisStore) DeleteSession(sessionID string) error {
-	key := fmt.Sprintf("session:%s", sessionID)
+func (rs *SessionRedisStore) DeleteSession(userID, sessionID string) error {
+	key := fmt.Sprintf("session:%s:%s", userID, sessionID)
 	return rs.client.Del(rs.ctx, key).Err()
 }
 
 // ListSessionKeys 列出所有会话键
-func (rs *SessionRedisStore) ListSessionKeys() ([]string, error) {
-	return rs.client.Keys(rs.ctx, "session:*").Result()
-}
+// func (rs *SessionRedisStore) ListSessionKeys() ([]string, error) {
+// 	return rs.client.Keys(rs.ctx, "session:*").Result()
+// }
 
 // ScanSessions 使用扫描方式获取会话键
-func (rs *SessionRedisStore) ScanSessions(count int64) ([]string, uint64, error) {
-	return rs.client.Scan(rs.ctx, 0, "session:*", count).Result()
-}
+// func (rs *SessionRedisStore) ScanSessions(count int64) ([]string, uint64, error) {
+// 	return rs.client.Scan(rs.ctx, 0, "session:*", count).Result()
+// }
 
 // GetSessionTTL 获取会话过期时间
-func (rs *SessionRedisStore) GetSessionTTL(sessionID string) (time.Duration, error) {
-	key := fmt.Sprintf("session:%s", sessionID)
+func (rs *SessionRedisStore) GetSessionTTL(userID, sessionID string) (time.Duration, error) {
+	key := fmt.Sprintf("session:%s:%s", userID, sessionID)
 	return rs.client.TTL(rs.ctx, key).Result()
 }
 
 // ExtendSession 延长会话过期时间
-func (rs *SessionRedisStore) ExtendSession(sessionID string, expiry time.Duration) error {
-	key := fmt.Sprintf("session:%s", sessionID)
+func (rs *SessionRedisStore) ExtendSession(userID, sessionID string, expiry time.Duration) error {
+	key := fmt.Sprintf("session:%s:%s", userID, sessionID)
 	return rs.client.Expire(rs.ctx, key, expiry).Err()
 }
 
@@ -116,7 +116,7 @@ func (rs *SessionRedisStore) ExecutePipeline(pipe redis.Pipeliner) ([]redis.Cmde
 }
 
 // GetSessionsData 获取多个会话的数据
-func (rs *SessionRedisStore) GetSessionsData(sessionIDs []string) ([]*Session, error) {
+func (rs *SessionRedisStore) GetSessionsData(userID string, sessionIDs []string) ([]*Session, error) {
 	if len(sessionIDs) == 0 {
 		return []*Session{}, nil
 	}
@@ -125,7 +125,7 @@ func (rs *SessionRedisStore) GetSessionsData(sessionIDs []string) ([]*Session, e
 	cmds := make([]*redis.StringCmd, len(sessionIDs))
 
 	for i, id := range sessionIDs {
-		key := fmt.Sprintf("session:%s", id)
+		key := fmt.Sprintf("session:%s:%s", userID, id)
 		cmds[i] = pipe.Get(rs.ctx, key)
 	}
 

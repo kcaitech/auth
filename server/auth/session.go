@@ -33,7 +33,7 @@ func (s *SessionManager) CreateSession(userId string, session *Session) error {
 	}
 
 	// 保存会话到Redis
-	if err := s.redis.StoreSession(session.ID, session, expiration); err != nil {
+	if err := s.redis.StoreSession(userId, session.ID, session, expiration); err != nil {
 		return fmt.Errorf("保存会话失败: %w", err)
 	}
 
@@ -46,19 +46,19 @@ func (s *SessionManager) CreateSession(userId string, session *Session) error {
 }
 
 // GetSession 从Redis获取会话信息
-func (s *SessionManager) GetSession(sessionID string) (*Session, error) {
-	return s.redis.GetSession(sessionID)
+func (s *SessionManager) GetSession(userID, sessionID string) (*Session, error) {
+	return s.redis.GetSession(userID, sessionID)
 }
 
 // DeleteSession 从Redis删除会话
-func (s *SessionManager) DeleteSession(sessionID string) error {
-	return s.redis.DeleteSession(sessionID)
+func (s *SessionManager) DeleteSession(userID, sessionID string) error {
+	return s.redis.DeleteSession(userID, sessionID)
 }
 
 // RefreshSession 刷新会话过期时间
 func (s *SessionManager) RefreshSession(userID string, sessionID string, duration time.Duration) error {
 	// 获取现有会话
-	session, err := s.GetSession(sessionID)
+	session, err := s.GetSession(userID, sessionID)
 	if err != nil {
 		return err
 	}
@@ -97,7 +97,7 @@ func (s *SessionManager) CreateUserSession(userID string, ip, userAgent string, 
 	}
 
 	// 生成会话ID
-	sessionID, err := GenerateBase62ID()
+	sessionID, err := GenerateBase62String(10) // 用userID隔离，10个62进制足够了
 	if err != nil {
 		return nil, err
 	}
@@ -123,8 +123,8 @@ func (s *SessionManager) CreateUserSession(userID string, ip, userAgent string, 
 }
 
 // 会话是否有效
-func (s *SessionManager) IsSessionValid(sessionID string) bool {
-	_, err := s.GetSession(sessionID)
+func (s *SessionManager) IsSessionValid(userID, sessionID string) bool {
+	_, err := s.GetSession(userID, sessionID)
 	return err == nil
 }
 
@@ -135,7 +135,7 @@ func (s *SessionManager) GetUserSessions(userID string) ([]*Session, error) {
 		return nil, err
 	}
 
-	return s.redis.GetSessionsData(sessionIDs)
+	return s.redis.GetSessionsData(userID, sessionIDs)
 }
 
 // 删除用户的所有会话（例如，当用户更改密码或注销所有设备时）
@@ -151,7 +151,7 @@ func (s *SessionManager) DeleteUserSessions(userID string) ([]string, error) {
 	var deletedSessionIDs []string
 	// 删除每个会话
 	for _, session := range sessions {
-		if err := s.DeleteSession(session.ID); err == nil {
+		if err := s.DeleteSession(userID, session.ID); err == nil {
 			// deletedCount++
 			deletedSessionIDs = append(deletedSessionIDs, session.ID)
 		}

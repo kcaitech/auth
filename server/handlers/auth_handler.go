@@ -76,7 +76,7 @@ func (h *AuthHandler) RegisterRoutes(r *gin.Engine) {
 		if h.useAccountAuth {
 			authGroup.POST("/account/register", h.Register)
 			authGroup.POST("/account/login", h.Login)
-			authGroup.POST("/account/password/reset", h.ResetPassword)
+			authGroup.POST("/account/password/reset", h.AuthRequired(), h.ResetPassword)
 		}
 		authGroup.POST("/logout", h.AuthRequired(), h.Logout)
 		authGroup.POST("/token/refresh", h.RefreshToken)

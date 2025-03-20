@@ -53,7 +53,7 @@ func (h *AuthHandler) TerminateUserSession(c *gin.Context) {
 	sessionManager := h.sessionMgr
 
 	// 从Redis中删除会话
-	if err := sessionManager.DeleteSession(sessionID); err != nil {
+	if err := sessionManager.DeleteSession(userID, sessionID); err != nil {
 		h.logger.Printf("终止会话失败: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "终止会话失败"})
 		return

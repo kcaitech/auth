@@ -147,40 +147,23 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 // Logout 登出处理
 func (h *AuthHandler) Logout(c *gin.Context) {
-	var claims *auth.CustomClaims
-	var err error
-	// 获取认证头中的访问令牌
-	// authHeader := c.GetHeader("Authorization")
-	// accessToken := ""
-	// if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
-	// 	accessToken = authHeader[7:]
-	// }
-	// if accessToken != "" {
-	// 	claims, err = h.jwtService.ValidateJWT(accessToken)
-	// 	if err != nil {
-	// 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的访问令牌"})
-	// 		return
-	// 	}
-	// } else {
-	// 从Cookie获取refreshtoken
-	refreshCookie, err := c.Cookie("refreshToken")
-	if err != nil || refreshCookie == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "未提供令牌"})
-		return
-	}
-	// 验证刷新令牌获取会话信息
-	claims, err = h.jwtService.ValidateJWT(refreshCookie)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的刷新令牌"})
-		return
-	}
-	// }
 
 	// 获取会话ID
-	sessionID := claims.SessionID
+	sessionID, ok := c.Get("session_id")
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "未找到会话ID"})
+		return
+	}
+
+	// 从上下文获取用户信息
+	userID, ok := c.Get("user_id")
+	if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "未找到用户ID"})
+		return
+	}
 
 	// 撤销刷新令牌
-	if err := h.jwtService.RevokeJWTByID(claims.UserID, sessionID); err != nil {
+	if err := h.jwtService.RevokeJWTByID(userID.(string), sessionID.(string)); err != nil {
 		h.logger.Printf("撤销刷新令牌失败: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "撤销刷新令牌失败"})
 		return
@@ -190,7 +173,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	c.SetCookie("refreshToken", "", -1, "/", "", true, true)
 
 	// 删除会话
-	if err := h.sessionMgr.DeleteSession(sessionID); err != nil {
+	if err := h.sessionMgr.DeleteSession(userID.(string), sessionID.(string)); err != nil {
 		// 即使会话删除失败也继续尝试撤销令牌
 		h.logger.Printf("删除会话失败: %v", err)
 	}
@@ -237,19 +220,13 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 		return
 	}
 
-	refreshToken, err := c.Cookie("refreshToken")
-	if err != nil || refreshToken == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "未提供刷新令牌"})
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登录"})
 		return
 	}
 
-	claims, err := h.jwtService.ValidateJWT(refreshToken)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的刷新令牌"})
-		return
-	}
-
-	if err := h.accountAuth.ChangePassword(claims.UserID, req.OldPassword, req.NewPassword); err != nil {
+	if err := h.accountAuth.ChangePassword(userID.(string), req.OldPassword, req.NewPassword); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -431,6 +408,7 @@ func (h *AuthHandler) AuthRequired() gin.HandlerFunc {
 				// JWT有效，设置用户ID
 				// 注意：claims.Subject 应包含用户ID
 				c.Set("user_id", claims.UserID)
+				c.Set("session_id", claims.SessionID)
 				c.Next()
 				return
 			} else {
