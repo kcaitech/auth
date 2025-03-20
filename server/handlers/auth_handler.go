@@ -63,10 +63,7 @@ func (h *AuthHandler) RegisterRoutes(r *gin.Engine) {
 	// 添加监控中间件
 	r.Use(middleware.MetricsMiddleware())
 
-	// 添加速率限制中间件（如果启用）
-	// if h.rateLimiter != nil {
-	// 	r.Use(h.rateLimiter.RateLimitMiddleware())
-	// }
+	// 添加速率限制中间件
 	rateLimiter := middleware.RateLimiter{}
 	r.Use(rateLimiter.RateLimitMiddleware())
 	// 认证相关路由组
@@ -77,18 +74,13 @@ func (h *AuthHandler) RegisterRoutes(r *gin.Engine) {
 
 		// 账号登录相关路由
 		if h.useAccountAuth {
-			authGroup.POST("/register", h.Register)
-			// authGroup.POST("/register/email", h.RegisterByEmail)
-			authGroup.POST("/login", h.Login)
-			authGroup.POST("/logout", h.AuthRequired(), h.Logout)
-			authGroup.POST("/password/reset", h.ResetPassword)
-			// authGroup.POST("/password/reset/complete", h.CompletePasswordReset)
-			// authGroup.GET("/verify-email", h.VerifyEmail)
-			// authGroup.POST("/resend-verification", h.ResendVerificationEmail)
+			authGroup.POST("/account/register", h.Register)
+			authGroup.POST("/account/login", h.Login)
+			authGroup.POST("/account/password/reset", h.ResetPassword)
 		}
-		// authGroup.POST("/refresh-session", h.RefreshSession)
-		authGroup.POST("/refresh-token", h.RefreshToken)
-		authGroup.POST("/validate", h.ValidateToken)
+		authGroup.POST("/logout", h.AuthRequired(), h.Logout)
+		authGroup.POST("/token/refresh", h.RefreshToken)
+		authGroup.POST("/token/validate", h.ValidateToken)
 
 		// 邮箱登录相关路由
 		if h.emailAuth != nil {
@@ -133,6 +125,10 @@ func (h *AuthHandler) RegisterRoutes(r *gin.Engine) {
 		// 用户信息相关路由
 		authGroup.GET("/user", h.AuthRequired(), h.GetUserInfo)
 		authGroup.PUT("/user", h.AuthRequired(), h.UpdateUserInfo)
+		// 用户会话信息
+		authGroup.GET("/sessions", h.AuthRequired(), h.GetUserSessions)
+		authGroup.DELETE("/sessions/:session_id", h.AuthRequired(), h.TerminateUserSession)
+		authGroup.DELETE("/sessions", h.AuthRequired(), h.TerminateAllUserSessions)
 	}
 }
 

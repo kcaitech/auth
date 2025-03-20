@@ -101,7 +101,7 @@ export const useAuthStore = defineStore('auth', {
         this.error = undefined
         
         // 这里应该调用实际的 API 端点
-        const response = await axios.post('/auth/login', {
+        const response = await axios.post('/auth/account/login', {
           username: usernameOrEmail, // 为了保持API兼容性，仍然使用username作为参数名称
           password
         })
@@ -149,7 +149,7 @@ export const useAuthStore = defineStore('auth', {
         this.error = undefined
         
         // 使用账号注册API
-        const response = await axios.post('/auth/register', {
+        const response = await axios.post('/auth/account/register', {
           ...registerData,
           // email: '' // 传递空邮箱
         })

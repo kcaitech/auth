@@ -646,18 +646,6 @@ func (s *AdminServer) handleGetUserSessions(c *gin.Context) {
 		sessions = []*auth.Session{}
 	}
 
-	// 查询JWT会话（如果使用了JWT）
-	// jwtSessions := []auth.JWTSession{}
-	// if s.redis != nil {
-	// 	// 注意：由于JWT会话API需要int64参数，但我们现在使用string作为userID，
-	// 	// 后续需要根据实际API进行适配。这里暂时不调用JWT会话API。
-	// 	s.logger.Printf("获取用户%s的JWT会话需要实现类型转换，暂不支持", userID)
-	// } else {
-	// 	s.logger.Println("Redis连接未初始化，无法获取JWT会话信息")
-	// }
-
-	// s.logger.Printf("成功获取用户 %s 的会话列表，共 %d 个会话", userID, len(sessions))
-
 	c.JSON(http.StatusOK, gin.H{
 		"sessions": sessions,
 		// "jwt_sessions": jwtSessions,
@@ -679,21 +667,6 @@ func (s *AdminServer) handleTerminateUserSession(c *gin.Context) {
 	// 创建会话管理器
 	sessionManager := s.sessionMgr
 
-	// 判断会话类型（普通会话或JWT会话）
-	// if strings.HasPrefix(sessionID, "jwt:") {
-	// 	// 处理JWT会话
-	// 	if s.redis == nil {
-	// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Redis连接未初始化，无法终止JWT会话"})
-	// 		return
-	// 	}
-
-	// 	jwtID := strings.TrimPrefix(sessionID, "jwt:")
-	// 	// 注意：此处应该使用JWTService撤销JWT会话
-	// 	// 暂时不实现，需要根据实际API调整
-	// 	s.logger.Printf("撤销JWT会话%s需要实现JWTService.RevokeJWT方法", jwtID)
-	// 	c.JSON(http.StatusNotImplemented, gin.H{"error": "撤销JWT会话功能未实现"})
-	// 	return
-	// } else {
 	// 从Redis中删除会话
 	if err := sessionManager.DeleteSession(sessionID); err != nil {
 		s.logger.Printf("终止会话失败: %v", err)
@@ -748,16 +721,6 @@ func (s *AdminServer) handleTerminateAllUserSessions(c *gin.Context) {
 			return
 		}
 	}
-
-	// // 终止所有JWT会话
-	// if s.redis == nil {
-	// 	s.logger.Println("Redis连接未初始化，无法终止JWT会话")
-	// } else {
-	// 	// 注意：此处应该使用JWTService撤销所有用户的JWT会话
-	// 	// 暂时不实现，需要根据实际API调整
-	// 	s.logger.Printf("撤销用户%s的所有JWT会话需要实现JWTService.RevokeAllUserTokens方法", userID)
-	// 	// jwtTerminated = true; // 实现JWT会话终止后设置为true
-	// }
 
 	c.JSON(http.StatusOK, gin.H{
 		"message":       "用户所有会话已成功终止",
