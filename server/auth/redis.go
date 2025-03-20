@@ -11,13 +11,13 @@ import (
 
 // prefix
 const (
-	PrefixSession = "session:"
-	PrefixUser    = "user:"
+	PrefixSession         = "session:"
+	PrefixUser            = "user:"
 	PrefixToken           = "token:"
 	PrefixRateLimit       = "ratelimit:"
 	PrefixLoginAttempts   = "login_attempts:"
-	PrefixGoogleState     = "google_state:"
-	PrefixWeixinState     = "weixin_state:"
+	PrefixGoogleState     = "google_oauth_state:"
+	PrefixWeixinState     = "weixin_oauth_state:"
 	PrefixEmailState      = "email_state:"
 	PrefixEmailVerifyCode = "email_verify_code:"
 )

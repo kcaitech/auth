@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"net/http"
+	"time"
 
-	"github.com/gin-contrib/sessions" // todo 不对的。不一定回调回当前服务实例中。需要存到redis中。
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"kcaitech.com/kcauth/server/auth"
@@ -19,10 +19,19 @@ func (h *AuthHandler) WeixinLoginURL(c *gin.Context) {
 	// 生成随机状态
 	state := uuid.New().String()
 
-	// 存储state到session
-	session := sessions.Default(c)
-	session.Set("weixin_oauth_state", state)
-	session.Save()
+	// 生成唯一的客户端标识
+	clientID := c.ClientIP() + "-" + c.Request.UserAgent()
+	stateKey := "weixin_oauth_state:" + clientID
+
+	// 将state存储到Redis中，设置合理的过期时间（如15分钟）
+	if err := h.redisStore.Set(stateKey, state, time.Minute*15); err != nil {
+		h.logger.Printf("保存OAuth状态到Redis失败: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "内部服务器错误"})
+		return
+	}
+
+	// 设置cookie存储客户端标识，用于后续回调时获取对应的state
+	c.SetCookie("weixin_client_id", clientID, int(time.Minute*15/time.Second), "/", "", false, true)
 
 	// 获取登录URL
 	authURL := h.weixinLogin.GetAuthURL(state)
@@ -43,10 +52,19 @@ func (h *AuthHandler) WeixinLoginHandler(c *gin.Context) {
 	// 生成随机状态
 	state := uuid.New().String()
 
-	// 存储state到session
-	session := sessions.Default(c)
-	session.Set("weixin_oauth_state", state)
-	session.Save()
+	// 生成唯一的客户端标识
+	clientID := c.ClientIP() + "-" + c.Request.UserAgent()
+	stateKey := "weixin_oauth_state:" + clientID
+
+	// 将state存储到Redis中，设置合理的过期时间（如15分钟）
+	if err := h.redisStore.Set(stateKey, state, time.Minute*15); err != nil {
+		h.logger.Printf("保存OAuth状态到Redis失败: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "内部服务器错误"})
+		return
+	}
+
+	// 设置cookie存储客户端标识，用于后续回调时获取对应的state
+	c.SetCookie("weixin_client_id", clientID, int(time.Minute*15/time.Second), "/", "", false, true)
 
 	// 重定向到微信登录页面
 	c.Redirect(http.StatusTemporaryRedirect, h.weixinLogin.GetAuthURL(state))
@@ -60,17 +78,41 @@ func (h *AuthHandler) WeixinCallback(c *gin.Context) {
 	}
 
 	// 验证state
-	session := sessions.Default(c)
-	expectedState := session.Get("weixin_oauth_state")
 	actualState := c.Query("state")
-	if expectedState == nil || expectedState.(string) != actualState {
+	if actualState == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的状态参数"})
 		return
 	}
 
-	// 清除session中的state
-	session.Delete("weixin_oauth_state")
-	session.Save()
+	// 从cookie获取客户端标识
+	clientID, err := c.Cookie("weixin_client_id")
+	if err != nil {
+		h.logger.Printf("获取weixin_client_id cookie失败: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求，请重新登录"})
+		return
+	}
+
+	// 从Redis获取预期状态
+	stateKey := "weixin_oauth_state:" + clientID
+	var expectedState string
+	if err := h.redisStore.Get(stateKey, &expectedState); err != nil {
+		h.logger.Printf("从Redis获取OAuth状态失败: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "会话已过期，请重新登录"})
+		return
+	}
+
+	// 验证状态值
+	if expectedState != actualState {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的状态参数"})
+		return
+	}
+
+	// 清除Redis中的状态和cookie
+	if err := h.redisStore.Delete(stateKey); err != nil {
+		h.logger.Printf("清除Redis中的OAuth状态失败: %v", err)
+		// 不中断流程，继续处理
+	}
+	c.SetCookie("weixin_client_id", "", -1, "/", "", false, true)
 
 	// 处理回调
 	code := c.Query("code")
@@ -181,10 +223,19 @@ func (h *AuthHandler) WeixinLogin(c *gin.Context) {
 	// 生成随机状态
 	state := uuid.New().String()
 
-	// 存储state到session
-	session := sessions.Default(c)
-	session.Set("weixin_oauth_state", state)
-	session.Save()
+	// 生成唯一的客户端标识
+	clientID := c.ClientIP() + "-" + c.Request.UserAgent()
+	stateKey := "weixin_oauth_state:" + clientID
+
+	// 将state存储到Redis中，设置合理的过期时间（如15分钟）
+	if err := h.redisStore.Set(stateKey, state, time.Minute*15); err != nil {
+		h.logger.Printf("保存OAuth状态到Redis失败: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "内部服务器错误"})
+		return
+	}
+
+	// 设置cookie存储客户端标识，用于后续回调时获取对应的state
+	c.SetCookie("weixin_client_id", clientID, int(time.Minute*15/time.Second), "/", "", false, true)
 
 	// 重定向到微信登录页面
 	c.Redirect(http.StatusTemporaryRedirect, h.weixinLogin.GetAuthURL(state))
