@@ -184,6 +184,12 @@ export const useAuthStore = defineStore('auth', {
     async initGoogleAuth() {
       return new Promise<void>((resolve, reject) => {
         try {
+          // 检查是否配置了谷歌客户端ID
+          if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
+            reject(new Error('未配置谷歌客户端ID'));
+            return;
+          }
+          
           // 如果已经加载了谷歌API，直接解析
           if (window.google && window.google.accounts) {
             resolve();
@@ -226,95 +232,143 @@ export const useAuthStore = defineStore('auth', {
       });
     },
     
-    async handleGoogleLogin() {
-      try {
-        this.loading = true;
-        this.error = null;
+    // async handleGoogleLogin() {
+    //   try {
+    //     this.loading = true;
+    //     this.error = null;
         
-        // 确保谷歌库已加载
-        await this.initGoogleAuth();
+    //     // 检查是否配置了谷歌客户端ID
+    //     if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
+    //       this.loading = false;
+    //       this.error = '未配置谷歌客户端ID';
+    //       throw new Error(this.error);
+    //     }
         
-        return new Promise((resolve, reject) => {
-          // 如果没有加载谷歌库，拒绝Promise
-          if (!window.google || !window.google.accounts || !window.google.accounts.id) {
-            this.loading = false;
-            this.error = '谷歌登录服务未加载';
-            reject(new Error(this.error));
-            return;
-          }
+    //     // 确保谷歌库已加载
+    //     await this.initGoogleAuth();
+        
+    //     return new Promise((resolve, reject) => {
+    //       // 如果没有加载谷歌库，拒绝Promise
+    //       if (!window.google || !window.google.accounts || !window.google.accounts.id) {
+    //         this.loading = false;
+    //         this.error = '谷歌登录服务未加载';
+    //         reject(new Error(this.error));
+    //         return;
+    //       }
           
-          // 初始化谷歌登录
+    //       // 初始化谷歌登录
+    //       window.google.accounts.id.initialize({
+    //         client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
+    //         callback: async (response: any) => {
+    //           try {
+    //             // 验证令牌
+    //             if (!response || !response.credential) {
+    //               this.loading = false;
+    //               this.error = '谷歌登录失败：未获取到凭证';
+    //               reject(new Error(this.error));
+    //               return;
+    //             }
+                
+    //             // 获取JWT令牌
+    //             const credential = response.credential;
+                
+    //             // 将JWT令牌发送到后端验证
+    //             const authResponse = await axios.post('/auth/google', {
+    //               credential: credential
+    //             });
+                
+    //             // 处理登录结果
+    //             const { user, token } = authResponse.data;
+                
+    //             this.user = user;
+    //             this.token = token;
+    //             localStorage.setItem('token', token);
+    //             axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+                
+    //             this.loading = false;
+    //             resolve(user);
+    //           } catch (error: any) {
+    //             this.loading = false;
+    //             this.error = error.response?.data?.message || '谷歌登录处理失败';
+    //             reject(new Error(this.error || ''));
+    //           }
+    //         },
+    //         auto_select: false,
+    //         cancel_on_tap_outside: true
+    //       });
+          
+    //       // 显示谷歌登录提示
+    //       window.google.accounts.id.prompt((notification: any) => {
+    //         if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+    //           // 如果没有显示登录提示，可能是用户已经登录过或其他原因
+    //           this.loading = false;
+    //           this.error = '无法显示谷歌登录窗口，请检查浏览器设置或尝试其他登录方式';
+    //           reject(new Error(this.error));
+    //         }
+    //       });
+    //     });
+    //   } catch (error: any) {
+    //     this.loading = false;
+    //     this.error = error.message || '谷歌登录初始化失败';
+    //     throw new Error(this.error || '');
+    //   }
+    // },
+    
+    // 创建谷歌登录按钮
+    renderGoogleButton(elementId: string) {
+      // 检查是否配置了谷歌客户端ID
+      if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
+        console.error('未配置谷歌客户端ID');
+        this.error = '谷歌登录配置不完整';
+        return;
+      }
+      
+      this.initGoogleAuth().then(() => {
+        const buttonElement = document.getElementById(elementId);
+        if (buttonElement && window.google && window.google.accounts && window.google.accounts.id) {
+          // 先初始化谷歌登录
           window.google.accounts.id.initialize({
-            client_id: '你的谷歌客户端ID.apps.googleusercontent.com',
+            client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
             callback: async (response: any) => {
               try {
-                // 验证令牌
                 if (!response || !response.credential) {
-                  this.loading = false;
                   this.error = '谷歌登录失败：未获取到凭证';
-                  reject(new Error(this.error));
                   return;
                 }
                 
-                // 获取JWT令牌
+                // 获取JWT令牌并发送到后端验证
                 const credential = response.credential;
-                
-                // 将JWT令牌发送到后端验证
                 const authResponse = await axios.post('/auth/google', {
                   credential: credential
                 });
                 
                 // 处理登录结果
                 const { user, token } = authResponse.data;
-                
                 this.user = user;
                 this.token = token;
                 localStorage.setItem('token', token);
                 axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-                
-                this.loading = false;
-                resolve(user);
               } catch (error: any) {
-                this.loading = false;
                 this.error = error.response?.data?.message || '谷歌登录处理失败';
-                reject(new Error(this.error || ''));
+                console.error('谷歌登录处理失败', error);
               }
             },
             auto_select: false,
             cancel_on_tap_outside: true
           });
           
-          // 显示谷歌登录提示
-          window.google.accounts.id.prompt((notification: any) => {
-            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-              // 如果没有显示登录提示，可能是用户已经登录过或其他原因
-              this.loading = false;
-              this.error = '无法显示谷歌登录窗口，请检查浏览器设置或尝试其他登录方式';
-              reject(new Error(this.error));
-            }
-          });
-        });
-      } catch (error: any) {
-        this.loading = false;
-        this.error = error.message || '谷歌登录初始化失败';
-        throw new Error(this.error || '');
-      }
-    },
-    
-    // 创建谷歌登录按钮
-    renderGoogleButton(elementId: string) {
-      this.initGoogleAuth().then(() => {
-        const buttonElement = document.getElementById(elementId);
-        if (buttonElement && window.google && window.google.accounts && window.google.accounts.id) {
+          // 然后渲染按钮
           window.google.accounts.id.renderButton(buttonElement, {
             type: 'standard',
             theme: 'outline',
             size: 'large',
             text: 'signin_with',
             shape: 'rectangular',
-            logo_alignment: 'left',
+            logo_alignment: 'center',
             locale: 'zh_CN'
           });
+          
+          console.log('谷歌登录按钮已渲染');
         }
       }).catch(error => {
         console.error('渲染谷歌登录按钮失败', error);
