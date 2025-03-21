@@ -208,3 +208,39 @@ func (rs *AccountRedisStore) GetVerificationByToken(verificationType Verificatio
 
 	return verification, nil
 }
+
+// UpdateVerification 更新验证信息
+func (rs *AccountRedisStore) UpdateVerification(verificationType VerificationType, identifier string, oldToken string, newToken string, expiry time.Duration) error {
+	// 删除旧的令牌关联
+	keyIdentifier := fmt.Sprintf("verification:identifier:%s", oldToken)
+	err := rs.Delete(keyIdentifier)
+	if err != nil {
+		return fmt.Errorf("删除旧验证令牌关联失败: %w", err)
+	}
+
+	// 获取验证信息
+	key := fmt.Sprintf("verification:%s:%s", string(verificationType), identifier)
+	var verification Verification
+	err = rs.Get(key, &verification)
+	if err != nil {
+		return fmt.Errorf("获取验证信息失败: %w", err)
+	}
+
+	// 更新令牌和过期时间
+	verification.Token = newToken
+	verification.ExpiresAt = time.Now().Add(expiry)
+
+	// 保存更新后的验证信息
+	err = rs.Set(key, verification, expiry)
+	if err != nil {
+		return fmt.Errorf("更新验证信息失败: %w", err)
+	}
+
+	// 添加新的令牌关联
+	err = rs.Set(fmt.Sprintf("verification:identifier:%s", newToken), identifier, expiry)
+	if err != nil {
+		return fmt.Errorf("添加新验证令牌关联失败: %w", err)
+	}
+
+	return nil
+}

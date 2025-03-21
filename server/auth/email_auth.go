@@ -14,9 +14,9 @@ import (
 
 // EmailUser 邮箱用户模型
 type EmailUser struct {
-	UserID    string    `json:"user_id" gorm:"primarykey"`     // 关联到 User 表的用户ID
-	Email     string    `json:"email" gorm:"unique"`           // 邮箱，作为登录凭证
-	Verified  bool      `json:"verified" gorm:"default:false"` // 邮箱是否已验证
+	UserID string `json:"user_id" gorm:"primarykey"` // 关联到 User 表的用户ID
+	Email  string `json:"email" gorm:"unique"`       // 邮箱，作为登录凭证
+	// Verified  bool      `json:"verified" gorm:"default:false"` // 邮箱是否已验证
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -288,9 +288,9 @@ func (a *EmailAuth) RegisterEmailUser(email, password, nickname string) (*User, 
 
 	// 创建邮箱用户关联记录
 	emailUser := &EmailUser{
-		UserID:    userID,
-		Email:     email,
-		Verified:  true, // 邮箱已验证
+		UserID: userID,
+		Email:  email,
+		// Verified:  true, // 邮箱已验证
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
@@ -347,29 +347,29 @@ func (a *EmailAuth) VerifyEmail(token string) (*User, error) {
 }
 
 // SendVerificationEmail 发送验证邮件 - 现在用于已注册用户重新验证邮箱
-func (a *EmailAuth) SendVerificationEmail(userID, title, content string) error {
-	// 查询 EmailUser 记录
-	var emailUser EmailUser
-	if err := a.db.Where("user_id = ?", userID).First(&emailUser).Error; err != nil {
-		return err
-	}
+// func (a *EmailAuth) SendVerificationEmail(userID, title, content string) error {
+// 	// 查询 EmailUser 记录
+// 	var emailUser EmailUser
+// 	if err := a.db.Where("user_id = ?", userID).First(&emailUser).Error; err != nil {
+// 		return err
+// 	}
 
-	if emailUser.Verified {
-		return errors.New("用户邮箱已经验证过")
-	}
+// 	if emailUser.Verified {
+// 		return errors.New("用户邮箱已经验证过")
+// 	}
 
-	token, err := generateToken()
-	if err != nil {
-		return err
-	}
+// 	token, err := generateToken()
+// 	if err != nil {
+// 		return err
+// 	}
 
-	// 将验证记录存储到Redis中并设置过期时间
-	if err := a.redis.StoreVerification(VerificationTypeEmail, emailUser.Email, token, userID, a.verificationExpiry); err != nil {
-		return fmt.Errorf("存储邮箱验证信息失败: %w", err)
-	}
+// 	// 将验证记录存储到Redis中并设置过期时间
+// 	if err := a.redis.StoreVerification(VerificationTypeEmail, emailUser.Email, token, userID, a.verificationExpiry); err != nil {
+// 		return fmt.Errorf("存储邮箱验证信息失败: %w", err)
+// 	}
 
-	return a.emailService.SendVerificationEmail(emailUser.Email, token, title, content)
-}
+// 	return a.emailService.SendVerificationEmail(emailUser.Email, token, title, content)
+// }
 
 // EmailLogin 邮箱用户登录
 func (a *EmailAuth) EmailLogin(email, password string) (*User, error) {
@@ -384,9 +384,9 @@ func (a *EmailAuth) EmailLogin(email, password string) (*User, error) {
 	}
 
 	// 检查邮箱是否已验证
-	if !emailUser.Verified {
-		return nil, ErrEmailNotVerified("邮箱尚未验证，请先验证邮箱")
-	}
+	// if !emailUser.Verified {
+	// 	return nil, ErrEmailNotVerified("邮箱尚未验证，请先验证邮箱")
+	// }
 
 	// 通过 UserID 查询关联的 User 信息
 	var user User

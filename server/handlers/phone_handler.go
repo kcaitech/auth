@@ -67,52 +67,26 @@ func NewPhoneHandler(
 }
 
 // RegisterRoutes 注册路由
-func (h *PhoneHandler) RegisterRoutes(rg *gin.RouterGroup) {
-	phone := rg.Group("/phone")
+func (h *PhoneHandler) RegisterRoutes(router *gin.RouterGroup) {
+	phoneGroup := router.Group("/phone")
 	{
-		phone.POST("/register", h.Register)                         // 手机号注册
-		phone.POST("/login", h.Login)                               // 密码登录
-		phone.POST("/code-login", h.CodeLogin)                      // 验证码登录
-		phone.POST("/send-code", h.SendVerificationCode)            // 发送验证码
-		phone.POST("/verify", h.VerifyPhone)                        // 验证手机号
-		phone.POST("/reset-password-init", h.InitiatePasswordReset) // 发起密码重置
-		phone.POST("/reset-password", h.ResetPassword)              // 重置密码
+		// 手机预注册 - 发送验证码
+		phoneGroup.POST("/preregister", h.PhonePreregister)
+		// 验证手机号并完成注册
+		phoneGroup.POST("/verify-register", h.VerifyPhoneAndRegister)
+		// 重新发送验证码
+		phoneGroup.POST("/resend-verification", h.ResendPhoneVerification)
+		// 使用手机号+密码登录
+		phoneGroup.POST("/login", h.PhoneLogin)
+		// 发送登录验证码
+		phoneGroup.POST("/send-login-code", h.SendLoginSMS)
+		// 使用手机号+验证码登录
+		phoneGroup.POST("/code-login", h.PhoneCodeLogin)
+		// 发起密码重置 - 发送验证码
+		phoneGroup.POST("/reset-password/init", h.InitiatePasswordReset)
+		// 完成密码重置
+		phoneGroup.POST("/reset-password/complete", h.CompletePasswordReset)
 	}
-}
-
-// Register 处理手机注册请求
-func (h *PhoneHandler) Register(c *gin.Context) {
-	var req PhoneRegisterRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式无效"})
-		return
-	}
-
-	// 验证手机号格式
-	if err := h.phoneAuth.ValidatePhoneFormat(req.Phone); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// 注册用户
-	user, err := h.phoneAuth.RegisterPhoneUser(req.Phone, req.Password, req.Nickname)
-	if err != nil {
-		// 根据错误类型返回相应的状态码和消息
-		var status int = http.StatusInternalServerError
-
-		if appErr, ok := err.(*auth.AppError); ok {
-			status = int(appErr.Code)
-		}
-
-		c.JSON(status, gin.H{"error": err.Error()})
-		return
-	}
-
-	// 注册成功，返回用户信息（不包含敏感字段）
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "注册成功，请验证手机号",
-		"user_id": user.UserID,
-	})
 }
 
 // Login 处理手机密码登录请求
@@ -165,8 +139,8 @@ func (h *PhoneHandler) Login(c *gin.Context) {
 	})
 }
 
-// CodeLogin 处理手机验证码登录请求
-func (h *PhoneHandler) CodeLogin(c *gin.Context) {
+// PhoneCodeLogin 手机号+验证码登录
+func (h *PhoneHandler) PhoneCodeLogin(c *gin.Context) {
 	var req PhoneCodeLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式无效"})
@@ -176,7 +150,7 @@ func (h *PhoneHandler) CodeLogin(c *gin.Context) {
 	// 尝试验证码登录
 	user, err := h.phoneAuth.PhoneCodeLogin(req.Phone, req.Code)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "验证码无效或已过期"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "手机号或验证码错误"})
 		return
 	}
 
@@ -267,9 +241,11 @@ func (h *PhoneHandler) VerifyPhone(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "手机号验证成功"})
 }
 
-// InitiatePasswordReset 处理发起密码重置请求
+// InitiatePasswordReset 发起密码重置
 func (h *PhoneHandler) InitiatePasswordReset(c *gin.Context) {
-	var req SendVerificationCodeRequest
+	var req struct {
+		Phone string `json:"phone" binding:"required"`
+	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式无效"})
 		return
@@ -286,11 +262,11 @@ func (h *PhoneHandler) InitiatePasswordReset(c *gin.Context) {
 	if err != nil {
 		// 如果用户不存在，返回特定的错误
 		if appErr, ok := err.(*auth.AppError); ok && appErr.Code == auth.ErrCodeUserNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "该手机号未注册"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "手机号不存在"})
 			return
 		}
 
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "发起密码重置失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "发送重置验证码失败"})
 		return
 	}
 
@@ -310,6 +286,233 @@ func (h *PhoneHandler) InitiatePasswordReset(c *gin.Context) {
 
 // ResetPassword 处理重置密码请求
 func (h *PhoneHandler) ResetPassword(c *gin.Context) {
+	var req PhoneResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式无效"})
+		return
+	}
+
+	// 完成密码重置
+	if err := h.phoneAuth.CompletePasswordReset(req.Code, req.Phone, req.NewPassword); err != nil {
+		var status int
+		var message string
+
+		switch appErr := err.(type) {
+		case *auth.AppError:
+			switch appErr.Code {
+			case auth.ErrCodeInvalidToken:
+				status = http.StatusBadRequest
+				message = "验证码无效或已过期"
+			case auth.ErrCodeWeakPassword:
+				status = http.StatusBadRequest
+				message = "密码太弱，请使用更强的密码"
+			default:
+				status = http.StatusInternalServerError
+				message = "重置密码失败，请稍后再试"
+			}
+		default:
+			status = http.StatusInternalServerError
+			message = "重置密码失败，请稍后再试"
+		}
+
+		c.JSON(status, gin.H{"error": message})
+		return
+	}
+
+	// 重置成功
+	c.JSON(http.StatusOK, gin.H{"message": "密码重置成功"})
+}
+
+// PhonePreregister 手机预注册 - 发送验证码
+func (h *PhoneHandler) PhonePreregister(c *gin.Context) {
+	var req struct {
+		Phone    string `json:"phone" binding:"required"`
+		Password string `json:"password" binding:"required"`
+		Nickname string `json:"nickname"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		return
+	}
+
+	// 预注册手机用户，发送验证码
+	code, err := h.phoneAuth.PhonePreregister(req.Phone, req.Password, req.Nickname)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "验证码已发送，请查收并输入验证码完成注册",
+		"phone":   req.Phone,
+		"code":    code, // 在生产环境中应该移除这个字段，这里仅用于测试
+	})
+}
+
+// ResendPhoneVerification 重新发送手机验证码
+func (h *PhoneHandler) ResendPhoneVerification(c *gin.Context) {
+	var req struct {
+		Phone string `json:"phone" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		return
+	}
+
+	// 重新发送验证码
+	code, err := h.phoneAuth.ResendPhoneVerification(req.Phone)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "验证码已重新发送，请查收",
+		"code":    code, // 在生产环境中应该移除这个字段，这里仅用于测试
+	})
+}
+
+// VerifyPhoneAndRegister 验证手机号并完成注册
+func (h *PhoneHandler) VerifyPhoneAndRegister(c *gin.Context) {
+	var req struct {
+		Phone string `json:"phone" binding:"required"`
+		Code  string `json:"code" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		return
+	}
+
+	// 验证手机号并完成注册
+	user, err := h.phoneAuth.VerifyPhoneAndRegister(req.Phone, req.Code)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 创建会话
+	clientIP := c.ClientIP()
+	session, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), auth.RefreshTokenExpiration+time.Hour)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建会话失败"})
+		return
+	}
+
+	tokenPair, err := h.jwtService.GenerateTokenPair(user.UserID, session.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成令牌失败"})
+		return
+	}
+
+	c.SetCookie("refreshToken", tokenPair.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
+	c.JSON(http.StatusOK, gin.H{
+		"message":     "手机号验证成功，注册完成",
+		"user_id":     user.UserID,
+		"token":       tokenPair.AccessToken,
+		"profile":     user.Profile,
+		"expire_time": auth.TokenExpiration,
+	})
+}
+
+// PhoneLogin 手机号+密码登录
+func (h *PhoneHandler) PhoneLogin(c *gin.Context) {
+	var req PhoneLoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式无效"})
+		return
+	}
+
+	// 尝试登录
+	user, err := h.phoneAuth.PhoneLogin(req.Phone, req.Password)
+	if err != nil {
+		// 根据错误类型返回相应的状态码和消息
+		status := http.StatusUnauthorized
+		message := "手机号或密码错误"
+
+		if appErr, ok := err.(*auth.AppError); ok {
+			if appErr.Code == auth.ErrCodeEmailNotVerified {
+				message = "手机号未验证，请先验证手机号"
+			}
+		}
+
+		c.JSON(status, gin.H{"error": message})
+		return
+	}
+
+	// 创建会话和JWT令牌
+	session, err := h.sessionMgr.CreateUserSession(user.UserID, c.ClientIP(), c.GetHeader("User-Agent"), auth.TokenExpiration+time.Hour)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建会话失败"})
+		return
+	}
+
+	token, err := h.jwtService.GenerateJWT(user.UserID, session.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成令牌失败"})
+		return
+	}
+
+	// 登录成功，返回用户信息和令牌
+	c.JSON(http.StatusOK, gin.H{
+		"message": "登录成功",
+		"token":   token,
+		"user": gin.H{
+			"user_id":  user.UserID,
+			"nickname": user.Profile.Nickname,
+			"avatar":   user.Profile.Avatar,
+		},
+	})
+}
+
+// SendLoginSMS 发送登录验证码
+func (h *PhoneHandler) SendLoginSMS(c *gin.Context) {
+	var req struct {
+		Phone string `json:"phone" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		return
+	}
+
+	// 验证手机号格式
+	if err := h.phoneAuth.ValidatePhoneFormat(req.Phone); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 发送登录验证码
+	code, err := h.phoneAuth.SendLoginSMS(req.Phone)
+	if err != nil {
+		// 如果用户不存在，返回特定的错误
+		if appErr, ok := err.(*auth.AppError); ok && appErr.Code == auth.ErrCodeUserNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "该手机号未注册"})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "发送登录验证码失败"})
+		return
+	}
+
+	// 在开发环境中返回验证码，方便测试
+	devInfo := gin.H{}
+	if gin.Mode() == gin.DebugMode {
+		devInfo["code"] = code
+	}
+
+	// 发送成功
+	c.JSON(http.StatusOK, gin.H{
+		"message":     "登录验证码已发送",
+		"expires_in":  h.verifyCodeTTL,
+		"development": devInfo,
+	})
+}
+
+// CompletePasswordReset 完成密码重置
+func (h *PhoneHandler) CompletePasswordReset(c *gin.Context) {
 	var req PhoneResetPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式无效"})

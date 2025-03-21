@@ -33,6 +33,14 @@ const (
 	VerificationTypePhoneReset VerificationType = "phone_reset" // 手机密码重置
 )
 
+// 预注册信息，存储在Redis中
+type PhonePreregisterInfo struct {
+	Phone     string    `json:"phone"`
+	Password  string    `json:"password"` // 已加密的密码
+	Nickname  string    `json:"nickname"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 // PhoneAuth 手机认证结构体
 type PhoneAuth struct {
 	db                 *gorm.DB
@@ -263,21 +271,107 @@ func (a *PhoneAuth) CheckDuplicatePhone(phone string) error {
 	return nil
 }
 
-// RegisterPhoneUser 注册手机用户
-func (a *PhoneAuth) RegisterPhoneUser(phone, password, nickname string) (*User, error) {
-	// 检查手机号格式（这里简单示例，实际应该使用正则或其他方式进行严格验证）
-	if len(phone) < 11 {
-		return nil, ErrInvalidPhoneFormat("无效的手机号格式")
+// PhonePreregister 手机预注册，发送验证码但不创建用户
+func (a *PhoneAuth) PhonePreregister(phone, password, nickname string) (string, error) {
+	// 检查手机号格式
+	if err := a.ValidatePhoneFormat(phone); err != nil {
+		return "", err
 	}
 
 	// 检查手机号是否已被使用
 	if err := a.CheckDuplicatePhone(phone); err != nil {
-		return nil, err
+		return "", err
 	}
 
 	// 验证密码强度
 	if len(password) < 8 {
-		return nil, ErrWeakPassword("密码至少需要8个字符")
+		return "", ErrWeakPassword("密码至少需要8个字符")
+	}
+
+	// 加密密码
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", fmt.Errorf("密码加密失败: %v", err)
+	}
+
+	// 生成验证码
+	code, err := generateVerificationCode()
+	if err != nil {
+		return "", err
+	}
+
+	// 创建预注册信息
+	preregInfo := &PhonePreregisterInfo{
+		Phone:     phone,
+		Password:  string(hashedPassword),
+		Nickname:  nickname,
+		CreatedAt: time.Now(),
+	}
+
+	// 将预注册信息存储到Redis中
+	preregKey := fmt.Sprintf("phone_prereg:%s:%s", phone, code)
+	if err := a.redis.Set(preregKey, preregInfo, a.verificationExpiry); err != nil {
+		return "", fmt.Errorf("存储预注册信息失败: %w", err)
+	}
+
+	// 将验证码关联到手机号
+	if err := a.redis.StoreVerification(VerificationTypePhone, phone, code, "", a.verificationExpiry); err != nil {
+		return "", fmt.Errorf("存储手机验证信息失败: %w", err)
+	}
+
+	// 发送验证短信
+	if err := a.smsService.SendVerificationSMS(phone, code); err != nil {
+		return "", fmt.Errorf("发送验证短信失败: %w", err)
+	}
+
+	return code, nil
+}
+
+// ResendPhoneVerification 重新发送手机验证码
+func (a *PhoneAuth) ResendPhoneVerification(phone string) (string, error) {
+	// 从Redis获取之前的验证记录
+	verification, err := a.redis.GetVerification(VerificationTypePhone, phone)
+	if err != nil {
+		return "", err
+	}
+
+	// 生成新的验证码
+	code, err := generateVerificationCode()
+	if err != nil {
+		return "", err
+	}
+
+	// 更新验证记录
+	if err := a.redis.UpdateVerification(VerificationTypePhone, phone, verification.Token, code, a.verificationExpiry); err != nil {
+		return "", fmt.Errorf("更新手机验证信息失败: %w", err)
+	}
+
+	// 发送验证短信
+	if err := a.smsService.SendVerificationSMS(phone, code); err != nil {
+		return "", fmt.Errorf("发送验证短信失败: %w", err)
+	}
+
+	return code, nil
+}
+
+// VerifyPhoneAndRegister 验证手机号并完成注册
+func (a *PhoneAuth) VerifyPhoneAndRegister(phone, code string) (*User, error) {
+	// 从Redis获取验证记录
+	verification, err := a.redis.GetVerification(VerificationTypePhone, phone)
+	if err != nil {
+		return nil, ErrInvalidToken("验证码无效或已过期")
+	}
+
+	// 验证验证码
+	if verification.Token != code {
+		return nil, ErrInvalidToken("验证码不正确")
+	}
+
+	// 尝试获取预注册信息
+	preregKey := fmt.Sprintf("phone_prereg:%s:%s", phone, code)
+	var preregInfo PhonePreregisterInfo
+	if err := a.redis.Get(preregKey, &preregInfo); err != nil {
+		return nil, ErrInvalidToken("找不到预注册信息或已过期，请重新注册")
 	}
 
 	// 创建事务
@@ -293,15 +387,16 @@ func (a *PhoneAuth) RegisterPhoneUser(phone, password, nickname string) (*User, 
 		}
 	}()
 
-	// 生成随机用户ID (使用手机号作为前缀)
+	// 生成随机用户ID
 	userID, err := GenerateBase62ID()
 	if err != nil {
 		return nil, fmt.Errorf("生成随机ID失败: %v", err)
 	}
+
 	// 确保UserID唯一
 	for {
 		var count int64
-		a.db.Model(&User{}).Where("user_id = ?", userID).Count(&count) // todo 这也不对，没有在事务中检查
+		a.db.Model(&User{}).Where("user_id = ?", userID).Count(&count)
 		if count == 0 {
 			break
 		}
@@ -311,22 +406,15 @@ func (a *PhoneAuth) RegisterPhoneUser(phone, password, nickname string) (*User, 
 			return nil, fmt.Errorf("生成随机ID失败: %v", err)
 		}
 	}
-	// 加密密码
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		tx.Rollback()
-		return nil, err
-	}
 
 	// 创建 User 记录
 	now := time.Now()
 	user := &User{
 		UserID:   userID,
-		Password: string(hashedPassword),
+		Password: preregInfo.Password, // 已加密的密码
 		Status:   UserStatusActive,
 		Profile: UserProfile{
-			Nickname: nickname,
-			// Phone:    phone, // 同时设置手机号到Profile
+			Nickname: preregInfo.Nickname,
 		},
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -341,7 +429,7 @@ func (a *PhoneAuth) RegisterPhoneUser(phone, password, nickname string) (*User, 
 	phoneUser := &PhoneUser{
 		UserID:    userID,
 		Phone:     phone,
-		Verified:  false, // 需要验证
+		Verified:  true, // 手机号已验证
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
@@ -354,6 +442,18 @@ func (a *PhoneAuth) RegisterPhoneUser(phone, password, nickname string) (*User, 
 	// 提交事务
 	if err := tx.Commit().Error; err != nil {
 		return nil, err
+	}
+
+	// 使用完验证码后删除
+	if err := a.redis.DeleteVerification(VerificationTypePhone, phone, code); err != nil {
+		// 仅记录错误，不影响注册流程
+		fmt.Printf("删除验证码失败: %v\n", err)
+	}
+
+	// 删除预注册信息
+	if err := a.redis.Delete(preregKey); err != nil {
+		// 仅记录错误，不影响注册流程
+		fmt.Printf("删除预注册信息失败: %v\n", err)
 	}
 
 	return user, nil

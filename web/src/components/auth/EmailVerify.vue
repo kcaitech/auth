@@ -15,6 +15,11 @@
         <button @click="goToRegister">重新注册</button>
         <button @click="goToLogin">返回登录</button>
       </div>
+      
+      <div v-if="resendSuccess" class="resend-success">
+        <div class="success-icon-small">✓</div>
+        验证邮件已重新发送，请查收
+      </div>
     </div>
     
     <div v-else-if="success" class="verify-success">
@@ -44,6 +49,7 @@ const error = ref('');
 const success = ref(false);
 const resending = ref(false);
 const verifiedEmail = ref('');
+const resendSuccess = ref(false);
 
 // 定义用户信息接口
 interface UserInfo {
@@ -108,36 +114,23 @@ const resendVerification = async () => {
   
   try {
     resending.value = true;
+    resendSuccess.value = false;
     
-    // const response = await fetch('/auth/email/resend-verification', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Content-Type': 'application/json',
-    //   },
-    //   body: JSON.stringify({
-    //     email: verifiedEmail.value,
-    //     title: '邮箱验证',
-    //     content: verificationEmailTpl
-    //   })
-    // });
-    
-    // const data = await response.json();
-
     await axios.post('/auth/email/resend-verification', {
       email: verifiedEmail.value,
       title: '邮箱验证',
       content: verificationEmailTpl
-    })
+    });
     
-    // if (!response.ok) {
-    //   throw new Error(data.error || '重新发送失败，请稍后重试');
-    // }
+    resendSuccess.value = true;
     
-    alert('验证邮件已重新发送，请查收');
+    setTimeout(() => {
+      resendSuccess.value = false;
+    }, 5000);
     
   } catch (err: any) {
     console.error('重新发送验证邮件失败:', err);
-    error.value = err.message || '重新发送失败，请稍后重试';
+    error.value = err.response?.data?.message || '重新发送失败，请稍后重试';
   } finally {
     resending.value = false;
   }
@@ -260,6 +253,39 @@ button:hover {
 button:disabled {
   background-color: #95a5a6;
   cursor: not-allowed;
+}
+
+/* 重发成功提示样式 */
+.resend-success {
+  display: flex;
+  align-items: center;
+  margin-top: 12px;
+  padding: 8px 12px;
+  background-color: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 4px;
+  color: #52c41a;
+  font-size: 14px;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.success-icon-small {
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: #52c41a;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style>
 
