@@ -29,7 +29,7 @@ type JWTConfig struct {
 
 // AuthConfig 认证配置
 type AuthConfig struct {
-	EnabledProviders []string        `json:"enabled_providers"` // "account", "email", "google", "weixin"
+	EnabledProviders []string        `json:"enabled_providers"` // "account", "email", "weixin", "google", "phone"
 	JWT              JWTConfig       `json:"jwt"`
 	Google           GoogleConfig    `json:"google"`
 	Weixin           WeixinConfig    `json:"weixin"`

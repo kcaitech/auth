@@ -348,7 +348,7 @@ export default defineComponent({
     
     // 辅助函数：获取用户名
     const getUserName = (user: User): string => {
-      return user.nickname || user.user_id || '未知用户名'
+      return user.profile.nickname || '未知用户名'
     }
     
     // 辅助函数：获取状态

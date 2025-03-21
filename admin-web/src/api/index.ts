@@ -67,24 +67,28 @@ export interface StatsData {
 }
 
 export interface User {
-  // id: string | number
-  user_id?: string
-  nickname?: string
-  // user_name?: string
-  // name?: string
-  // email?: string
-  status?: string
-  provider?: string
-  auth_provider?: string
-  verified?: boolean
-  is_verified?: boolean
-  created_at?: string
-  register_time?: string
-  last_login?: string | null
-  last_login_time?: string | null
-  two_factor_enabled?: boolean
-  login_attempts?: number
-  last_attempt?: string
+  user_id: string
+  status: string
+  profile: {
+    nickname: string
+    avatar: string
+    // bio: string
+    location: string
+    // website: string
+    birthday: string
+    gender: string
+    // phone: string
+    // company: string
+    // position: string
+    // education: string
+    language: string
+    timezone: string
+  },
+  last_login: string | null
+  login_attempts: number
+  last_attempt: string | null
+  created_at: string
+  updated_at: string
   [key: string]: any
 }
 

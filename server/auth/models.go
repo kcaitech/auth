@@ -14,19 +14,19 @@ const (
 
 // UserProfile 用户档案
 type UserProfile struct {
-	Nickname  string `json:"nickname" gorm:"size:50"`   // 昵称
-	Avatar    string `json:"avatar" gorm:"size:255"`    // 头像URL
-	Bio       string `json:"bio" gorm:"size:500"`       // 个人简介
-	Location  string `json:"location" gorm:"size:100"`  // 地理位置
-	Website   string `json:"website" gorm:"size:200"`   // 个人网站
-	Birthday  string `json:"birthday" gorm:"size:10"`   // 生日
-	Gender    string `json:"gender" gorm:"size:10"`     // 性别
-	Phone     string `json:"phone" gorm:"size:20"`      // 电话号码
-	Company   string `json:"company" gorm:"size:100"`   // 公司
-	Position  string `json:"position" gorm:"size:100"`  // 职位
-	Education string `json:"education" gorm:"size:100"` // 教育背景
-	Language  string `json:"language" gorm:"size:20"`   // 首选语言
-	Timezone  string `json:"timezone" gorm:"size:50"`   // 时区
+	Nickname string `json:"nickname" gorm:"size:50"` // 昵称
+	Avatar   string `json:"avatar" gorm:"size:255"`  // 头像URL
+	// Bio       string `json:"bio" gorm:"size:500"`       // 个人简介
+	Location string `json:"location" gorm:"size:100"` // 地理位置
+	// Website   string `json:"website" gorm:"size:200"`   // 个人网站
+	Birthday string `json:"birthday" gorm:"size:10"` // 生日
+	Gender   string `json:"gender" gorm:"size:10"`   // 性别
+	// Phone     string `json:"phone" gorm:"size:20"`      // 电话号码
+	// Company   string `json:"company" gorm:"size:100"`   // 公司
+	// Position  string `json:"position" gorm:"size:100"`  // 职位
+	// Education string `json:"education" gorm:"size:100"` // 教育背景
+	Language string `json:"language" gorm:"size:20"` // 首选语言
+	Timezone string `json:"timezone" gorm:"size:50"` // 时区
 }
 
 // 验证记录

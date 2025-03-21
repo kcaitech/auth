@@ -326,7 +326,7 @@ func (a *PhoneAuth) RegisterPhoneUser(phone, password, nickname string) (*User, 
 		Status:   UserStatusActive,
 		Profile: UserProfile{
 			Nickname: nickname,
-			Phone:    phone, // 同时设置手机号到Profile
+			// Phone:    phone, // 同时设置手机号到Profile
 		},
 		CreatedAt: now,
 		UpdatedAt: now,

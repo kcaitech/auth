@@ -321,11 +321,11 @@ func (w *WeixinLogin) CreateUserFromWeixin(weixinInfo *WeixinUserInfo) (*User, e
 	now := time.Now()
 
 	// 性别转换为字符串
-	gender := "未知"
+	gender := "unknown"
 	if weixinInfo.Sex == 1 {
-		gender = "男"
+		gender = "male"
 	} else if weixinInfo.Sex == 2 {
-		gender = "女"
+		gender = "female"
 	}
 
 	user := &User{

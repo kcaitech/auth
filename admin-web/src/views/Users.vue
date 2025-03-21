@@ -352,12 +352,12 @@ export default defineComponent({
     
     // 辅助函数：获取用户ID
     const getUserId = (user: User): string => {
-      return String(user.id || user.user_id || '未知ID')
+      return String(user.user_id || '未知ID')
     }
     
     // 辅助函数：获取用户名
     const getUserName = (user: User): string => {
-      return user.username || user.user_name || user.name || '未知用户名'
+      return user.profile.nickname || '未知用户名'
     }
     
     // 辅助函数：获取状态

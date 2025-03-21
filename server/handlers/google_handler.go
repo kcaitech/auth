@@ -228,7 +228,7 @@ func (h *AuthHandler) handleGoogleUser(googleID, email, name, pictureURL string)
 	}
 
 	// 查找现有用户
-	user, err := h.googleOAuth.GetUserByGoogleID(googleID)
+	user, err := h.googleOAuth.GetUserByGoogleID(googleID, email)
 	if err != nil {
 		// 如果是非"用户不存在"错误，则直接返回
 		var appErr *auth.AppError

@@ -217,24 +217,31 @@ func (g *GoogleOAuth) generateCodeChallenge(verifier string) string {
 }
 
 // GetUserByGoogleID 通过 Google ID 获取用户
-func (g *GoogleOAuth) GetUserByGoogleID(googleID string) (*User, error) {
+func (g *GoogleOAuth) GetUserByGoogleID(googleID, email string) (*User, error) {
 	if g.db == nil {
 		return nil, fmt.Errorf("数据库未初始化")
 	}
 
 	// 先查询 Google 用户表
 	var googleUser GoogleUser
+	var userID string
 	err := g.db.Where("google_id = ?", googleID).First(&googleUser).Error
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, nil // 未找到，返回nil，让后续流程处理
+	if err == nil {
+		userID = googleUser.UserID
+	} else if err == gorm.ErrRecordNotFound {
+		var googleUserWithSameEmail EmailUser
+		err = g.db.Where("email = ?", email).First(&googleUserWithSameEmail).Error
+		if err != nil {
+			return nil, err // 未找到，返回nil，让后续流程处理
 		}
+		userID = googleUserWithSameEmail.UserID
+	} else {
 		return nil, err
 	}
 
 	// 再查询对应的User记录
 	var user User
-	if err := g.db.Where("user_id = ?", googleUser.UserID).First(&user).Error; err != nil {
+	if err := g.db.Where("user_id = ?", userID).First(&user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, NewAppError(ErrCodeUserNotFound, "用户不存在", err)
 		}
@@ -257,7 +264,7 @@ func (g *GoogleOAuth) RegisterOrLoginWithGoogle(ctx context.Context, code, state
 	}
 
 	// 2. 查询是否已存在该 Google 用户
-	user, err := g.GetUserByGoogleID(googleUserInfo.ID)
+	user, err := g.GetUserByGoogleID(googleUserInfo.ID, googleUserInfo.Email)
 	if err != nil {
 		return nil, err
 	}

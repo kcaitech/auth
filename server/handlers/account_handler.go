@@ -327,24 +327,24 @@ func (h *AuthHandler) UpdateUserInfo(c *gin.Context) {
 	if req.Profile.Avatar != "" && user.Profile.Avatar != req.Profile.Avatar {
 		updates["profile.avatar"] = req.Profile.Avatar
 	}
-	if req.Profile.Bio != "" && user.Profile.Bio != req.Profile.Bio {
-		updates["profile.bio"] = req.Profile.Bio
-	}
+	// if req.Profile.Bio != "" && user.Profile.Bio != req.Profile.Bio {
+	// 	updates["profile.bio"] = req.Profile.Bio
+	// }
 	if req.Profile.Location != "" && user.Profile.Location != req.Profile.Location {
 		updates["profile.location"] = req.Profile.Location
 	}
-	if req.Profile.Website != "" && user.Profile.Website != req.Profile.Website {
-		updates["profile.website"] = req.Profile.Website
-	}
+	// if req.Profile.Website != "" && user.Profile.Website != req.Profile.Website {
+	// 	updates["profile.website"] = req.Profile.Website
+	// }
 	if req.Profile.Birthday != "" && user.Profile.Birthday != req.Profile.Birthday {
 		updates["profile.birthday"] = req.Profile.Birthday
 	}
 	if req.Profile.Gender != "" && user.Profile.Gender != req.Profile.Gender {
 		updates["profile.gender"] = req.Profile.Gender
 	}
-	if req.Profile.Phone != "" && user.Profile.Phone != req.Profile.Phone {
-		updates["profile.phone"] = req.Profile.Phone
-	}
+	// if req.Profile.Phone != "" && user.Profile.Phone != req.Profile.Phone {
+	// 	updates["profile.phone"] = req.Profile.Phone
+	// }
 
 	// 如果有需要更新的字段
 	if len(updates) > 0 {
