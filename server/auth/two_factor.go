@@ -14,31 +14,31 @@ import (
 	"gorm.io/gorm"
 )
 
-// TwoFactorData 双因素认证数据
+// TwoFactorData Two-factor authentication data
 type TwoFactorData struct {
-	UserID          string    `json:"user_id" gorm:"primarykey"`    // 关联到 User 表的 UserID
-	Secret          string    `json:"secret" gorm:"size:100"`       // TOTP 密钥
-	Enabled         bool      `json:"enabled" gorm:"default:false"` // 是否启用
-	BackupCodes     string    `json:"-" gorm:"type:text"`           // 备份码（JSON格式存储）
-	TempSecret      string    `json:"-" gorm:"size:100"`            // 临时密钥（等待验证）
-	LastVerified    time.Time `json:"last_verified"`                // 最后验证时间
-	SecretUpdatedAt time.Time `json:"secret_updated_at"`            // 密钥更新时间
+	UserID          string    `json:"user_id" gorm:"primarykey"`    // Associated with User table's UserID
+	Secret          string    `json:"secret" gorm:"size:100"`       // TOTP secret key
+	Enabled         bool      `json:"enabled" gorm:"default:false"` // Whether enabled
+	BackupCodes     string    `json:"-" gorm:"type:text"`           // Backup codes (stored in JSON format)
+	TempSecret      string    `json:"-" gorm:"size:100"`            // Temporary secret (waiting for verification)
+	LastVerified    time.Time `json:"last_verified"`                // Last verification time
+	SecretUpdatedAt time.Time `json:"secret_updated_at"`            // Secret update time
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
 }
 
-// TwoFactorConfig 双因素认证配置
+// TwoFactorConfig Two-factor authentication configuration
 type TwoFactorConfig struct {
-	Issuer     string        // 发行方名称
-	Period     uint          // TOTP 周期（默认30秒）
-	Digits     otp.Digits    // TOTP 位数（默认6位）
-	Algorithm  otp.Algorithm // 使用的算法（默认SHA1）
-	SecretSize uint          // 密钥长度（默认20字节）
-	WindowSize uint          // 验证窗口大小（默认1，即前后1个周期）
-	RedisStore *RedisStore   // Redis存储（可选，用于临时存储）
+	Issuer     string        // Issuer name
+	Period     uint          // TOTP period (default 30 seconds)
+	Digits     otp.Digits    // TOTP digits (default 6 digits)
+	Algorithm  otp.Algorithm // Algorithm used (default SHA1)
+	SecretSize uint          // Secret key length (default 20 bytes)
+	WindowSize uint          // Verification window size (default 1, meaning 1 period before and after)
+	RedisStore *RedisStore   // Redis storage (optional, used for temporary storage)
 }
 
-// NewDefaultTwoFactorConfig 创建默认配置
+// NewDefaultTwoFactorConfig Create default configuration
 func NewDefaultTwoFactorConfig(issuer string) *TwoFactorConfig {
 	return &TwoFactorConfig{
 		Issuer:     issuer,
@@ -50,14 +50,14 @@ func NewDefaultTwoFactorConfig(issuer string) *TwoFactorConfig {
 	}
 }
 
-// TwoFactorAuth 双因素认证服务
+// TwoFactorAuth Two-factor authentication service
 type TwoFactorAuth struct {
 	config *TwoFactorConfig
 	db     *gorm.DB
 	redis  *RedisStore
 }
 
-// NewTwoFactorAuth 创建双因素认证服务实例
+// NewTwoFactorAuth Create two-factor authentication service instance
 func NewTwoFactorAuth(db *gorm.DB, config *TwoFactorConfig) *TwoFactorAuth {
 	return &TwoFactorAuth{
 		config: config,
@@ -66,201 +66,195 @@ func NewTwoFactorAuth(db *gorm.DB, config *TwoFactorConfig) *TwoFactorAuth {
 	}
 }
 
-// AutoMigrate 自动迁移数据库结构
-func (t *TwoFactorAuth) AutoMigrate() error {
-	return t.db.AutoMigrate(&TwoFactorData{})
+// AutoMigrate Automatically migrate database structure
+func (a *TwoFactorAuth) AutoMigrate() error {
+	return a.db.AutoMigrate(&TwoFactorData{})
 }
 
-// GetUserTwoFactorData 获取用户的2FA数据
-func (t *TwoFactorAuth) GetUserTwoFactorData(userID string) (*TwoFactorData, error) {
+// GetUserTwoFactorData Get user's 2FA data
+func (a *TwoFactorAuth) GetUserTwoFactorData(userID string) (*TwoFactorData, error) {
 	var data TwoFactorData
-	err := t.db.Where("user_id = ?", userID).First(&data).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// 如果记录不存在，则创建一个新记录
-			data = TwoFactorData{
-				UserID:    userID,
-				Enabled:   false,
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-			}
-			if err := t.db.Create(&data).Error; err != nil {
-				return nil, fmt.Errorf("创建2FA记录失败: %v", err)
-			}
-			return &data, nil
+	result := a.db.Where("user_id = ?", userID).First(&data)
+
+	// If record doesn't exist, create a new one
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		now := time.Now()
+		data = TwoFactorData{
+			UserID:    userID,
+			CreatedAt: now,
+			UpdatedAt: now,
 		}
-		return nil, fmt.Errorf("获取2FA数据失败: %v", err)
+		if err := a.db.Create(&data).Error; err != nil {
+			return nil, fmt.Errorf("failed to create 2FA record: %v", err)
+		}
+		return &data, nil
+	} else if result.Error != nil {
+		return nil, fmt.Errorf("failed to get 2FA data: %v", result.Error)
 	}
+
 	return &data, nil
 }
 
-// GenerateSecret 生成新的TOTP密钥
-func (t *TwoFactorAuth) GenerateSecret(userID string, accountName string) (*otp.Key, error) {
-	// 检查用户是否存在
-	data, err := t.GetUserTwoFactorData(userID)
-	if err != nil {
+// GenerateSecret Generate new TOTP secret
+func (a *TwoFactorAuth) GenerateSecret(userID, username string) (*TwoFactorData, error) {
+	// Check if user exists
+	var user User
+	if err := a.db.Where("user_id = ?", userID).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrUserNotFound("User not found")
+		}
 		return nil, err
 	}
 
-	// 生成TOTP密钥
+	// Generate TOTP secret
 	key, err := totp.Generate(totp.GenerateOpts{
-		Issuer:      t.config.Issuer,
-		AccountName: accountName,
-		Period:      t.config.Period,
-		Digits:      t.config.Digits,
-		Algorithm:   t.config.Algorithm,
-		SecretSize:  t.config.SecretSize,
+		Issuer:      a.config.Issuer,
+		AccountName: username,
+		SecretSize:  a.config.SecretSize,
+		Period:      a.config.Period,
+		Algorithm:   a.config.Algorithm,
+		Digits:      a.config.Digits,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("生成TOTP密钥失败: %v", err)
+		return nil, fmt.Errorf("failed to generate TOTP key: %v", err)
 	}
 
-	// 保存临时密钥
-	data.TempSecret = key.Secret()
-	data.UpdatedAt = time.Now()
-	if err := t.db.Save(data).Error; err != nil {
-		return nil, fmt.Errorf("保存临时密钥失败: %v", err)
+	// Save temporary key
+	tfaData, err := a.GetUserTwoFactorData(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to save temporary key: %v", err)
 	}
 
-	return key, nil
+	tfaData.TempSecret = key.Secret()
+	tfaData.UpdatedAt = time.Now()
+	return tfaData, a.db.Save(tfaData).Error
 }
 
-// EnableTwoFactor 启用双因素认证
-func (t *TwoFactorAuth) EnableTwoFactor(userID string, code string) error {
-	// 获取用户2FA数据
-	data, err := t.GetUserTwoFactorData(userID)
+// EnableTwoFactor Enable two-factor authentication
+func (a *TwoFactorAuth) EnableTwoFactor(userID, code string) error {
+	// Get user's 2FA data
+	tfaData, err := a.GetUserTwoFactorData(userID)
 	if err != nil {
 		return err
 	}
 
-	// 检查是否已有临时密钥
-	if data.TempSecret == "" {
-		return errors.New("未找到临时密钥，请先生成密钥")
+	// Check if temporary key exists
+	if tfaData.TempSecret == "" {
+		return ErrInvalidToken("No temporary secret found, please generate a new secret")
 	}
 
-	// 验证代码
-	if !t.ValidateCode(data.TempSecret, code) {
-		return errors.New("无效的验证码")
+	// Validate code
+	if !a.ValidateCode(tfaData.TempSecret, code) {
+		return errors.New("invalid verification code")
 	}
 
-	// 生成备份码
-	backupCodes, err := t.GenerateBackupCodes()
+	// Generate backup codes
+	backupCodes, err := a.GenerateBackupCodes()
 	if err != nil {
-		return fmt.Errorf("生成备份码失败: %v", err)
+		return fmt.Errorf("failed to generate backup codes: %v", err)
 	}
 
-	// 将备份码存储为JSON
+	// Save backup codes as JSON
 	backupCodesJSON, err := json.Marshal(backupCodes)
 	if err != nil {
-		return fmt.Errorf("序列化备份码失败: %v", err)
+		return fmt.Errorf("failed to serialize backup codes: %v", err)
 	}
 
-	// 启用双因素认证
-	data.Secret = data.TempSecret
-	data.TempSecret = ""
-	data.Enabled = true
-	data.BackupCodes = string(backupCodesJSON)
-	data.SecretUpdatedAt = time.Now()
-	data.LastVerified = time.Now()
-	data.UpdatedAt = time.Now()
+	// Enable two-factor authentication
+	tfaData.Secret = tfaData.TempSecret
+	tfaData.TempSecret = ""
+	tfaData.Enabled = true
+	tfaData.BackupCodes = string(backupCodesJSON)
+	tfaData.SecretUpdatedAt = time.Now()
+	tfaData.LastVerified = time.Now()
+	tfaData.UpdatedAt = time.Now()
 
-	if err := t.db.Save(data).Error; err != nil {
-		return fmt.Errorf("保存2FA数据失败: %v", err)
-	}
-
-	return nil
+	return a.db.Save(tfaData).Error
 }
 
-// DisableTwoFactor 禁用双因素认证
-func (t *TwoFactorAuth) DisableTwoFactor(userID string, code string) error {
-	// 获取用户2FA数据
-	data, err := t.GetUserTwoFactorData(userID)
+// DisableTwoFactor Disable two-factor authentication
+func (a *TwoFactorAuth) DisableTwoFactor(userID, code string) error {
+	// Get user's 2FA data
+	tfaData, err := a.GetUserTwoFactorData(userID)
 	if err != nil {
 		return err
 	}
 
-	// 检查是否启用了2FA
-	if !data.Enabled {
-		return errors.New("双因素认证未启用")
+	// Check if 2FA is enabled
+	if !tfaData.Enabled {
+		return errors.New("two-factor authentication is not enabled")
 	}
 
-	// 验证代码
-	validCode := t.ValidateCode(data.Secret, code)
-	validBackup := t.ValidateBackupCode(userID, code)
-
-	if !validCode && !validBackup {
-		return errors.New("无效的验证码")
+	// Validate code
+	if !a.ValidateCode(tfaData.Secret, code) && !a.ValidateBackupCode(userID, code) {
+		return errors.New("invalid verification code")
 	}
 
-	// 禁用双因素认证
-	data.Enabled = false
-	data.Secret = ""
-	data.BackupCodes = ""
-	data.UpdatedAt = time.Now()
+	// Disable two-factor authentication
+	tfaData.Secret = ""
+	tfaData.TempSecret = ""
+	tfaData.Enabled = false
+	tfaData.BackupCodes = ""
+	tfaData.UpdatedAt = time.Now()
 
-	if err := t.db.Save(data).Error; err != nil {
-		return fmt.Errorf("禁用2FA失败: %v", err)
+	if err := a.db.Save(tfaData).Error; err != nil {
+		return fmt.Errorf("failed to disable 2FA: %v", err)
 	}
 
 	return nil
 }
 
-// ValidateCode 验证TOTP代码
-func (t *TwoFactorAuth) ValidateCode(secret, code string) bool {
+// ValidateCode Validate TOTP code
+func (a *TwoFactorAuth) ValidateCode(secret, code string) bool {
 	if secret == "" || code == "" {
 		return false
 	}
 	return totp.Validate(code, secret)
 }
 
-// ParseBackupCodes 解析备份码
-func (t *TwoFactorAuth) parseBackupCodes(userID string) ([]string, error) {
-	data, err := t.GetUserTwoFactorData(userID)
+// ParseBackupCodes Parse backup codes
+func (a *TwoFactorAuth) ParseBackupCodes(backupCodesJSON string) ([]string, error) {
+	if backupCodesJSON == "" {
+		return nil, nil
+	}
+
+	var backupCodes []string
+	err := json.Unmarshal([]byte(backupCodesJSON), &backupCodes)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse backup codes: %v", err)
 	}
 
-	if data.BackupCodes == "" {
-		return []string{}, nil
-	}
-
-	var codes []string
-	if err := json.Unmarshal([]byte(data.BackupCodes), &codes); err != nil {
-		return nil, fmt.Errorf("解析备份码失败: %v", err)
-	}
-
-	return codes, nil
+	return backupCodes, nil
 }
 
-// ValidateBackupCode 验证备份码
-func (t *TwoFactorAuth) ValidateBackupCode(userID string, code string) bool {
-	// 获取用户的备份码
-	codes, err := t.parseBackupCodes(userID)
-	if err != nil || len(codes) == 0 {
+// ValidateBackupCode Validate backup code
+func (a *TwoFactorAuth) ValidateBackupCode(userID, code string) bool {
+	// Get user's backup codes
+	tfaData, err := a.GetUserTwoFactorData(userID)
+	if err != nil || !tfaData.Enabled || tfaData.BackupCodes == "" {
 		return false
 	}
 
-	// 验证备份码
-	for i, storedCode := range codes {
-		if storedCode == code {
-			// 使用后删除备份码
-			codes = append(codes[:i], codes[i+1:]...)
+	// Validate backup code
+	backupCodes, err := a.ParseBackupCodes(tfaData.BackupCodes)
+	if err != nil {
+		return false
+	}
 
-			// 将更新后的备份码保存回数据库
-			codesJSON, err := json.Marshal(codes)
+	// Remove backup code after use
+	for i, backupCode := range backupCodes {
+		if backupCode == code {
+			// Save updated backup codes back to database
+			backupCodes = append(backupCodes[:i], backupCodes[i+1:]...)
+			backupCodesJSON, err := json.Marshal(backupCodes)
 			if err != nil {
 				return false
 			}
 
-			data, err := t.GetUserTwoFactorData(userID)
-			if err != nil {
-				return false
-			}
-
-			data.BackupCodes = string(codesJSON)
-			data.UpdatedAt = time.Now()
-
-			if err := t.db.Save(data).Error; err != nil {
+			tfaData.BackupCodes = string(backupCodesJSON)
+			tfaData.LastVerified = time.Now()
+			tfaData.UpdatedAt = time.Now()
+			if err := a.db.Save(tfaData).Error; err != nil {
 				return false
 			}
 
@@ -271,149 +265,192 @@ func (t *TwoFactorAuth) ValidateBackupCode(userID string, code string) bool {
 	return false
 }
 
-// GenerateBackupCodes 生成备份码
-func (t *TwoFactorAuth) GenerateBackupCodes() ([]string, error) {
-	codes := make([]string, 8) // 生成8个备份码
+// GenerateBackupCodes Generate backup codes
+func (a *TwoFactorAuth) GenerateBackupCodes() ([]string, error) {
+	codes := make([]string, 8) // Generate 8 backup codes
+
 	for i := 0; i < 8; i++ {
-		// 生成6字节的随机数据
+		// Generate 6 bytes of random data
 		b := make([]byte, 6)
-		if _, err := rand.Read(b); err != nil {
-			return nil, fmt.Errorf("生成随机字节失败: %v", err)
+		_, err := rand.Read(b)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate random bytes: %v", err)
 		}
-		// 转换为base32编码并取前10位
-		code := strings.ToUpper(base32.StdEncoding.EncodeToString(b))[:10]
-		codes[i] = code
+
+		// Convert to base32 encoding and take first 10 characters
+		encoded := base32.StdEncoding.EncodeToString(b)
+		codes[i] = strings.ToUpper(encoded[:10])
 	}
+
 	return codes, nil
 }
 
-// VerifyTwoFactor 验证双因素认证
-func (t *TwoFactorAuth) VerifyTwoFactor(userID string, code string) error {
-	// 获取用户2FA数据
-	data, err := t.GetUserTwoFactorData(userID)
+// VerifyTwoFactor Verify two-factor authentication
+func (a *TwoFactorAuth) VerifyTwoFactor(userID string, code string) error {
+	// Get user's 2FA data
+	tfaData, err := a.GetUserTwoFactorData(userID)
 	if err != nil {
 		return err
 	}
 
-	// 检查是否启用了双因素认证
-	if !data.Enabled {
-		return errors.New("双因素认证未启用")
+	// Check if two-factor authentication is enabled
+	if !tfaData.Enabled {
+		return errors.New("two-factor authentication is not enabled")
 	}
 
-	// 先尝试验证TOTP代码
-	if t.ValidateCode(data.Secret, code) {
-		// 更新最后验证时间
-		data.LastVerified = time.Now()
-		data.UpdatedAt = time.Now()
-		t.db.Save(data)
+	// First try to verify TOTP code
+	if a.ValidateCode(tfaData.Secret, code) {
+		// Update last verification time
+		tfaData.LastVerified = time.Now()
+		tfaData.UpdatedAt = time.Now()
+		a.db.Save(tfaData)
 		return nil
 	}
 
-	// 如果TOTP验证失败，尝试验证备份码
-	if t.ValidateBackupCode(userID, code) {
-		// 更新最后验证时间
-		data.LastVerified = time.Now()
-		data.UpdatedAt = time.Now()
-		t.db.Save(data)
+	// If TOTP verification fails, try backup code
+	if a.ValidateBackupCode(userID, code) {
+		// Update last verification time
+		tfaData.LastVerified = time.Now()
+		tfaData.UpdatedAt = time.Now()
+		a.db.Save(tfaData)
 		return nil
 	}
 
-	return errors.New("无效的验证码")
+	return errors.New("invalid verification code")
 }
 
-// GetBackupCodes 获取用户的备份码
-func (t *TwoFactorAuth) GetBackupCodes(userID string) ([]string, error) {
-	return t.parseBackupCodes(userID)
-}
-
-// GenerateRecoveryCodes 生成新的恢复码
-func (t *TwoFactorAuth) GenerateRecoveryCodes(userID string, currentCode string) ([]string, error) {
-	// 获取用户2FA数据
-	data, err := t.GetUserTwoFactorData(userID)
+// GetBackupCodes Get user's backup codes
+func (a *TwoFactorAuth) GetBackupCodes(userID string) ([]string, error) {
+	tfaData, err := a.GetUserTwoFactorData(userID)
 	if err != nil {
 		return nil, err
 	}
 
-	// 检查是否启用了2FA
-	if !data.Enabled {
-		return nil, errors.New("双因素认证未启用")
+	return a.ParseBackupCodes(tfaData.BackupCodes)
+}
+
+// VerifyCode Verify the TOTP or backup code
+func (a *TwoFactorAuth) VerifyCode(userID string, code string) error {
+	// Get user's 2FA data
+	tfaData, err := a.GetUserTwoFactorData(userID)
+	if err != nil {
+		return err
 	}
 
-	// 验证当前TOTP代码
-	if !t.ValidateCode(data.Secret, currentCode) {
-		return nil, errors.New("无效的验证码")
+	// Check if 2FA is enabled
+	if !tfaData.Enabled {
+		return errors.New("two-factor authentication is not enabled")
 	}
 
-	// 生成新的备份码
-	codes, err := t.GenerateBackupCodes()
+	// Verify TOTP code
+	if a.ValidateCode(tfaData.Secret, code) {
+		// Update last verification time
+		tfaData.LastVerified = time.Now()
+		tfaData.UpdatedAt = time.Now()
+		a.db.Save(tfaData)
+		return nil
+	}
+
+	// If TOTP verification fails, try backup code
+	if a.ValidateBackupCode(userID, code) {
+		// Update last verification time
+		tfaData.LastVerified = time.Now()
+		tfaData.UpdatedAt = time.Now()
+		a.db.Save(tfaData)
+		return nil
+	}
+
+	return errors.New("invalid verification code")
+}
+
+// GenerateRecoveryCodes Generate new recovery codes
+func (a *TwoFactorAuth) GenerateRecoveryCodes(userID string, currentCode string) ([]string, error) {
+	// Get user's 2FA data
+	tfaData, err := a.GetUserTwoFactorData(userID)
 	if err != nil {
 		return nil, err
 	}
 
-	// 将备份码存储为JSON
+	// Check if 2FA is enabled
+	if !tfaData.Enabled {
+		return nil, errors.New("two-factor authentication is not enabled")
+	}
+
+	// Verify current TOTP code
+	if !a.ValidateCode(tfaData.Secret, currentCode) {
+		return nil, errors.New("invalid verification code")
+	}
+
+	// Generate new backup codes
+	codes, err := a.GenerateBackupCodes()
+	if err != nil {
+		return nil, err
+	}
+
+	// Save backup codes as JSON
 	codesJSON, err := json.Marshal(codes)
 	if err != nil {
-		return nil, fmt.Errorf("序列化备份码失败: %v", err)
+		return nil, fmt.Errorf("failed to serialize backup codes: %v", err)
 	}
 
-	// 更新数据库
-	data.BackupCodes = string(codesJSON)
-	data.UpdatedAt = time.Now()
-	if err := t.db.Save(data).Error; err != nil {
-		return nil, fmt.Errorf("保存备份码失败: %v", err)
+	// Save to database
+	tfaData.BackupCodes = string(codesJSON)
+	tfaData.UpdatedAt = time.Now()
+	if err := a.db.Save(tfaData).Error; err != nil {
+		return nil, fmt.Errorf("failed to save backup codes: %v", err)
 	}
 
 	return codes, nil
 }
 
-// IsTwoFactorEnabled 检查用户是否启用了双因素认证
-func (t *TwoFactorAuth) IsTwoFactorEnabled(userID string) (bool, error) {
-	data, err := t.GetUserTwoFactorData(userID)
+// IsTwoFactorEnabled Check if user has enabled two-factor authentication
+func (a *TwoFactorAuth) IsTwoFactorEnabled(userID string) (bool, error) {
+	data, err := a.GetUserTwoFactorData(userID)
 	if err != nil {
 		return false, err
 	}
 	return data.Enabled, nil
 }
 
-// GetQRCodeURL 获取QR码URL
+// GetQRCodeURL Get QR code URL
 func (t *TwoFactorAuth) GetQRCodeURL(userID string) (string, error) {
-	// 获取用户2FA数据
+	// Get user's 2FA data
 	data, err := t.GetUserTwoFactorData(userID)
 	if err != nil {
 		return "", err
 	}
 
-	// 检查是否有临时密钥
+	// Check if temporary key exists
 	if data.TempSecret == "" {
-		return "", errors.New("未找到临时密钥，请先生成密钥")
+		return "", errors.New("temporary key not found, please generate a key first")
 	}
 
-	// 查询用户信息
+	// Get user information
 	var user User
 	if err := t.db.Where("user_id = ?", userID).First(&user).Error; err != nil {
-		return "", fmt.Errorf("获取用户信息失败: %v", err)
+		return "", fmt.Errorf("failed to get user information: %v", err)
 	}
 
-	// 构造账户名称
+	// Construct account name
 	accountName := user.Profile.Nickname
 	if accountName == "" {
 		accountName = userID
 	}
 
-	// 生成OTP密钥对象
+	// Generate OTP key object
 	key, err := otp.NewKeyFromURL(fmt.Sprintf("otpauth://totp/%s:%s?secret=%s&issuer=%s",
 		t.config.Issuer, accountName, data.TempSecret, t.config.Issuer))
 	if err != nil {
-		return "", fmt.Errorf("生成OTP密钥URL失败: %v", err)
+		return "", fmt.Errorf("failed to generate OTP key URL: %v", err)
 	}
 
 	return key.URL(), nil
 }
 
-// 使用Redis缓存临时状态（可选）
+// Using Redis to cache temporary state (optional)
 func (t *TwoFactorAuth) StoreTempSecretInRedis(userID string, secret string, duration time.Duration) error {
 	if t.redis == nil {
-		return errors.New("Redis未配置")
+		return errors.New("redis not configured")
 	}
 
 	key := fmt.Sprintf("2fa:temp:%s", userID)
@@ -422,7 +459,7 @@ func (t *TwoFactorAuth) StoreTempSecretInRedis(userID string, secret string, dur
 
 func (t *TwoFactorAuth) GetTempSecretFromRedis(userID string) (string, error) {
 	if t.redis == nil {
-		return "", errors.New("Redis未配置")
+		return "", errors.New("redis not configured")
 	}
 
 	key := fmt.Sprintf("2fa:temp:%s", userID)

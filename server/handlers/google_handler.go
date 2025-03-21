@@ -10,14 +10,14 @@ import (
 	"kcaitech.com/kcauth/server/auth"
 )
 
-// GoogleLoginPost 处理前端直接发送的 Google 令牌
+// GoogleLoginPost Handle Google token sent directly from frontend
 func (h *AuthHandler) GoogleLoginPost(c *gin.Context) {
 	if h.googleOAuth == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Google登录未启用"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Google login is not enabled"})
 		return
 	}
 
-	// 解析请求
+	// Parse request
 	var req struct {
 		Token string `json:"token" binding:"required"`
 		Email string `json:"email"`
@@ -25,32 +25,32 @@ func (h *AuthHandler) GoogleLoginPost(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request parameters"})
 		return
 	}
 
-	// 验证令牌 (这里简化处理，实际应该通过 Google API 验证令牌)
-	// 在完整实现中，应该调用 Google TokenInfo API 验证令牌
+	// Verify token (simplified handling here, should actually verify through Google API)
+	// In a complete implementation, should call Google TokenInfo API to verify the token
 
-	// 创建新用户或查找已有用户
+	// Create new user or find existing user
 	user, err := h.handleGoogleUser(req.Token, req.Email, req.Name, "")
 	if err != nil {
-		h.logger.Printf("处理 Google 登录失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "处理登录失败"})
+		h.logger.Printf("Failed to process Google login: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process login"})
 		return
 	}
 
-	// 创建会话
+	// Create session
 	clientIP := c.ClientIP()
 	session, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), auth.RefreshTokenExpiration+time.Hour)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建会话失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 		return
 	}
 
 	tokenPair, err := h.jwtService.GenerateTokenPair(user.UserID, session.ID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成令牌失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
 
@@ -63,146 +63,146 @@ func (h *AuthHandler) GoogleLoginPost(c *gin.Context) {
 	})
 }
 
-// GoogleLogout 谷歌登出
+// GoogleLogout Google logout
 // func (h *AuthHandler) GoogleLogout(c *gin.Context) {
-// 	// 获取会话ID
+// 	// Get session ID
 // 	sessionID := c.GetHeader("Session-ID")
 // 	if sessionID == "" {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "未提供会话ID"})
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Session ID not provided"})
 // 		return
 // 	}
 
-// 	// 删除会话
+// 	// Delete session
 // 	if err := h.sessionMgr.DeleteSession(sessionID); err != nil {
-// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "登出失败"})
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Logout failed"})
 // 		return
 // 	}
 
-// 	c.JSON(http.StatusOK, gin.H{"message": "登出成功"})
+// 	c.JSON(http.StatusOK, gin.H{"message": "Logout successful"})
 // }
 
-// GoogleLogin 处理Google登录
+// GoogleLogin Handle Google login
 func (h *AuthHandler) GoogleLogin(c *gin.Context) {
 	if h.googleOAuth == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Google登录未启用"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Google login is not enabled"})
 		return
 	}
 
 	state, err := h.googleOAuth.GenerateState()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成状态失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate state"})
 		return
 	}
 
-	// 生成唯一的客户端标识
+	// Generate unique client identifier
 	clientID := c.ClientIP() + "-" + c.Request.UserAgent()
 	stateKey := "google_oauth_state:" + clientID
 
-	// 将state存储到Redis中，设置合理的过期时间（如15分钟）
+	// Store state in Redis with a reasonable expiration time (e.g., 15 minutes)
 	if err := h.redisStore.Set(stateKey, state, time.Minute*15); err != nil {
-		h.logger.Printf("保存OAuth状态到Redis失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "内部服务器错误"})
+		h.logger.Printf("Failed to save OAuth state to Redis: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
 
-	// 设置cookie存储客户端标识，用于后续回调时获取对应的state
+	// Set cookie to store client identifier for subsequent callback
 	c.SetCookie("google_client_id", clientID, int(time.Minute*15/time.Second), "/", "", false, true)
 
-	// 重定向到Google登录页面
+	// Redirect to Google login page
 	c.Redirect(http.StatusTemporaryRedirect, h.googleOAuth.GetAuthURL(state))
 }
 
-// GoogleCallback 处理Google回调
+// GoogleCallback Handle Google callback
 func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	if h.googleOAuth == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Google登录未启用"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Google login is not enabled"})
 		return
 	}
 
-	// 验证state
+	// Verify state
 	actualState := c.Query("state")
 	if actualState == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的状态参数"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid state parameter"})
 		return
 	}
 
-	// 从cookie获取客户端标识
+	// Get client identifier from cookie
 	clientID, err := c.Cookie("google_client_id")
 	if err != nil {
-		h.logger.Printf("获取client_id cookie失败: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求，请重新登录"})
+		h.logger.Printf("Failed to get client_id cookie: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request, please login again"})
 		return
 	}
 
-	// 从Redis获取预期状态
+	// Get expected state from Redis
 	stateKey := "google_oauth_state:" + clientID
 	var expectedState string
 	if err := h.redisStore.Get(stateKey, &expectedState); err != nil {
-		h.logger.Printf("从Redis获取OAuth状态失败: %v", err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "会话已过期，请重新登录"})
+		h.logger.Printf("Failed to get OAuth state from Redis: %v", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Session expired, please login again"})
 		return
 	}
 
-	// 验证状态值
+	// Verify state value
 	if expectedState != actualState {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的状态参数"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid state parameter"})
 		return
 	}
 
-	// 清除Redis中的状态和cookie
+	// Clear state from Redis and cookie
 	if err := h.redisStore.Delete(stateKey); err != nil {
-		h.logger.Printf("清除Redis中的OAuth状态失败: %v", err)
-		// 不中断流程，继续处理
+		h.logger.Printf("Failed to clear OAuth state from Redis: %v", err)
+		// Don't interrupt the flow, continue processing
 	}
 	c.SetCookie("google_client_id", "", -1, "/", "", false, true)
 
-	// 处理回调
+	// Handle callback
 	code := c.Query("code")
 	if code == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "未提供授权码"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Authorization code not provided"})
 		return
 	}
 
-	// 使用授权码获取用户信息
+	// Use authorization code to get user information
 	googleUser, err := h.googleOAuth.HandleCallback(c.Request.Context(), code, actualState, expectedState)
 	if err != nil {
-		h.logger.Printf("Google回调处理失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Google登录处理失败"})
+		h.logger.Printf("Google callback processing failed: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Google login processing failed"})
 		return
 	}
 
-	// 创建新用户或查找已有用户
+	// Create new user or find existing user
 	user, err := h.handleGoogleUser(googleUser.ID, googleUser.Email, googleUser.Name, googleUser.Picture)
 	if err != nil {
-		h.logger.Printf("查找或创建用户失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "处理用户信息失败"})
+		h.logger.Printf("Failed to find or create user: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process user information"})
 		return
 	}
 
-	// 创建会话
+	// Create session
 	clientIP := c.ClientIP()
 	session1, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), auth.RefreshTokenExpiration+time.Hour+time.Hour)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建会话失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 		return
 	}
 
 	tokenPair, err := h.jwtService.GenerateTokenPair(user.UserID, session1.ID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成令牌失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
 
-	// 返回用户和会话信息，或重定向到前端应用
+	// Return user and session information, or redirect to frontend application
 	if redirectURL := c.Query("redirect"); redirectURL != "" {
-		// 重定向到前端，带上token参数
+		// Redirect to frontend with token parameter
 		redirectWithToken := redirectURL + "?token=" + tokenPair.AccessToken
 		c.SetCookie("refreshToken", tokenPair.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
 		c.Redirect(http.StatusTemporaryRedirect, redirectWithToken)
 		return
 	}
 
-	// 直接返回JSON响应
+	// Directly return JSON response
 	c.SetCookie("refreshToken", tokenPair.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
 	c.JSON(http.StatusOK, gin.H{
 		"user_id":     user.UserID,
@@ -212,42 +212,42 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	})
 }
 
-// handleGoogleUser 处理谷歌用户，查找或创建用户
+// handleGoogleUser Process Google user, find or create user
 func (h *AuthHandler) handleGoogleUser(googleID, email, name, pictureURL string) (*auth.User, error) {
 	if h.googleOAuth == nil {
-		return nil, fmt.Errorf("google OAuth 未启用")
+		return nil, fmt.Errorf("google OAuth is not enabled")
 	}
 
-	// 创建一个GoogleUserInfo对象
+	// Create a GoogleUserInfo object
 	googleUserInfo := &auth.GoogleUserInfo{
 		ID:            googleID,
 		Email:         email,
-		VerifiedEmail: true, // 假设邮箱已验证
+		VerifiedEmail: true, // Assume email is verified
 		Name:          name,
 		Picture:       pictureURL,
 	}
 
-	// 查找现有用户
+	// Find existing user
 	user, err := h.googleOAuth.GetUserByGoogleID(googleID, email)
 	if err != nil {
-		// 如果是非"用户不存在"错误，则直接返回
+		// If the error is not "user not found", return directly
 		var appErr *auth.AppError
 		if !errors.As(err, &appErr) || appErr.Code != auth.ErrCodeUserNotFound {
 			return nil, err
 		}
 	}
 
-	// 如果用户不存在，则创建新用户
+	// If user does not exist, create new user
 	if user == nil {
 		user, err = h.googleOAuth.CreateUserFromGoogle(googleUserInfo)
 		if err != nil {
-			return nil, fmt.Errorf("创建Google用户失败: %w", err)
+			return nil, fmt.Errorf("failed to create Google user: %w", err)
 		}
 	} else {
-		// 更新用户信息
+		// Update user information
 		if err := h.googleOAuth.UpdateGoogleUserInfo(user.UserID, googleUserInfo); err != nil {
-			h.logger.Printf("更新Google用户信息失败: %v", err)
-			// 不影响登录流程，只记录日志
+			h.logger.Printf("Failed to update Google user information: %v", err)
+			// Does not affect login flow, just log the error
 		}
 	}
 

@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	// 登录相关指标
+	// Login related metrics
 	loginAttempts = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "auth_login_attempts_total",
 		Help: "Total number of login attempts",
@@ -21,26 +21,26 @@ var (
 		Buckets: prometheus.DefBuckets,
 	}, []string{"provider"})
 
-	// API响应时间
+	// API response time
 	apiDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "auth_api_duration_seconds",
 		Help:    "API request duration in seconds",
 		Buckets: prometheus.DefBuckets,
 	}, []string{"endpoint", "method", "status"})
 
-	// 速率限制指标
+	// Rate limiting metrics
 	rateLimitHits = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "auth_rate_limit_hits_total",
 		Help: "Total number of rate limit hits",
 	}, []string{"ip"})
 
-	// 活跃用户数
+	// Active users count
 	activeUsers = promauto.NewGauge(prometheus.GaugeOpts{
 		Name: "auth_active_users",
 		Help: "Number of currently active users",
 	})
 
-	// 缓存指标
+	// Cache metrics
 	cacheHits = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "auth_cache_hits_total",
 		Help: "Total number of cache hits",
@@ -52,7 +52,7 @@ var (
 	}, []string{"type"})
 )
 
-// MetricsMiddleware 监控中间件
+// MetricsMiddleware Monitoring middleware
 func MetricsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		timer := prometheus.NewTimer(apiDuration.WithLabelValues(
@@ -73,7 +73,7 @@ func MetricsMiddleware() gin.HandlerFunc {
 	}
 }
 
-// RecordLogin 记录登录尝试
+// RecordLogin Record login attempt
 func RecordLogin(provider string, success bool) {
 	status := "success"
 	if !success {
@@ -82,27 +82,27 @@ func RecordLogin(provider string, success bool) {
 	loginAttempts.WithLabelValues(provider, status).Inc()
 }
 
-// RecordRateLimit 记录速率限制命中
+// RecordRateLimit Record rate limit hit
 func RecordRateLimit(ip string) {
 	rateLimitHits.WithLabelValues(ip).Inc()
 }
 
-// RecordCacheHit 记录缓存命中
+// RecordCacheHit Record cache hit
 func RecordCacheHit(cacheType string) {
 	cacheHits.WithLabelValues(cacheType).Inc()
 }
 
-// RecordCacheMiss 记录缓存未命中
+// RecordCacheMiss Record cache miss
 func RecordCacheMiss(cacheType string) {
 	cacheMisses.WithLabelValues(cacheType).Inc()
 }
 
-// UpdateActiveUsers 更新活跃用户数
+// UpdateActiveUsers Update active users count
 func UpdateActiveUsers(count float64) {
 	activeUsers.Set(count)
 }
 
-// RecordLoginDuration 记录登录耗时
+// RecordLoginDuration Record login duration
 func RecordLoginDuration(provider string, duration float64) {
 	loginDuration.WithLabelValues(provider).Observe(duration)
 }

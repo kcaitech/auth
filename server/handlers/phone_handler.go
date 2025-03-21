@@ -8,43 +8,43 @@ import (
 	"kcaitech.com/kcauth/server/auth"
 )
 
-// PhoneRegisterRequest 手机注册请求
+// PhoneRegisterRequest Phone registration request
 type PhoneRegisterRequest struct {
 	Phone    string `json:"phone" binding:"required"`
 	Password string `json:"password" binding:"required"`
 	Nickname string `json:"nickname"`
 }
 
-// PhoneLoginRequest 手机密码登录请求
+// PhoneLoginRequest Phone password login request
 type PhoneLoginRequest struct {
 	Phone    string `json:"phone" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
 
-// PhoneCodeLoginRequest 手机验证码登录请求
+// PhoneCodeLoginRequest Phone verification code login request
 type PhoneCodeLoginRequest struct {
 	Phone string `json:"phone" binding:"required"`
 	Code  string `json:"code" binding:"required"`
 }
 
-// SendVerificationCodeRequest 发送验证码请求
+// SendVerificationCodeRequest Send verification code request
 type SendVerificationCodeRequest struct {
 	Phone string `json:"phone" binding:"required"`
 }
 
-// VerifyPhoneRequest 验证手机号请求
+// VerifyPhoneRequest Verify phone number request
 type VerifyPhoneRequest struct {
 	Code string `json:"code" binding:"required"`
 }
 
-// PhoneResetPasswordRequest 手机重置密码请求
+// PhoneResetPasswordRequest Phone reset password request
 type PhoneResetPasswordRequest struct {
 	Phone       string `json:"phone" binding:"required"`
 	Code        string `json:"code" binding:"required"`
 	NewPassword string `json:"new_password" binding:"required"`
 }
 
-// PhoneHandler 手机认证处理器
+// PhoneHandler Phone authentication handler
 type PhoneHandler struct {
 	phoneAuth     *auth.PhoneAuth
 	sessionMgr    *auth.SessionManager
@@ -52,7 +52,7 @@ type PhoneHandler struct {
 	verifyCodeTTL int
 }
 
-// NewPhoneHandler 创建手机认证处理器
+// NewPhoneHandler Create phone authentication handler
 func NewPhoneHandler(
 	phoneAuth *auth.PhoneAuth,
 	sessionMgr *auth.SessionManager,
@@ -62,51 +62,51 @@ func NewPhoneHandler(
 		phoneAuth:     phoneAuth,
 		sessionMgr:    sessionMgr,
 		jwtService:    jwtService,
-		verifyCodeTTL: 300, // 默认5分钟
+		verifyCodeTTL: 300, // Default 5 minutes
 	}
 }
 
-// RegisterRoutes 注册路由
+// RegisterRoutes Register routes
 func (h *PhoneHandler) RegisterRoutes(router *gin.RouterGroup) {
 	phoneGroup := router.Group("/phone")
 	{
-		// 手机预注册 - 发送验证码
+		// Phone pre-registration - send verification code
 		phoneGroup.POST("/preregister", h.PhonePreregister)
-		// 验证手机号并完成注册
+		// Verify phone number and complete registration
 		phoneGroup.POST("/verify-register", h.VerifyPhoneAndRegister)
-		// 重新发送验证码
+		// Resend verification code
 		phoneGroup.POST("/resend-verification", h.ResendPhoneVerification)
-		// 使用手机号+密码登录
+		// Login with phone number + password
 		phoneGroup.POST("/login", h.PhoneLogin)
-		// 发送登录验证码
+		// Send login verification code
 		phoneGroup.POST("/send-login-code", h.SendLoginSMS)
-		// 使用手机号+验证码登录
+		// Login with phone number + verification code
 		phoneGroup.POST("/code-login", h.PhoneCodeLogin)
-		// 发起密码重置 - 发送验证码
+		// Initiate password reset - send verification code
 		phoneGroup.POST("/reset-password/init", h.InitiatePasswordReset)
-		// 完成密码重置
+		// Complete password reset
 		phoneGroup.POST("/reset-password/complete", h.CompletePasswordReset)
 	}
 }
 
-// Login 处理手机密码登录请求
+// Login Handle phone password login request
 func (h *PhoneHandler) Login(c *gin.Context) {
 	var req PhoneLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式无效"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
 
-	// 尝试登录
+	// Try to login
 	user, err := h.phoneAuth.PhoneLogin(req.Phone, req.Password)
 	if err != nil {
-		// 根据错误类型返回相应的状态码和消息
+		// Return appropriate status code and message based on error type
 		status := http.StatusUnauthorized
-		message := "手机号或密码错误"
+		message := "Invalid phone number or password"
 
 		if appErr, ok := err.(*auth.AppError); ok {
 			if appErr.Code == auth.ErrCodeEmailNotVerified {
-				message = "手机号未验证，请先验证手机号"
+				message = "Phone number not verified, please verify first"
 			}
 		}
 
@@ -114,22 +114,22 @@ func (h *PhoneHandler) Login(c *gin.Context) {
 		return
 	}
 
-	// 创建会话和JWT令牌
+	// Create session and JWT token
 	session, err := h.sessionMgr.CreateUserSession(user.UserID, c.ClientIP(), c.GetHeader("User-Agent"), auth.TokenExpiration+time.Hour)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建会话失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 		return
 	}
 
 	token, err := h.jwtService.GenerateJWT(user.UserID, session.ID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成令牌失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
 
-	// 登录成功，返回用户信息和令牌
+	// Login successful, return user information and token
 	c.JSON(http.StatusOK, gin.H{
-		"message": "登录成功",
+		"message": "Login successful",
 		"token":   token,
 		"user": gin.H{
 			"user_id":  user.UserID,
@@ -139,37 +139,37 @@ func (h *PhoneHandler) Login(c *gin.Context) {
 	})
 }
 
-// PhoneCodeLogin 手机号+验证码登录
+// PhoneCodeLogin Phone number + verification code login
 func (h *PhoneHandler) PhoneCodeLogin(c *gin.Context) {
 	var req PhoneCodeLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式无效"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
 
-	// 尝试验证码登录
+	// Try verification code login
 	user, err := h.phoneAuth.PhoneCodeLogin(req.Phone, req.Code)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "手机号或验证码错误"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid phone number or verification code"})
 		return
 	}
 
-	// 创建会话和JWT令牌
+	// Create session and JWT token
 	session, err := h.sessionMgr.CreateUserSession(user.UserID, c.ClientIP(), c.GetHeader("User-Agent"), auth.TokenExpiration+time.Hour)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建会话失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 		return
 	}
 
 	token, err := h.jwtService.GenerateJWT(user.UserID, session.ID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成令牌失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
 
-	// 登录成功，返回用户信息和令牌
+	// Login successful, return user information and token
 	c.JSON(http.StatusOK, gin.H{
-		"message": "登录成功",
+		"message": "Login successful",
 		"token":   token,
 		"user": gin.H{
 			"user_id":  user.UserID,
@@ -179,120 +179,120 @@ func (h *PhoneHandler) PhoneCodeLogin(c *gin.Context) {
 	})
 }
 
-// SendVerificationCode 处理发送验证码请求
+// SendVerificationCode Handle send verification code request
 func (h *PhoneHandler) SendVerificationCode(c *gin.Context) {
 	var req SendVerificationCodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式无效"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
 
-	// 验证手机号格式
+	// Validate phone number format
 	if err := h.phoneAuth.ValidatePhoneFormat(req.Phone); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// 发送验证码
-	// 这里可以根据不同场景发送不同类型的验证码
-	// 例如：登录验证码、注册验证码等
+	// Send verification code
+	// Different types of verification codes can be sent for different scenarios
+	// For example: login verification code, registration verification code, etc.
 	code, err := h.phoneAuth.SendLoginSMS(req.Phone)
 	if err != nil {
-		// 如果用户不存在，返回特定的错误
+		// Return specific error if user doesn't exist
 		if appErr, ok := err.(*auth.AppError); ok && appErr.Code == auth.ErrCodeUserNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "该手机号未注册"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "This phone number is not registered"})
 			return
 		}
 
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "发送验证码失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send verification code"})
 		return
 	}
 
-	// 在开发环境中返回验证码，方便测试
-	// 生产环境应该移除这个
+	// Return verification code in development environment for testing
+	// Should be removed in production
 	devInfo := gin.H{}
 	if gin.Mode() == gin.DebugMode {
 		devInfo["code"] = code
 	}
 
-	// 发送成功
+	// Send successful
 	c.JSON(http.StatusOK, gin.H{
-		"message":     "验证码已发送",
+		"message":     "Verification code has been sent",
 		"expires_in":  h.verifyCodeTTL,
 		"development": devInfo,
 	})
 }
 
-// VerifyPhone 处理验证手机号请求
+// VerifyPhone Handle verify phone number request
 func (h *PhoneHandler) VerifyPhone(c *gin.Context) {
 	var req VerifyPhoneRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式无效"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
 
-	// 验证手机号
+	// Verify phone number
 	if err := h.phoneAuth.VerifyPhone(req.Code); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "验证码无效或已过期"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or expired verification code"})
 		return
 	}
 
-	// 验证成功
-	c.JSON(http.StatusOK, gin.H{"message": "手机号验证成功"})
+	// Verification successful
+	c.JSON(http.StatusOK, gin.H{"message": "Phone number verification successful"})
 }
 
-// InitiatePasswordReset 发起密码重置
+// InitiatePasswordReset Initiate password reset
 func (h *PhoneHandler) InitiatePasswordReset(c *gin.Context) {
 	var req struct {
 		Phone string `json:"phone" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式无效"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
 
-	// 验证手机号格式
+	// Validate phone number format
 	if err := h.phoneAuth.ValidatePhoneFormat(req.Phone); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// 发起密码重置
+	// Initiate password reset
 	code, err := h.phoneAuth.InitiatePasswordReset(req.Phone)
 	if err != nil {
-		// 如果用户不存在，返回特定的错误
+		// Return specific error if user doesn't exist
 		if appErr, ok := err.(*auth.AppError); ok && appErr.Code == auth.ErrCodeUserNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "手机号不存在"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "Phone number does not exist"})
 			return
 		}
 
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "发送重置验证码失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send reset verification code"})
 		return
 	}
 
-	// 在开发环境中返回验证码，方便测试
+	// Return verification code in development environment for testing
 	devInfo := gin.H{}
 	if gin.Mode() == gin.DebugMode {
 		devInfo["code"] = code
 	}
 
-	// 发送成功
+	// Send successful
 	c.JSON(http.StatusOK, gin.H{
-		"message":     "重置密码验证码已发送",
+		"message":     "Password reset verification code has been sent",
 		"expires_in":  h.verifyCodeTTL,
 		"development": devInfo,
 	})
 }
 
-// ResetPassword 处理重置密码请求
+// ResetPassword Handle reset password request
 func (h *PhoneHandler) ResetPassword(c *gin.Context) {
 	var req PhoneResetPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式无效"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
 
-	// 完成密码重置
+	// Complete password reset
 	if err := h.phoneAuth.CompletePasswordReset(req.Code, req.Phone, req.NewPassword); err != nil {
 		var status int
 		var message string
@@ -302,28 +302,28 @@ func (h *PhoneHandler) ResetPassword(c *gin.Context) {
 			switch appErr.Code {
 			case auth.ErrCodeInvalidToken:
 				status = http.StatusBadRequest
-				message = "验证码无效或已过期"
+				message = "Invalid or expired verification code"
 			case auth.ErrCodeWeakPassword:
 				status = http.StatusBadRequest
-				message = "密码太弱，请使用更强的密码"
+				message = "Password too weak, please use a stronger password"
 			default:
 				status = http.StatusInternalServerError
-				message = "重置密码失败，请稍后再试"
+				message = "Failed to reset password, please try again later"
 			}
 		default:
 			status = http.StatusInternalServerError
-			message = "重置密码失败，请稍后再试"
+			message = "Failed to reset password, please try again later"
 		}
 
 		c.JSON(status, gin.H{"error": message})
 		return
 	}
 
-	// 重置成功
-	c.JSON(http.StatusOK, gin.H{"message": "密码重置成功"})
+	// Reset successful
+	c.JSON(http.StatusOK, gin.H{"message": "Password reset successful"})
 }
 
-// PhonePreregister 手机预注册 - 发送验证码
+// PhonePreregister Phone pre-registration - send verification code
 func (h *PhoneHandler) PhonePreregister(c *gin.Context) {
 	var req struct {
 		Phone    string `json:"phone" binding:"required"`
@@ -332,11 +332,11 @@ func (h *PhoneHandler) PhonePreregister(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request parameters"})
 		return
 	}
 
-	// 预注册手机用户，发送验证码
+	// Pre-register phone user, send verification code
 	code, err := h.phoneAuth.PhonePreregister(req.Phone, req.Password, req.Nickname)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -344,24 +344,24 @@ func (h *PhoneHandler) PhonePreregister(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "验证码已发送，请查收并输入验证码完成注册",
+		"message": "Verification code has been sent, please check and enter the code to complete registration",
 		"phone":   req.Phone,
-		"code":    code, // 在生产环境中应该移除这个字段，这里仅用于测试
+		"code":    code, // In production, this field should be removed, it's only for testing
 	})
 }
 
-// ResendPhoneVerification 重新发送手机验证码
+// ResendPhoneVerification Resend phone verification code
 func (h *PhoneHandler) ResendPhoneVerification(c *gin.Context) {
 	var req struct {
 		Phone string `json:"phone" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request parameters"})
 		return
 	}
 
-	// 重新发送验证码
+	// Resend verification code
 	code, err := h.phoneAuth.ResendPhoneVerification(req.Phone)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -369,12 +369,12 @@ func (h *PhoneHandler) ResendPhoneVerification(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "验证码已重新发送，请查收",
-		"code":    code, // 在生产环境中应该移除这个字段，这里仅用于测试
+		"message": "Verification code has been resent, please check",
+		"code":    code, // In production, this field should be removed, it's only for testing
 	})
 }
 
-// VerifyPhoneAndRegister 验证手机号并完成注册
+// VerifyPhoneAndRegister Verify phone number and complete registration
 func (h *PhoneHandler) VerifyPhoneAndRegister(c *gin.Context) {
 	var req struct {
 		Phone string `json:"phone" binding:"required"`
@@ -382,34 +382,34 @@ func (h *PhoneHandler) VerifyPhoneAndRegister(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request parameters"})
 		return
 	}
 
-	// 验证手机号并完成注册
+	// Verify phone number and complete registration
 	user, err := h.phoneAuth.VerifyPhoneAndRegister(req.Phone, req.Code)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// 创建会话
+	// Create session
 	clientIP := c.ClientIP()
 	session, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), auth.RefreshTokenExpiration+time.Hour)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建会话失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 		return
 	}
 
 	tokenPair, err := h.jwtService.GenerateTokenPair(user.UserID, session.ID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成令牌失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
 
 	c.SetCookie("refreshToken", tokenPair.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
 	c.JSON(http.StatusOK, gin.H{
-		"message":     "手机号验证成功，注册完成",
+		"message":     "Phone verification successful, registration complete",
 		"user_id":     user.UserID,
 		"token":       tokenPair.AccessToken,
 		"profile":     user.Profile,
@@ -417,24 +417,24 @@ func (h *PhoneHandler) VerifyPhoneAndRegister(c *gin.Context) {
 	})
 }
 
-// PhoneLogin 手机号+密码登录
+// PhoneLogin Phone number + password login
 func (h *PhoneHandler) PhoneLogin(c *gin.Context) {
 	var req PhoneLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式无效"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
 
-	// 尝试登录
+	// Try to login
 	user, err := h.phoneAuth.PhoneLogin(req.Phone, req.Password)
 	if err != nil {
-		// 根据错误类型返回相应的状态码和消息
+		// Return appropriate status code and message based on error type
 		status := http.StatusUnauthorized
-		message := "手机号或密码错误"
+		message := "Invalid phone number or password"
 
 		if appErr, ok := err.(*auth.AppError); ok {
 			if appErr.Code == auth.ErrCodeEmailNotVerified {
-				message = "手机号未验证，请先验证手机号"
+				message = "Phone number not verified, please verify first"
 			}
 		}
 
@@ -442,22 +442,22 @@ func (h *PhoneHandler) PhoneLogin(c *gin.Context) {
 		return
 	}
 
-	// 创建会话和JWT令牌
+	// Create session and JWT token
 	session, err := h.sessionMgr.CreateUserSession(user.UserID, c.ClientIP(), c.GetHeader("User-Agent"), auth.TokenExpiration+time.Hour)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建会话失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 		return
 	}
 
 	token, err := h.jwtService.GenerateJWT(user.UserID, session.ID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成令牌失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
 
-	// 登录成功，返回用户信息和令牌
+	// Login successful, return user information and token
 	c.JSON(http.StatusOK, gin.H{
-		"message": "登录成功",
+		"message": "Login successful",
 		"token":   token,
 		"user": gin.H{
 			"user_id":  user.UserID,
@@ -467,59 +467,59 @@ func (h *PhoneHandler) PhoneLogin(c *gin.Context) {
 	})
 }
 
-// SendLoginSMS 发送登录验证码
+// SendLoginSMS Send login verification code
 func (h *PhoneHandler) SendLoginSMS(c *gin.Context) {
 	var req struct {
 		Phone string `json:"phone" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request parameters"})
 		return
 	}
 
-	// 验证手机号格式
+	// Validate phone number format
 	if err := h.phoneAuth.ValidatePhoneFormat(req.Phone); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// 发送登录验证码
+	// Send login verification code
 	code, err := h.phoneAuth.SendLoginSMS(req.Phone)
 	if err != nil {
-		// 如果用户不存在，返回特定的错误
+		// Return specific error if user doesn't exist
 		if appErr, ok := err.(*auth.AppError); ok && appErr.Code == auth.ErrCodeUserNotFound {
-			c.JSON(http.StatusNotFound, gin.H{"error": "该手机号未注册"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "This phone number is not registered"})
 			return
 		}
 
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "发送登录验证码失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send login verification code"})
 		return
 	}
 
-	// 在开发环境中返回验证码，方便测试
+	// Return verification code in development environment for testing
 	devInfo := gin.H{}
 	if gin.Mode() == gin.DebugMode {
 		devInfo["code"] = code
 	}
 
-	// 发送成功
+	// Send successful
 	c.JSON(http.StatusOK, gin.H{
-		"message":     "登录验证码已发送",
+		"message":     "Login verification code has been sent",
 		"expires_in":  h.verifyCodeTTL,
 		"development": devInfo,
 	})
 }
 
-// CompletePasswordReset 完成密码重置
+// CompletePasswordReset Complete password reset
 func (h *PhoneHandler) CompletePasswordReset(c *gin.Context) {
 	var req PhoneResetPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求格式无效"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 		return
 	}
 
-	// 完成密码重置
+	// Complete password reset
 	if err := h.phoneAuth.CompletePasswordReset(req.Code, req.Phone, req.NewPassword); err != nil {
 		var status int
 		var message string
@@ -529,23 +529,23 @@ func (h *PhoneHandler) CompletePasswordReset(c *gin.Context) {
 			switch appErr.Code {
 			case auth.ErrCodeInvalidToken:
 				status = http.StatusBadRequest
-				message = "验证码无效或已过期"
+				message = "Invalid or expired verification code"
 			case auth.ErrCodeWeakPassword:
 				status = http.StatusBadRequest
-				message = "密码太弱，请使用更强的密码"
+				message = "Password too weak, please use a stronger password"
 			default:
 				status = http.StatusInternalServerError
-				message = "重置密码失败，请稍后再试"
+				message = "Failed to reset password, please try again later"
 			}
 		default:
 			status = http.StatusInternalServerError
-			message = "重置密码失败，请稍后再试"
+			message = "Failed to reset password, please try again later"
 		}
 
 		c.JSON(status, gin.H{"error": message})
 		return
 	}
 
-	// 重置成功
-	c.JSON(http.StatusOK, gin.H{"message": "密码重置成功"})
+	// Reset successful
+	c.JSON(http.StatusOK, gin.H{"message": "Password reset successful"})
 }

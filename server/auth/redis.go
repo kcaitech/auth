@@ -22,13 +22,13 @@ const (
 	PrefixEmailVerifyCode = "email_verify_code:"
 )
 
-// RedisStore Redis存储服务（通用功能）
+// RedisStore Redis storage service (general functionality)
 type RedisStore struct {
 	client *redis.Client
 	ctx    context.Context
 }
 
-// NewRedisStore 创建新的Redis存储服务
+// NewRedisStore Create a new Redis storage service
 func NewRedisStore(addr, password string, db int) (*RedisStore, error) {
 	client := redis.NewClient(&redis.Options{
 		Addr:     addr,
@@ -38,7 +38,7 @@ func NewRedisStore(addr, password string, db int) (*RedisStore, error) {
 
 	ctx := context.Background()
 	if err := client.Ping(ctx).Err(); err != nil {
-		return nil, fmt.Errorf("连接Redis失败: %w", err)
+		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
 	}
 
 	return &RedisStore{
@@ -47,7 +47,7 @@ func NewRedisStore(addr, password string, db int) (*RedisStore, error) {
 	}, nil
 }
 
-// NewRedisStoreFromClient 从已有客户端创建Redis存储服务
+// NewRedisStoreFromClient Create Redis storage service from existing client
 func NewRedisStoreFromClient(client *redis.Client) *RedisStore {
 	return &RedisStore{
 		client: client,
@@ -55,44 +55,44 @@ func NewRedisStoreFromClient(client *redis.Client) *RedisStore {
 	}
 }
 
-// Set 存储通用数据
+// Set Store general data
 func (rs *RedisStore) Set(key string, value interface{}, expiry time.Duration) error {
 	data, err := json.Marshal(value)
 	if err != nil {
-		return fmt.Errorf("序列化数据失败: %w", err)
+		return fmt.Errorf("failed to serialize data: %w", err)
 	}
 
 	return rs.client.Set(rs.ctx, key, data, expiry).Err()
 }
 
-// Get 获取通用数据
+// Get Retrieve general data
 func (rs *RedisStore) Get(key string, dest interface{}) error {
 	data, err := rs.client.Get(rs.ctx, key).Bytes()
 	if err != nil {
 		if err == redis.Nil {
 			return nil
 		}
-		return fmt.Errorf("获取数据失败: %w", err)
+		return fmt.Errorf("failed to get data: %w", err)
 	}
 
 	if err := json.Unmarshal(data, dest); err != nil {
-		return fmt.Errorf("解析数据失败: %w", err)
+		return fmt.Errorf("failed to parse data: %w", err)
 	}
 
 	return nil
 }
 
-// Delete 删除通用数据
+// Delete Delete general data
 func (rs *RedisStore) Delete(key string) error {
 	return rs.client.Del(rs.ctx, key).Err()
 }
 
-// GetClient 获取Redis客户端
+// GetClient Get Redis client
 func (rs *RedisStore) GetClient() *redis.Client {
 	return rs.client
 }
 
-// Close 关闭Redis连接
+// Close Close Redis connection
 func (rs *RedisStore) Close() error {
 	return rs.client.Close()
 }

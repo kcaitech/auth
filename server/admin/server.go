@@ -26,7 +26,7 @@ const (
 	sessionRoleKey = "admin_roles"
 )
 
-// AdminServer 管理服务器
+// AdminServer Admin server
 type AdminServer struct {
 	config     *config.AdminConfig
 	db         *gorm.DB
@@ -35,12 +35,12 @@ type AdminServer struct {
 	sessions   map[string]*AdminSession
 	sessionMu  sync.Mutex
 	logger     *log.Logger
-	redis      *auth.RedisStore // 添加Redis存储字段
+	redis      *auth.RedisStore // Add Redis storage field
 	sessionMgr *auth.SessionManager
 	jwtService *auth.JWTService
 }
 
-// AdminSession 管理会话
+// AdminSession Administrator session
 type AdminSession struct {
 	Username     string
 	Roles        []string
@@ -50,47 +50,47 @@ type AdminSession struct {
 	ExpiresAt    time.Time
 }
 
-// NewAdminServer 创建管理服务器
+// NewAdminServer Create admin server
 func NewAdminServer(cfg *config.Config, db *gorm.DB, logger *log.Logger) *AdminServer {
 	if !cfg.Admin.Enabled {
 		return nil
 	}
 
-	// 如果没有管理员账号，禁用管理界面
+	// If no admin account is configured, disable admin interface
 	if len(cfg.Admin.Accounts) == 0 {
-		logger.Println("警告: 管理界面已配置启用，但未配置管理员账号，将禁用管理界面")
+		logger.Println("Warning: Admin interface is configured to be enabled, but no admin account is configured, admin interface will be disabled")
 		return nil
 	}
 
-	// 初始化RedisStore
+	// Initialize RedisStore
 	redisAddr := cfg.Redis.GetRedisAddr()
 	redisStore, err := auth.NewRedisStore(redisAddr, cfg.Redis.Password, cfg.Redis.DB)
 	if err != nil {
-		logger.Printf("警告: 初始化Redis连接失败: %v", err)
-		logger.Println("部分功能可能无法正常工作，例如JWT会话管理")
+		logger.Printf("Warning: Failed to initialize Redis connection: %v", err)
+		logger.Println("Some features may not work properly, such as JWT session management")
 	}
 
-	// 初始化会话管理器
+	// Initialize session manager
 	sessionManager := auth.NewSessionManager(nil)
 	if redisStore != nil {
-		// 创建会话Redis存储
+		// Create session Redis storage
 		sessionRedisStore := auth.NewSessionRedisStore(redisStore.GetClient())
 		sessionManager = auth.NewSessionManager(sessionRedisStore)
 
-		// 初始化会话管理器
+		// Initialize session manager
 		if err := sessionManager.Init(); err != nil {
-			logger.Printf("警告: 初始化会话管理器失败: %v", err)
+			logger.Printf("Warning: Failed to initialize session manager: %v", err)
 		} else {
-			logger.Println("会话管理器初始化成功")
+			logger.Println("Session manager initialized successfully")
 		}
 	}
 
-	// 初始化JWT服务
+	// Initialize JWT service
 	jwtService := auth.NewJWTService(redisStore, auth.JWTConfig{
 		Issuer: cfg.Auth.JWT.Issuer,
 	})
 
-	// 创建管理服务器
+	// Create admin server
 	server := &AdminServer{
 		config:     &cfg.Admin,
 		db:         db,
@@ -101,50 +101,50 @@ func NewAdminServer(cfg *config.Config, db *gorm.DB, logger *log.Logger) *AdminS
 		jwtService: jwtService,
 	}
 
-	// 设置Gin模式
+	// Set Gin mode
 	if gin.Mode() == gin.DebugMode {
 		gin.SetMode(gin.DebugMode)
 	} else {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	// 创建路由器
+	// Create router
 	router := gin.New()
 	router.Use(gin.Recovery())
 	router.Use(server.loggerMiddleware())
 	router.Use(server.corsMiddleware())
 
-	// 初始化会话存储
+	// Initialize session storage
 	store := cookie.NewStore([]byte(cfg.Admin.SecretKey))
 	store.Options(sessions.Options{
 		Path:     "/",
-		MaxAge:   cfg.Admin.SessionTTL * 60, // 转换为秒
+		MaxAge:   cfg.Admin.SessionTTL * 60, // Convert to seconds
 		HttpOnly: true,
 		Secure:   cfg.Admin.RequireTLS,
 	})
 	router.Use(sessions.Sessions("admin_session", store))
 
-	// 添加IP限制中间件
+	// Add IP restriction middleware
 	router.Use(server.ipRestrictionMiddleware())
 
-	// 注册路由
+	// Register routes
 	server.registerRoutes(router)
 	server.router = router
 
-	// 获取超时配置
+	// Get timeout configuration
 	readTimeout, err := cfg.Server.GetReadTimeout()
 	if err != nil {
-		logger.Printf("警告: 解析读取超时配置失败: %v，使用默认值15秒", err)
+		logger.Printf("Warning: Failed to parse read timeout configuration: %v, using default value 15 seconds", err)
 		readTimeout = 15 * time.Second
 	}
 
 	writeTimeout, err := cfg.Server.GetWriteTimeout()
 	if err != nil {
-		logger.Printf("警告: 解析写入超时配置失败: %v，使用默认值15秒", err)
+		logger.Printf("Warning: Failed to parse write timeout configuration: %v, using default value 15 seconds", err)
 		writeTimeout = 15 * time.Second
 	}
 
-	// 创建HTTP服务器
+	// Create HTTP server
 	server.server = &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Admin.Port),
 		Handler:      router,
@@ -155,72 +155,72 @@ func NewAdminServer(cfg *config.Config, db *gorm.DB, logger *log.Logger) *AdminS
 	return server
 }
 
-// Start 启动管理服务器
+// Start Start admin server
 func (s *AdminServer) Start() error {
-	s.logger.Printf("管理服务器启动在 :%d", s.config.Port)
+	s.logger.Printf("Admin server started on :%d", s.config.Port)
 	return s.server.ListenAndServe()
 }
 
-// Shutdown 关闭管理服务器
+// Shutdown Shutdown admin server
 func (s *AdminServer) Shutdown(ctx context.Context) error {
-	// 关闭Redis连接
+	// Close Redis connection
 	if s.redis != nil {
 		if err := s.redis.Close(); err != nil {
-			s.logger.Printf("关闭Redis连接失败: %v", err)
+			s.logger.Printf("Failed to close Redis connection: %v", err)
 		}
 	}
 	return s.server.Shutdown(ctx)
 }
 
-// 注册路由
+// Register routes
 func (s *AdminServer) registerRoutes(r *gin.Engine) {
-	// 公共路由
+	// Public routes
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
-	// API路由组（需要认证）
+	// API routes group (requires authentication)
 	admin := r.Group("/admin")
-	// 登录路由
+	// Login route
 	admin.POST("/login", s.handleLogin)
 
 	admin.Use(s.authMiddleware())
 	{
-		// 用户统计信息
+		// User statistics
 		admin.GET("/stats", s.handleGetStats)
 
-		// 用户列表
+		// User list
 		admin.GET("/users", s.handleGetUsers)
 
-		// 用户活跃情况
+		// User activity
 		admin.GET("/activity", s.handleGetActivity)
 
-		// 用户会话信息
+		// User session information
 		admin.GET("/user/:id/sessions", s.handleGetUserSessions)
 		admin.DELETE("/user/:id/sessions/:session_id", s.handleTerminateUserSession)
 		admin.DELETE("/user/:id/sessions", s.handleTerminateAllUserSessions)
 
-		// 注销
+		// Logout
 		admin.POST("/logout", s.handleLogout)
 	}
 
-	// 静态文件路由
+	// Static file routes
 	// r.Static("/assets", "./admin/assets")
 
-	// 所有其他路由重定向到管理页面入口点
+	// All other routes redirect to admin UI entry point
 	r.NoRoute(func(c *gin.Context) {
-		// 如果是API请求返回404错误
+		// If it's an API request, return 404 error
 		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
-			c.JSON(http.StatusNotFound, gin.H{"error": "API路径不存在"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "API path does not exist"})
 			return
 		}
 
-		// 否则返回管理UI入口点
+		// Otherwise, return admin UI entry point
 		c.File("./admin/index.html")
 	})
 }
 
-// 日志中间件
+// Logger middleware
 func (s *AdminServer) loggerMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
@@ -238,14 +238,14 @@ func (s *AdminServer) loggerMiddleware() gin.HandlerFunc {
 	}
 }
 
-// CORS中间件
+// CORS middleware
 func (s *AdminServer) corsMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")
 		if origin != "" {
-			// 使用请求的实际Origin而不是通配符
+			// Use actual Origin from request instead of wildcard
 			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
-			// 允许请求带有凭据
+			// Allow requests with credentials
 			c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		} else {
 			c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
@@ -262,7 +262,7 @@ func (s *AdminServer) corsMiddleware() gin.HandlerFunc {
 	}
 }
 
-// IP限制中间件
+// IP restriction middleware
 func (s *AdminServer) ipRestrictionMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if len(s.config.AllowedIPs) > 0 {
@@ -277,8 +277,8 @@ func (s *AdminServer) ipRestrictionMiddleware() gin.HandlerFunc {
 			}
 
 			if !allowed {
-				s.logger.Printf("拒绝来自 %s 的访问请求", clientIP)
-				c.JSON(http.StatusForbidden, gin.H{"error": "IP地址不在允许列表中"})
+				s.logger.Printf("Access request from %s denied", clientIP)
+				c.JSON(http.StatusForbidden, gin.H{"error": "IP address not in allowed list"})
 				c.Abort()
 				return
 			}
@@ -288,42 +288,42 @@ func (s *AdminServer) ipRestrictionMiddleware() gin.HandlerFunc {
 	}
 }
 
-// 验证中间件
+// Authentication middleware
 func (s *AdminServer) authMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		session := sessions.Default(c)
 
-		// 检查会话中是否有用户信息
+		// Check if user information exists in session
 		username := session.Get(sessionUserKey)
 		if username == nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "未授权访问"})
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized access"})
 			c.Abort()
 			return
 		}
 
-		// 获取角色信息
+		// Get role information
 		rolesJSON := session.Get(sessionRoleKey)
 		if rolesJSON == nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "会话已损坏"})
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Session is corrupted"})
 			c.Abort()
 			return
 		}
 
 		var roles []string
 		if err := json.Unmarshal([]byte(rolesJSON.(string)), &roles); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "会话解析失败"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse session"})
 			c.Abort()
 			return
 		}
 
-		// 更新会话活动时间
+		// Update session activity time
 		s.sessionMu.Lock()
 		if adminSession, exists := s.sessions[username.(string)]; exists {
 			adminSession.LastActivity = time.Now()
 		}
 		s.sessionMu.Unlock()
 
-		// 将用户信息和角色设置到上下文中
+		// Set user information and roles to context
 		c.Set("username", username)
 		c.Set("roles", roles)
 
@@ -331,7 +331,7 @@ func (s *AdminServer) authMiddleware() gin.HandlerFunc {
 	}
 }
 
-// 登录处理
+// Login handler
 func (s *AdminServer) handleLogin(c *gin.Context) {
 	var loginReq struct {
 		Username string `json:"username" binding:"required"`
@@ -339,11 +339,11 @@ func (s *AdminServer) handleLogin(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&loginReq); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request parameters"})
 		return
 	}
 
-	// 验证用户名和密码
+	// Validate username and password
 	var matchedAccount *config.Account
 	for _, account := range s.config.Accounts {
 		if subtle.ConstantTimeCompare([]byte(account.Username), []byte(loginReq.Username)) == 1 {
@@ -353,38 +353,38 @@ func (s *AdminServer) handleLogin(c *gin.Context) {
 	}
 
 	if matchedAccount == nil {
-		s.logger.Printf("登录失败: 用户名 %s 不存在", loginReq.Username)
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "无效的用户名或密码"})
+		s.logger.Printf("Login failed: Username %s does not exist", loginReq.Username)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
 		return
 	}
 
-	// 验证密码（假设密码是bcrypt哈希）
+	// Validate password (assuming password is bcrypt hash)
 	err := bcrypt.CompareHashAndPassword([]byte(matchedAccount.Password), []byte(loginReq.Password))
 	if err != nil {
-		s.logger.Printf("登录失败: 用户 %s 密码错误", loginReq.Username)
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "无效的用户名或密码"})
+		s.logger.Printf("Login failed: User %s password error", loginReq.Username)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
 		return
 	}
 
-	// 创建会话
+	// Create session
 	session := sessions.Default(c)
 
-	// 将角色转换为JSON字符串
+	// Convert roles to JSON string
 	rolesJSON, err := json.Marshal(matchedAccount.Roles)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "内部服务器错误"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
 
-	// 存储用户信息到会话
+	// Store user information to session
 	session.Set(sessionUserKey, matchedAccount.Username)
 	session.Set(sessionRoleKey, string(rolesJSON))
 	if err := session.Save(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "无法创建会话"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 		return
 	}
 
-	// 记录活跃会话
+	// Record active session
 	s.sessionMu.Lock()
 	s.sessions[matchedAccount.Username] = &AdminSession{
 		Username:     matchedAccount.Username,
@@ -396,7 +396,7 @@ func (s *AdminServer) handleLogin(c *gin.Context) {
 	}
 	s.sessionMu.Unlock()
 
-	s.logger.Printf("用户 %s 登录成功，IP: %s", matchedAccount.Username, c.ClientIP())
+	s.logger.Printf("User %s login successful, IP: %s", matchedAccount.Username, c.ClientIP())
 
 	c.JSON(http.StatusOK, gin.H{
 		"username": matchedAccount.Username,
@@ -404,12 +404,12 @@ func (s *AdminServer) handleLogin(c *gin.Context) {
 	})
 }
 
-// 注销处理
+// Logout handler
 func (s *AdminServer) handleLogout(c *gin.Context) {
 	session := sessions.Default(c)
 	username := session.Get(sessionUserKey)
 
-	// 删除会话
+	// Delete session
 	s.sessionMu.Lock()
 	if username != nil {
 		delete(s.sessions, username.(string))
@@ -419,10 +419,10 @@ func (s *AdminServer) handleLogout(c *gin.Context) {
 	session.Clear()
 	session.Save()
 
-	c.JSON(http.StatusOK, gin.H{"message": "已成功注销"})
+	c.JSON(http.StatusOK, gin.H{"message": "Logout successful"})
 }
 
-// 获取用户统计信息
+// Get user statistics
 func (s *AdminServer) handleGetStats(c *gin.Context) {
 	var stats struct {
 		TotalUsers     int64 `json:"total_users"`
@@ -440,13 +440,13 @@ func (s *AdminServer) handleGetStats(c *gin.Context) {
 		LocalUsers     int64 `json:"local_users"`
 	}
 
-	// 当前时间
+	// Current time
 	now := time.Now()
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	weekStart := today.AddDate(0, 0, -int(now.Weekday()))
 	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 
-	// 查询用户统计信息
+	// Query user statistics
 	s.db.Model(&auth.User{}).Count(&stats.TotalUsers)
 
 	s.db.Model(&auth.User{}).Where("status = ?", auth.UserStatusActive).Count(&stats.ActiveUsers)
@@ -462,29 +462,29 @@ func (s *AdminServer) handleGetStats(c *gin.Context) {
 	s.db.Model(&auth.User{}).Where("last_login >= ?", weekStart).Count(&stats.LoginThisWeek)
 	s.db.Model(&auth.User{}).Where("last_login >= ?", monthStart).Count(&stats.LoginThisMonth)
 
-	// 移除不存在的字段查询
+	// Remove non-existent field query
 	/*
 		s.db.Model(&auth.User{}).Where("verified = ?", true).Count(&stats.VerifiedUsers)
 		s.db.Model(&auth.User{}).Where("verified = ?", false).Count(&stats.UnverifiedUsers)
 		s.db.Model(&auth.User{}).Where("two_factor_enabled = ?", true).Count(&stats.TwoFactorEnabled)
 	*/
 
-	// 根据实际结构进行调整，暂时注释
+	// According to actual structure for adjustment, temporarily commented
 	/*
 		s.db.Model(&auth.User{}).Where("provider != ?", "local").Count(&stats.SocialUsers)
 		s.db.Model(&auth.User{}).Where("provider = ?", "local").Count(&stats.LocalUsers)
 	*/
 
-	// 临时设置一些值
+	// Temporary set some values
 	stats.SocialUsers = 0
 	stats.LocalUsers = stats.TotalUsers
 
 	c.JSON(http.StatusOK, stats)
 }
 
-// 获取用户列表
+// Get user list
 func (s *AdminServer) handleGetUsers(c *gin.Context) {
-	// 分页参数
+	// Pagination parameters
 	page := 1
 	if pageStr := c.Query("page"); pageStr != "" {
 		fmt.Sscanf(pageStr, "%d", &page)
@@ -501,12 +501,12 @@ func (s *AdminServer) handleGetUsers(c *gin.Context) {
 		}
 	}
 
-	// 筛选参数
+	// Filter parameters
 	status := c.Query("status")
 	provider := c.Query("provider")
 	search := c.Query("search")
 
-	// 构建查询条件
+	// Build query conditions
 	query := s.db.Model(&auth.User{})
 
 	if status != "" {
@@ -514,34 +514,34 @@ func (s *AdminServer) handleGetUsers(c *gin.Context) {
 	}
 
 	if provider != "" {
-		// 如果auth.User没有provider字段，这部分可能需要调整
+		// If auth.User does not have provider field, this part may need adjustment
 		// query = query.Where("provider = ?", provider)
 	}
 
 	if search != "" {
 		searchTerm := "%" + search + "%"
-		// 根据实际字段调整
+		// According to actual field adjustment
 		query = query.Where("user_id LIKE ?", searchTerm)
 	}
 
-	// 统计结果总数
+	// Total result count
 	var total int64
 	query.Count(&total)
 
-	// 分页查询
+	// Paginated query
 	var users []auth.User
 	offset := (page - 1) * pageSize
 
 	err := query.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&users).Error
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询用户列表失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query user list"})
 		return
 	}
 
-	// 移除敏感信息
+	// Remove sensitive information
 	for i := range users {
 		users[i].Password = ""
-		// 删除不存在的TwoFactorSecret字段，根据实际User结构定义调整
+		// Delete non-existent TwoFactorSecret field, according to actual User structure definition
 		// users[i].TwoFactorSecret = ""
 	}
 
@@ -554,9 +554,9 @@ func (s *AdminServer) handleGetUsers(c *gin.Context) {
 	})
 }
 
-// 获取用户活跃情况
+// Get user activity
 func (s *AdminServer) handleGetActivity(c *gin.Context) {
-	// 日期范围参数
+	// Date range parameters
 	days := 30
 	if daysStr := c.Query("days"); daysStr != "" {
 		fmt.Sscanf(daysStr, "%d", &days)
@@ -565,11 +565,11 @@ func (s *AdminServer) handleGetActivity(c *gin.Context) {
 		}
 	}
 
-	// 计算开始日期
+	// Calculate start date
 	endDate := time.Now()
 	startDate := endDate.AddDate(0, 0, -days)
 
-	// 准备返回结果
+	// Prepare return result
 	type DailyActivity struct {
 		Date           string `json:"date"`
 		NewUsers       int64  `json:"new_users"`
@@ -581,7 +581,7 @@ func (s *AdminServer) handleGetActivity(c *gin.Context) {
 
 	result := make([]DailyActivity, 0, days)
 
-	// 计算每日数据
+	// Calculate daily data
 	current := startDate
 	for current.Before(endDate) || current.Equal(endDate) {
 		currentEnd := current.AddDate(0, 0, 1)
@@ -589,23 +589,23 @@ func (s *AdminServer) handleGetActivity(c *gin.Context) {
 		var activity DailyActivity
 		activity.Date = current.Format("2006-01-02")
 
-		// 新用户
+		// New users
 		s.db.Model(&auth.User{}).Where("created_at >= ? AND created_at < ?", current, currentEnd).Count(&activity.NewUsers)
 
-		// 活跃用户（有登录活动的用户）
+		// Active users (users with login activity)
 		s.db.Model(&auth.User{}).Where("last_login >= ? AND last_login < ?", current, currentEnd).Count(&activity.ActiveUsers)
 
-		// 登录尝试 - 可能需要调整LoginAttempt结构
+		// Login attempts - may need adjustment LoginAttempt structure
 		if s.db.Migrator().HasTable(&auth.LoginAttempt{}) {
 			s.db.Model(&auth.LoginAttempt{}).Where("created_at >= ? AND created_at < ?", current, currentEnd).Count(&activity.LoginAttempts)
 
-			// 成功认证
+			// Successful authentication
 			s.db.Model(&auth.LoginAttempt{}).Where("created_at >= ? AND created_at < ? AND success = ?", current, currentEnd, true).Count(&activity.SuccessfulAuth)
 
-			// 失败认证
+			// Failed authentication
 			s.db.Model(&auth.LoginAttempt{}).Where("created_at >= ? AND created_at < ? AND success = ?", current, currentEnd, false).Count(&activity.FailedAuth)
 		} else {
-			// 如果没有LoginAttempt表，赋予默认值
+			// If there is no LoginAttempt table, give default value
 			activity.LoginAttempts = 0
 			activity.SuccessfulAuth = 0
 			activity.FailedAuth = 0
@@ -618,30 +618,30 @@ func (s *AdminServer) handleGetActivity(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
-// 获取用户会话列表
+// Get user session list
 func (s *AdminServer) handleGetUserSessions(c *gin.Context) {
 	userID := c.Param("id")
 
-	// 参数验证
+	// Parameter validation
 	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "用户ID不能为空"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID cannot be empty"})
 		return
 	}
 
-	s.logger.Printf("获取用户 %s 的会话列表", userID)
+	s.logger.Printf("Get user %s session list", userID)
 
-	// 创建会话管理器
+	// Create session manager
 	sessionManager := s.sessionMgr
 
-	// 使用优化的方式获取会话
+	// Use optimized method to get sessions
 	sessions, err := sessionManager.GetUserSessions(userID)
 	if err != nil {
-		s.logger.Printf("获取用户会话失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询会话失败"})
+		s.logger.Printf("Failed to get user sessions: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query sessions"})
 		return
 	}
 
-	// 确保sessions不是null
+	// Ensure sessions are not null
 	if sessions == nil {
 		sessions = []*auth.Session{}
 	}
@@ -653,77 +653,71 @@ func (s *AdminServer) handleGetUserSessions(c *gin.Context) {
 	})
 }
 
-// 终止用户特定会话
+// Terminate specific user session
 func (s *AdminServer) handleTerminateUserSession(c *gin.Context) {
 	userID := c.Param("id")
 	sessionID := c.Param("session_id")
 
-	// 参数验证
+	// Parameter validation
 	if sessionID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "会话ID不能为空"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Session ID cannot be empty"})
 		return
 	}
 
-	// 创建会话管理器
+	// Create session manager
 	sessionManager := s.sessionMgr
 
-	// 从Redis中删除会话
+	// Delete session from Redis
 	if err := sessionManager.DeleteSession(userID, sessionID); err != nil {
-		s.logger.Printf("终止会话失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "终止会话失败"})
+		s.logger.Printf("Failed to terminate session: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to terminate session"})
 		return
 	}
 
-	// s.logger.Printf("成功终止用户 %s 的会话 %s", userID, sessionID)
-	// }
-	// 撤销JWT会话
+	// Revoke JWT session
 	if err := s.jwtService.RevokeJWTByID(userID, sessionID); err != nil {
-		s.logger.Printf("撤销JWT会话失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "撤销JWT会话失败"})
+		s.logger.Printf("Failed to revoke JWT session: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to revoke JWT session"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "会话已成功终止"})
+	c.JSON(http.StatusOK, gin.H{"message": "Session successfully terminated"})
 }
 
-// 终止用户所有会话
+// Terminate all user sessions
 func (s *AdminServer) handleTerminateAllUserSessions(c *gin.Context) {
 	userID := c.Param("id")
 
-	// 参数验证
+	// Parameter validation
 	if userID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "用户ID不能为空"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID cannot be empty"})
 		return
 	}
 
-	s.logger.Printf("准备终止用户 %s 的所有会话", userID)
+	s.logger.Printf("Preparing to terminate all sessions for user %s", userID)
 
-	// 创建会话管理器
+	// Create session manager
 	sessionManager := s.sessionMgr
 
-	// 终止所有普通会话
+	// Terminate all regular sessions
 	deletedCount, err := sessionManager.DeleteUserSessions(userID)
 	if err != nil {
-		s.logger.Printf("终止用户会话失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "终止普通会话失败"})
+		s.logger.Printf("Failed to terminate user sessions: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to terminate regular sessions"})
 		return
 	}
 
-	// s.logger.Printf("成功终止用户 %s 的 %d 个会话", userID, deletedCount)
-
-	// 终止所有JWT会话的标志
-	// jwtTerminated := false
-	// 撤销JWT会话
+	// Revoke JWT sessions
 	for _, sessionID := range deletedCount {
 		if err := s.jwtService.RevokeJWTByID(userID, sessionID); err != nil {
-			s.logger.Printf("撤销JWT会话失败: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "撤销JWT会话失败"})
+			s.logger.Printf("Failed to revoke JWT session: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to revoke JWT session"})
 			return
 		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":       "用户所有会话已成功终止",
+		"message":       "All user sessions successfully terminated",
 		"user_id":       userID,
 		"deleted_count": len(deletedCount),
 		// "jwt_terminated": jwtTerminated,

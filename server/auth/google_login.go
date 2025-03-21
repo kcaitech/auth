@@ -19,7 +19,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// GoogleUserInfo 表示从 Google 获取的用户信息
+// GoogleUserInfo represents user information retrieved from Google
 type GoogleUserInfo struct {
 	ID            string `json:"id"`
 	Email         string `json:"email"`
@@ -39,24 +39,24 @@ type GoogleUser struct {
 	UpdatedAt     time.Time
 }
 
-// GoogleOAuthConfig 配置选项
+// GoogleOAuthConfig configuration options
 type GoogleOAuthConfig struct {
 	ClientID     string
 	ClientSecret string
 	RedirectURL  string
 	Scopes       []string
 	Timeout      time.Duration
-	DB           *gorm.DB // 新增数据库连接
+	DB           *gorm.DB // Added database connection
 }
 
-// GoogleOAuth 合并后的结构体，同时处理OAuth和用户管理
+// GoogleOAuth merged structure that handles both OAuth and user management
 type GoogleOAuth struct {
 	config     *oauth2.Config
 	httpClient *http.Client
 	db         *gorm.DB
 }
 
-// NewGoogleOAuth 创建新的 Google OAuth 处理器
+// NewGoogleOAuth creates a new Google OAuth handler
 func NewGoogleOAuth(cfg GoogleOAuthConfig) (*GoogleOAuth, error) {
 	if cfg.ClientID == "" || cfg.ClientSecret == "" || cfg.RedirectURL == "" {
 		return nil, fmt.Errorf("missing required configuration")
@@ -88,10 +88,10 @@ func NewGoogleOAuth(cfg GoogleOAuthConfig) (*GoogleOAuth, error) {
 	}, nil
 }
 
-// AutoMigrate 自动迁移数据库表结构
+// AutoMigrate automatically migrate database table structure
 func (g *GoogleOAuth) AutoMigrate() error {
 	if g.db == nil {
-		return fmt.Errorf("数据库未初始化")
+		return fmt.Errorf("database not initialized")
 	}
 
 	if err := g.db.AutoMigrate(
@@ -103,7 +103,7 @@ func (g *GoogleOAuth) AutoMigrate() error {
 	return nil
 }
 
-// GenerateState 生成随机 state 参数
+// GenerateState generates random state parameter
 func (g *GoogleOAuth) GenerateState() (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
@@ -112,9 +112,9 @@ func (g *GoogleOAuth) GenerateState() (string, error) {
 	return base64.URLEncoding.EncodeToString(b), nil
 }
 
-// GetAuthURL 获取 Google 授权 URL
+// GetAuthURL gets Google authorization URL
 func (g *GoogleOAuth) GetAuthURL(state string) string {
-	// 添加 PKCE 支持
+	// Add PKCE support
 	verifier := g.generateCodeVerifier()
 	challenge := g.generateCodeChallenge(verifier)
 
@@ -127,7 +127,7 @@ func (g *GoogleOAuth) GetAuthURL(state string) string {
 	return g.config.AuthCodeURL(state, opts...)
 }
 
-// HandleCallback 处理 OAuth 回调
+// HandleCallback handles OAuth callback
 func (g *GoogleOAuth) HandleCallback(ctx context.Context, code, state, expectedState string) (*GoogleUserInfo, error) {
 	if state == "" || state != expectedState {
 		return nil, fmt.Errorf("invalid state parameter")
@@ -150,7 +150,7 @@ func (g *GoogleOAuth) HandleCallback(ctx context.Context, code, state, expectedS
 	return user, nil
 }
 
-// getUserInfo 获取用户信息
+// getUserInfo gets user information
 func (g *GoogleOAuth) getUserInfo(ctx context.Context, accessToken string) (*GoogleUserInfo, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET",
 		"https://www.googleapis.com/oauth2/v2/userinfo", nil)
@@ -188,7 +188,7 @@ func (g *GoogleOAuth) getUserInfo(ctx context.Context, accessToken string) (*Goo
 	}
 }
 
-// RefreshToken 刷新访问令牌
+// RefreshToken refreshes access token
 func (g *GoogleOAuth) RefreshToken(ctx context.Context, refreshToken string) (*oauth2.Token, error) {
 	token := &oauth2.Token{
 		RefreshToken: refreshToken,
@@ -202,27 +202,28 @@ func (g *GoogleOAuth) RefreshToken(ctx context.Context, refreshToken string) (*o
 	return newToken, nil
 }
 
-// PKCE 相关辅助函数
+// PKCE helper functions
 func (g *GoogleOAuth) generateCodeVerifier() string {
 	b := make([]byte, 32)
 	rand.Read(b)
 	return base64.RawURLEncoding.EncodeToString(b)
 }
 
+// Generate code challenge using SHA256
 func (g *GoogleOAuth) generateCodeChallenge(verifier string) string {
-	// 使用 SHA256 生成 code challenge
+	// Use SHA256 to generate code challenge
 	h := sha256.New()
 	h.Write([]byte(verifier))
 	return base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 }
 
-// GetUserByGoogleID 通过 Google ID 获取用户
+// GetUserByGoogleID gets a user by Google ID
 func (g *GoogleOAuth) GetUserByGoogleID(googleID, email string) (*User, error) {
 	if g.db == nil {
-		return nil, fmt.Errorf("数据库未初始化")
+		return nil, fmt.Errorf("database not initialized")
 	}
 
-	// 先查询 Google 用户表
+	// First query Google user table
 	var googleUser GoogleUser
 	var userID string
 	err := g.db.Where("google_id = ?", googleID).First(&googleUser).Error
@@ -232,18 +233,18 @@ func (g *GoogleOAuth) GetUserByGoogleID(googleID, email string) (*User, error) {
 		var googleUserWithSameEmail EmailUser
 		err = g.db.Where("email = ?", email).First(&googleUserWithSameEmail).Error
 		if err != nil {
-			return nil, err // 未找到，返回nil，让后续流程处理
+			return nil, err // Not found, return nil to let subsequent flow handle
 		}
 		userID = googleUserWithSameEmail.UserID
 	} else {
 		return nil, err
 	}
 
-	// 再查询对应的User记录
+	// Then query the corresponding User record
 	var user User
 	if err := g.db.Where("user_id = ?", userID).First(&user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, NewAppError(ErrCodeUserNotFound, "用户不存在", err)
+			return nil, NewAppError(ErrCodeUserNotFound, "User does not exist", err)
 		}
 		return nil, err
 	}
@@ -251,80 +252,80 @@ func (g *GoogleOAuth) GetUserByGoogleID(googleID, email string) (*User, error) {
 	return &user, nil
 }
 
-// RegisterOrLoginWithGoogle 通过 Google 登录或注册用户
+// RegisterOrLoginWithGoogle registers or logs in a user with Google
 func (g *GoogleOAuth) RegisterOrLoginWithGoogle(ctx context.Context, code, state, expectedState string) (*User, error) {
 	if g.db == nil {
-		return nil, fmt.Errorf("数据库未初始化")
+		return nil, fmt.Errorf("database not initialized")
 	}
 
-	// 1. 处理 Google 回调，获取用户信息
+	// 1. Handle Google callback, get user information
 	googleUserInfo, err := g.HandleCallback(ctx, code, state, expectedState)
 	if err != nil {
-		return nil, fmt.Errorf("处理Google回调失败: %w", err)
+		return nil, fmt.Errorf("failed to process Google callback: %w", err)
 	}
 
-	// 2. 查询是否已存在该 Google 用户
+	// 2. Check if the Google user already exists
 	user, err := g.GetUserByGoogleID(googleUserInfo.ID, googleUserInfo.Email)
 	if err != nil {
 		return nil, err
 	}
 
-	// 3. 如果用户不存在，则创建新用户
+	// 3. If user does not exist, create a new user
 	if user == nil {
 		user, err = g.CreateUserFromGoogle(googleUserInfo)
 		if err != nil {
-			return nil, fmt.Errorf("创建Google用户失败: %w", err)
+			return nil, fmt.Errorf("failed to create Google user: %w", err)
 		}
 	} else {
-		// 4. 如果用户已存在，则更新用户信息
+		// 4. If user already exists, update user information
 		if err := g.UpdateGoogleUserInfo(user.UserID, googleUserInfo); err != nil {
-			log.Printf("更新Google用户信息失败: %v", err)
-			// 不影响登录流程，只记录日志
+			log.Printf("Failed to update Google user information: %v", err)
+			// Does not affect login process, just log the error
 		}
 	}
 
-	// 5. 更新最后登录时间
+	// 5. Update last login time
 	now := time.Now()
 	user.LastLogin = &now
 	if err := g.db.Save(user).Error; err != nil {
-		log.Printf("更新用户最后登录时间失败: %v", err)
-		// 不影响登录流程，只记录日志
+		log.Printf("Failed to update user last login time: %v", err)
+		// Does not affect login process, just log the error
 	}
 
 	return user, nil
 }
 
-// CreateUserFromGoogle 从 Google 用户信息创建系统用户
+// CreateUserFromGoogle creates a user from Google information
 func (g *GoogleOAuth) CreateUserFromGoogle(googleInfo *GoogleUserInfo) (*User, error) {
 	if g.db == nil {
-		return nil, fmt.Errorf("数据库未初始化")
+		return nil, fmt.Errorf("database not initialized")
 	}
 
-	// 生成随机UserID
+	// Generate random UserID
 	// b := make([]byte, 8)
 	// if _, err := rand.Read(b); err != nil {
-	// 	return nil, fmt.Errorf("生成随机ID失败: %v", err)
+	// 	return nil, fmt.Errorf("failed to generate random ID: %v", err)
 	// }
 	userID, err := GenerateBase62ID()
 	if err != nil {
-		return nil, fmt.Errorf("生成随机ID失败: %v", err)
+		return nil, fmt.Errorf("failed to generate random ID: %v", err)
 	}
 
-	// 确保UserID唯一
+	// Ensure UserID is unique
 	for {
 		var count int64
 		g.db.Model(&User{}).Where("user_id = ?", userID).Count(&count)
 		if count == 0 {
 			break
 		}
-		// 生成新的UserID
+		// Generate a new UserID
 		userID, err = GenerateBase62ID()
 		if err != nil {
-			return nil, fmt.Errorf("生成随机ID失败: %v", err)
+			return nil, fmt.Errorf("failed to generate random ID: %v", err)
 		}
 	}
 
-	// 使用事务确保数据一致性
+	// Use transaction to ensure data consistency
 	tx := g.db.Begin()
 	if tx.Error != nil {
 		return nil, tx.Error
@@ -335,22 +336,23 @@ func (g *GoogleOAuth) CreateUserFromGoogle(googleInfo *GoogleUserInfo) (*User, e
 		}
 	}()
 
-	// 生成随机密码（用户无法直接使用密码登录）
+	// Generate random password (user cannot directly login with password)
 	randomPassword := make([]byte, 16)
 	if _, err := rand.Read(randomPassword); err != nil {
 		tx.Rollback()
-		return nil, fmt.Errorf("生成随机密码失败: %v", err)
+		return nil, fmt.Errorf("failed to generate random password: %v", err)
 	}
+
 	hashedPassword, err := bcrypt.GenerateFromPassword(randomPassword, bcrypt.DefaultCost)
 	if err != nil {
 		tx.Rollback()
-		return nil, fmt.Errorf("密码加密失败: %v", err)
+		return nil, fmt.Errorf("password encryption failed: %v", err)
 	}
 
-	// 提取用户名作为昵称
+	// Extract username as nickname
 	nickname := googleInfo.Name
 	if nickname == "" {
-		// 如果没有名称，使用邮箱前缀作为默认昵称
+		// If no name, use email prefix as default nickname
 		if googleInfo.Email != "" {
 			parts := strings.Split(googleInfo.Email, "@")
 			nickname = parts[0]
@@ -359,7 +361,7 @@ func (g *GoogleOAuth) CreateUserFromGoogle(googleInfo *GoogleUserInfo) (*User, e
 		}
 	}
 
-	// 创建基本用户记录
+	// Create basic user record
 	now := time.Now()
 	user := &User{
 		UserID:   userID,
@@ -376,10 +378,10 @@ func (g *GoogleOAuth) CreateUserFromGoogle(googleInfo *GoogleUserInfo) (*User, e
 
 	if err := tx.Create(user).Error; err != nil {
 		tx.Rollback()
-		return nil, fmt.Errorf("创建用户失败: %v", err)
+		return nil, fmt.Errorf("failed to create user: %v", err)
 	}
 
-	// 创建Google用户关联记录
+	// Create Google user association record
 	googleUser := &GoogleUser{
 		UserID:        userID,
 		GoogleID:      googleInfo.ID,
@@ -393,24 +395,24 @@ func (g *GoogleOAuth) CreateUserFromGoogle(googleInfo *GoogleUserInfo) (*User, e
 
 	if err := tx.Create(googleUser).Error; err != nil {
 		tx.Rollback()
-		return nil, fmt.Errorf("创建Google用户关联失败: %v", err)
+		return nil, fmt.Errorf("failed to create Google user association: %v", err)
 	}
 
-	// 提交事务
+	// Commit transaction
 	if err := tx.Commit().Error; err != nil {
-		return nil, fmt.Errorf("保存数据失败: %v", err)
+		return nil, fmt.Errorf("failed to save data: %v", err)
 	}
 
 	return user, nil
 }
 
-// UpdateGoogleUserInfo 更新 Google 用户信息
+// UpdateGoogleUserInfo updates Google user information
 func (g *GoogleOAuth) UpdateGoogleUserInfo(userID string, googleInfo *GoogleUserInfo) error {
 	if g.db == nil {
-		return fmt.Errorf("数据库未初始化")
+		return fmt.Errorf("database not initialized")
 	}
 
-	// 更新Google用户表信息
+	// Update Google user table information
 	result := g.db.Model(&GoogleUser{}).Where("user_id = ?", userID).Updates(map[string]interface{}{
 		"name":           googleInfo.Name,
 		"email":          googleInfo.Email,
@@ -423,17 +425,17 @@ func (g *GoogleOAuth) UpdateGoogleUserInfo(userID string, googleInfo *GoogleUser
 		return result.Error
 	}
 
-	// 提取用户名作为昵称
+	// Extract username as nickname
 	nickname := googleInfo.Name
 	if nickname == "" {
-		// 如果没有名称，使用邮箱前缀作为默认昵称
+		// If no name, use email prefix as default nickname
 		if googleInfo.Email != "" {
 			parts := strings.Split(googleInfo.Email, "@")
 			nickname = parts[0]
 		}
 	}
 
-	// 同时更新用户资料
+	// Also update user profile
 	return g.db.Model(&User{}).Where("user_id = ?", userID).Update("profile", UserProfile{
 		Nickname: nickname,
 		Avatar:   googleInfo.Picture,

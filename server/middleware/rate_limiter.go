@@ -13,13 +13,13 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-// RedisStore Redis存储服务
+// RedisStore Redis storage service
 type RedisStore struct {
 	client *redis.Client
 	ctx    context.Context
 }
 
-// NewRedisStore 创建新的Redis存储服务
+// NewRedisStore Create a new Redis storage service
 func NewRedisStore(addr, password string, db int) (*RedisStore, error) {
 	client := redis.NewClient(&redis.Options{
 		Addr:     addr,
@@ -38,7 +38,7 @@ func NewRedisStore(addr, password string, db int) (*RedisStore, error) {
 	}, nil
 }
 
-// IncrRateLimit 增加限流计数并返回当前值
+// IncrRateLimit Increment rate limit counter and return current value
 func (rs *RedisStore) IncrRateLimit(key string, window time.Duration) (int, error) {
 	pipe := rs.client.Pipeline()
 	incr := pipe.Incr(rs.ctx, key)
@@ -50,13 +50,13 @@ func (rs *RedisStore) IncrRateLimit(key string, window time.Duration) (int, erro
 	return int(incr.Val()), nil
 }
 
-// StoreRateLimit 存储速率限制信息
+// StoreRateLimit Store rate limit information
 func (rs *RedisStore) StoreRateLimit(ip string, count int, window time.Duration) error {
 	key := fmt.Sprintf("ratelimit:%s", ip)
 	return rs.client.Set(rs.ctx, key, count, window).Err()
 }
 
-// GetRateLimit 获取速率限制信息
+// GetRateLimit Get rate limit information
 func (rs *RedisStore) GetRateLimit(ip string) (int, error) {
 	key := fmt.Sprintf("ratelimit:%s", ip)
 	count, err := rs.client.Get(rs.ctx, key).Int()
@@ -66,36 +66,36 @@ func (rs *RedisStore) GetRateLimit(ip string) (int, error) {
 	return count, err
 }
 
-// DeleteRateLimit 删除速率限制信息
+// DeleteRateLimit Delete rate limit information
 func (rs *RedisStore) DeleteRateLimit(ip string) error {
 	key := fmt.Sprintf("ratelimit:%s", ip)
 	return rs.client.Del(rs.ctx, key).Err()
 }
 
-// Close 关闭Redis连接
+// Close Close Redis connection
 func (rs *RedisStore) Close() error {
 	return rs.client.Close()
 }
 
-// RateLimiterConfig 限流器配置
+// RateLimiterConfig Rate limiter configuration
 type RateLimiterConfig struct {
-	// 时间窗口内允许的最大请求数
+	// Maximum number of requests allowed within the time window
 	MaxRequests int
-	// 时间窗口大小
+	// Time window size
 	Window time.Duration
-	// 是否启用IP限流
+	// Whether to enable IP-based rate limiting
 	EnableIPRateLimit bool
-	// 是否启用用户ID限流
+	// Whether to enable user ID-based rate limiting
 	EnableUserRateLimit bool
-	// 是否启用全局限流
+	// Whether to enable global rate limiting
 	EnableGlobalRateLimit bool
-	// 全局限流阈值
+	// Global rate limit threshold
 	GlobalMaxRequests int
-	// 全局限流窗口
+	// Global rate limit window
 	GlobalWindow time.Duration
 }
 
-// DefaultRateLimiterConfig 默认限流配置
+// DefaultRateLimiterConfig Default rate limiter configuration
 func DefaultRateLimiterConfig() RateLimiterConfig {
 	return RateLimiterConfig{
 		MaxRequests:           100,
@@ -108,13 +108,13 @@ func DefaultRateLimiterConfig() RateLimiterConfig {
 	}
 }
 
-// RateLimiter 速率限制器
+// RateLimiter Rate limiter
 type RateLimiter struct {
 	store  *RedisStore
 	config RateLimiterConfig
 }
 
-// NewRateLimiter 创建新的速率限制器
+// NewRateLimiter Create a new rate limiter
 func NewRateLimiter(store *RedisStore, config RateLimiterConfig) *RateLimiter {
 	return &RateLimiter{
 		store:  store,
@@ -122,40 +122,40 @@ func NewRateLimiter(store *RedisStore, config RateLimiterConfig) *RateLimiter {
 	}
 }
 
-// RateLimitMiddleware 速率限制中间件
+// RateLimitMiddleware Rate limiting middleware
 func (rl *RateLimiter) RateLimitMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 检查是否需要限流
+		// Check if rate limiting should be applied
 		if !rl.shouldRateLimit(c) {
 			c.Next()
 			return
 		}
 
-		// 获取客户端标识符
+		// Get client identifier
 		identifier := rl.getClientIdentifier(c)
 		if identifier == "" {
 			c.Next()
 			return
 		}
 
-		// 检查是否超过限制
+		// Check if limit is exceeded
 		limited, count, err := rl.isLimited(identifier)
 		if err != nil {
-			// 如果出错，记录错误但允许请求通过
+			// If there's an error, log it but allow the request to proceed
 			c.Next()
 			return
 		}
 
-		// 设置RateLimit相关的HTTP头
+		// Set RateLimit related HTTP headers
 		c.Header("X-RateLimit-Limit", fmt.Sprintf("%d", rl.config.MaxRequests))
 		c.Header("X-RateLimit-Remaining", fmt.Sprintf("%d", rl.config.MaxRequests-count))
 		c.Header("X-RateLimit-Reset", fmt.Sprintf("%d", time.Now().Add(rl.config.Window).Unix()))
 
 		if limited {
-			// 记录限流事件
+			// Record rate limit event
 			RecordRateLimit(identifier)
 
-			// 返回429状态码
+			// Return 429 status code
 			c.JSON(http.StatusTooManyRequests, gin.H{
 				"error":       "rate limit exceeded",
 				"retry_after": rl.config.Window.Seconds(),
@@ -168,14 +168,14 @@ func (rl *RateLimiter) RateLimitMiddleware() gin.HandlerFunc {
 	}
 }
 
-// 检查是否应该对当前请求进行限流
+// Check if rate limiting should be applied to the current request
 func (rl *RateLimiter) shouldRateLimit(c *gin.Context) bool {
-	// 跳过对静态资源的限流
+	// Skip rate limiting for static resources
 	if strings.HasPrefix(c.Request.URL.Path, "/static") {
 		return false
 	}
 
-	// 跳过对健康检查的限流
+	// Skip rate limiting for health checks
 	if c.Request.URL.Path == "/health" || c.Request.URL.Path == "/metrics" {
 		return false
 	}
@@ -183,16 +183,16 @@ func (rl *RateLimiter) shouldRateLimit(c *gin.Context) bool {
 	return true
 }
 
-// 获取客户端标识符（IP或用户ID）
+// Get client identifier (IP or user ID)
 func (rl *RateLimiter) getClientIdentifier(c *gin.Context) string {
-	// 如果启用了用户ID限流，并且用户已登录，使用用户ID
+	// If user ID rate limiting is enabled and user is logged in, use user ID
 	if rl.config.EnableUserRateLimit {
 		if userID, exists := c.Get("user_id"); exists {
 			return fmt.Sprintf("user:%v", userID)
 		}
 	}
 
-	// 如果启用了IP限流，使用客户端IP
+	// If IP rate limiting is enabled, use client IP
 	if rl.config.EnableIPRateLimit {
 		clientIP := c.ClientIP()
 		if clientIP != "" {
@@ -203,20 +203,20 @@ func (rl *RateLimiter) getClientIdentifier(c *gin.Context) string {
 	return ""
 }
 
-// 检查是否超过限制
+// Check if limit is exceeded
 func (rl *RateLimiter) isLimited(identifier string) (bool, int, error) {
-	// 增加计数并获取当前值
+	// Increment counter and get current value
 	count, err := rl.store.IncrRateLimit(identifier, rl.config.Window)
 	if err != nil {
 		return false, 0, err
 	}
 
-	// 检查是否超过限制
+	// Check if limit is exceeded
 	if count > rl.config.MaxRequests {
 		return true, count, nil
 	}
 
-	// 如果启用了全局限流，还需要检查全局限制
+	// If global rate limiting is enabled, also check global limit
 	if rl.config.EnableGlobalRateLimit {
 		globalCount, err := rl.store.IncrRateLimit("global", rl.config.GlobalWindow)
 		if err != nil {

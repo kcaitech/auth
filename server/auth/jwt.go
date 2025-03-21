@@ -12,29 +12,29 @@ type JWTConfig struct {
 	Issuer string
 }
 
-// JWTService JWT服务
+// JWT Service
 type JWTService struct {
 	redis  *RedisStore
 	config JWTConfig
 }
 
-// 定义JWT的Claims结构
+// Define JWT Claims structure
 type CustomClaims struct {
 	UserID string `json:"user_id"`
 	// Email     string `json:"email"`
 	SessionID string `json:"session_id"`
-	// KeyID     string `json:"kid"`        // 用于密钥轮换
-	TokenType string `json:"token_type"` // 标识是访问令牌还是刷新令牌
+	// KeyID     string `json:"kid"`        // For key rotation
+	TokenType string `json:"token_type"` // Identifies whether it's an access token or refresh token
 	jwt.RegisteredClaims
 }
 
-// TokenPair 包含访问令牌和刷新令牌
+// TokenPair contains access token and refresh token
 type TokenPair struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 }
 
-// JWTSession 表示JWT会话信息
+// JWTSession represents JWT session information
 type JWTSession struct {
 	KeyID     string    `json:"key_id"`
 	TokenType string    `json:"token_type"`
@@ -45,15 +45,15 @@ type JWTSession struct {
 }
 
 const (
-	jwtKeyPrefix           = "jwt:key:"         // Redis中JWT密钥的前缀
-	defaultKeyTTL          = 24 * time.Hour     // 密钥默认过期时间
-	TokenExpiration        = 2 * time.Hour      // Token默认过期时间
-	RefreshTokenExpiration = 7 * 24 * time.Hour // 刷新令牌过期时间
-	AccessTokenType        = "access"           // 访问令牌类型
-	RefreshTokenType       = "refresh"          // 刷新令牌类型
+	jwtKeyPrefix           = "jwt:key:"         // Prefix for JWT keys in Redis
+	defaultKeyTTL          = 24 * time.Hour     // Default key expiration time
+	TokenExpiration        = 2 * time.Hour      // Default token expiration time
+	RefreshTokenExpiration = 7 * 24 * time.Hour // Refresh token expiration time
+	AccessTokenType        = "access"           // Access token type
+	RefreshTokenType       = "refresh"          // Refresh token type
 )
 
-// NewJWTService 创建新的JWT服务
+// NewJWTService Create new JWT service
 func NewJWTService(redis *RedisStore, config JWTConfig) *JWTService {
 	return &JWTService{
 		redis:  redis,
@@ -61,7 +61,7 @@ func NewJWTService(redis *RedisStore, config JWTConfig) *JWTService {
 	}
 }
 
-// getKeyID 生成密钥ID
+// getKeyID Generate key ID
 func (s *JWTService) getKeyID(userID string, sessionID string, tokenType string) string {
 	// data := fmt.Sprintf("%s:%s:%d", userID, sessionID, time.Now().UnixNano())
 	// hash := sha256.Sum256([]byte(data))
@@ -69,18 +69,18 @@ func (s *JWTService) getKeyID(userID string, sessionID string, tokenType string)
 	return fmt.Sprintf("%s:%s:%s", userID, sessionID, tokenType)
 }
 
-// generateSecretKey 生成密钥
+// generateSecretKey Generate secret key
 // func (s *JWTService) generateSecretKey() (string, error) {
 // 	b := make([]byte, 32)
 // 	_, err := rand.Read(b)
 // 	if err != nil {
-// 		return "", fmt.Errorf("生成随机字节失败: %w", err)
+// 		return "", fmt.Errorf("failed to generate random bytes: %w", err)
 // 	}
-// 	// 使用62进制编码（数字+大小写字母）来缩短ID长度
+// 	// Use base62 encoding (numbers + uppercase and lowercase letters) to shorten ID length
 // 	return Base62Encode(b), nil
 // }
 
-// storeKey 将密钥存储到Redis
+// storeKey Store key to Redis
 func (s *JWTService) storeKey(keyID string, key []byte, ttl time.Duration) error {
 	return s.redis.client.Set(s.redis.ctx,
 		jwtKeyPrefix+keyID,
@@ -89,7 +89,7 @@ func (s *JWTService) storeKey(keyID string, key []byte, ttl time.Duration) error
 	).Err()
 }
 
-// getKey 从Redis获取密钥
+// getKey Get key from Redis
 func (s *JWTService) getKey(keyID string) ([]byte, error) {
 	keyStr, err := s.redis.client.Get(s.redis.ctx, jwtKeyPrefix+keyID).Bytes()
 	if err != nil {
@@ -102,21 +102,21 @@ func (s *JWTService) getKey(keyID string) ([]byte, error) {
 	return keyStr, nil
 }
 
-// generateToken 生成指定类型的令牌
+// generateToken Generate specified type of token
 func (s *JWTService) generateToken(userID string, sessionID, tokenType string, expiration time.Duration) (string, string, error) {
-	// 生成新的密钥ID和密钥
+	// Generate new key ID and key
 	keyID := s.getKeyID(userID, sessionID, tokenType)
 	secretKey, err := GenerateByteID()
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate secret key: %w", err)
 	}
 
-	// 存储密钥到Redis，使用令牌的过期时间
+	// Store key in Redis, using token's expiration time
 	if err := s.storeKey(keyID, secretKey, expiration+time.Hour); err != nil {
 		return "", "", fmt.Errorf("failed to store key: %w", err)
 	}
 
-	// 创建Claims
+	// Create Claims
 	claims := CustomClaims{
 		UserID: userID,
 		// Email:     email,
@@ -130,11 +130,11 @@ func (s *JWTService) generateToken(userID string, sessionID, tokenType string, e
 		},
 	}
 
-	// 创建Token
+	// Create Token
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	// token.Header["kid"] = keyID
 
-	// 签名Token
+	// Sign Token
 	tokenString, err := token.SignedString(secretKey)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to sign token: %w", err)
@@ -143,21 +143,21 @@ func (s *JWTService) generateToken(userID string, sessionID, tokenType string, e
 	return tokenString, keyID, nil
 }
 
-// GenerateJWT 生成JWT访问令牌
+// GenerateJWT Generate JWT access token
 func (s *JWTService) GenerateJWT(userID string, sessionID string) (string, error) {
 	tokenString, _, err := s.generateToken(userID, sessionID, AccessTokenType, TokenExpiration)
 	return tokenString, err
 }
 
-// GenerateTokenPair 生成访问令牌和刷新令牌对
+// GenerateTokenPair Generate access token and refresh token pair
 func (s *JWTService) GenerateTokenPair(userID string, sessionID string) (*TokenPair, error) {
-	// 生成访问令牌
+	// Generate access token
 	accessToken, _, err := s.generateToken(userID, sessionID, AccessTokenType, TokenExpiration)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate access token: %w", err)
 	}
 
-	// 生成刷新令牌
+	// Generate refresh token
 	refreshToken, _, err := s.generateToken(userID, sessionID, RefreshTokenType, RefreshTokenExpiration)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate refresh token: %w", err)
@@ -169,9 +169,9 @@ func (s *JWTService) GenerateTokenPair(userID string, sessionID string) (*TokenP
 	}, nil
 }
 
-// ValidateJWT 验证JWT
+// ValidateJWT Validate JWT
 func (s *JWTService) ValidateJWT(tokenString string) (*CustomClaims, error) {
-	// 解析Token（不验证签名）以获取KeyID
+	// Parse token (without validating signature) to get KeyID
 	token, _ := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return nil, nil
 	})
@@ -179,13 +179,13 @@ func (s *JWTService) ValidateJWT(tokenString string) (*CustomClaims, error) {
 	if claims, ok := token.Claims.(*CustomClaims); ok {
 		keyID := s.getKeyID(claims.UserID, claims.SessionID, claims.TokenType)
 
-		// 从Redis获取密钥
+		// Get key from Redis
 		secretKey, err := s.getKey(keyID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get key: %w", err)
 		}
 
-		// 使用获取到的密钥验证Token
+		// Validate token using retrieved key
 		token, err = jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -205,24 +205,24 @@ func (s *JWTService) ValidateJWT(tokenString string) (*CustomClaims, error) {
 	return nil, fmt.Errorf("invalid token")
 }
 
-// RefreshJWT 使用刷新令牌获取新的令牌对
+// RefreshJWT Get new token pair using refresh token
 func (s *JWTService) RefreshJWT(refreshTokenString string) (*TokenPair, error) {
-	// 验证刷新令牌
+	// Validate refresh token
 	claims, err := s.ValidateJWT(refreshTokenString)
 	if err != nil {
 		return nil, fmt.Errorf("invalid refresh token: %w", err)
 	}
 
-	// 确保是刷新令牌
+	// Ensure it's a refresh token
 	if claims.TokenType != RefreshTokenType {
 		return nil, fmt.Errorf("token is not a refresh token")
 	}
 
-	// 生成新的令牌对
+	// Generate new token pair
 	return s.GenerateTokenPair(claims.UserID, claims.SessionID)
 }
 
-// RevokeJWT 撤销JWT
+// RevokeJWT Revoke JWT
 func (s *JWTService) RevokeJWT(tokenString string) error {
 	claims, err := s.ValidateJWT(tokenString)
 	if err != nil {
@@ -231,35 +231,35 @@ func (s *JWTService) RevokeJWT(tokenString string) error {
 
 	keyID := s.getKeyID(claims.UserID, claims.SessionID, claims.TokenType)
 
-	// 从Redis删除密钥
+	// Delete key from Redis
 	return s.redis.client.Del(s.redis.ctx, jwtKeyPrefix+keyID).Err()
 }
 
-// RevokeRefreshJWT 专门撤销刷新令牌
+// RevokeRefreshJWT Specifically revoke refresh token
 func (s *JWTService) RevokeRefreshJWT(refreshTokenString string) error {
-	// 验证刷新令牌
+	// Validate refresh token
 	claims, err := s.ValidateJWT(refreshTokenString)
 	if err != nil {
 		return fmt.Errorf("invalid refresh token: %w", err)
 	}
 
-	// 确保是刷新令牌
+	// Ensure it's a refresh token
 	if claims.TokenType != RefreshTokenType {
 		return fmt.Errorf("token is not a refresh token")
 	}
 	keyID := s.getKeyID(claims.UserID, claims.SessionID, claims.TokenType)
-	// 从Redis删除密钥
+	// Delete key from Redis
 	return s.redis.client.Del(s.redis.ctx, jwtKeyPrefix+keyID).Err()
 }
 
-// RevokeTokenPair 同时撤销访问令牌和刷新令牌
+// RevokeTokenPair Revoke both access token and refresh token
 func (s *JWTService) RevokeTokenPair(accessToken, refreshToken string) error {
-	// 先撤销访问令牌
+	// Revoke access token first
 	if err := s.RevokeJWT(accessToken); err != nil {
 		return fmt.Errorf("failed to revoke access token: %w", err)
 	}
 
-	// 再撤销刷新令牌
+	// Then revoke refresh token
 	if err := s.RevokeRefreshJWT(refreshToken); err != nil {
 		return fmt.Errorf("failed to revoke refresh token: %w", err)
 	}
@@ -267,7 +267,7 @@ func (s *JWTService) RevokeTokenPair(accessToken, refreshToken string) error {
 	return nil
 }
 
-// RevokeJWTByID 撤销指定ID的令牌
+// RevokeJWTByID Revoke token with specified ID
 func (s *JWTService) RevokeJWTByID(userID string, sessionID string) error {
 	keyID := s.getKeyID(userID, sessionID, RefreshTokenType)
 	if err := s.redis.client.Del(s.redis.ctx, jwtKeyPrefix+keyID).Err(); err != nil {
@@ -280,16 +280,16 @@ func (s *JWTService) RevokeJWTByID(userID string, sessionID string) error {
 	return nil
 }
 
-// RevokeAllUserTokens 撤销用户的所有令牌
+// RevokeAllUserTokens Revoke all tokens for a user
 // func (s *JWTService) RevokeAllUserTokens(sessionID string) error {
-// 	// 使用模式匹配查找所有与该会话相关的密钥
+// 	// Use pattern matching to find all keys related to this session
 // 	pattern := jwtKeyPrefix + "*" + sessionID + "*"
 // 	keys, err := s.redis.client.Keys(s.redis.ctx, pattern).Result()
 // 	if err != nil {
 // 		return fmt.Errorf("failed to find session keys: %w", err)
 // 	}
 
-// 	// 如果找到了密钥，删除它们
+// 	// If keys are found, delete them
 // 	if len(keys) > 0 {
 // 		return s.redis.client.Del(s.redis.ctx, keys...).Err()
 // 	}

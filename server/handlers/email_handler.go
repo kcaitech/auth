@@ -8,7 +8,7 @@ import (
 	"kcaitech.com/kcauth/server/auth"
 )
 
-// EmailLogin 邮箱登录
+// EmailLogin Email login
 func (h *AuthHandler) EmailLogin(c *gin.Context) {
 	var req struct {
 		Email    string `json:"email" binding:"required,email"`
@@ -16,39 +16,39 @@ func (h *AuthHandler) EmailLogin(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request parameters"})
 		return
 	}
 
-	// 检查登录尝试次数限制
+	// Check login attempt limits
 	clientIP := c.ClientIP()
 	if err := h.accountAuth.CheckLoginAttempts(req.Email, clientIP); err != nil {
 		c.JSON(http.StatusTooManyRequests, gin.H{"error": err.Error()})
 		return
 	}
 
-	// 使用邮箱登录
+	// Use email to login
 	user, err := h.emailAuth.EmailLogin(req.Email, req.Password)
 	if err != nil {
-		// 记录失败的登录尝试
+		// Record failed login attempt
 		h.accountAuth.RecordLoginAttempt(req.Email, clientIP, false)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
-	// 记录成功的登录尝试
+	// Record successful login attempt
 	h.accountAuth.RecordLoginAttempt(req.Email, clientIP, true)
 
-	// 创建会话
+	// Create session
 	session, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), auth.RefreshTokenExpiration+time.Hour)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建会话失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 		return
 	}
 
 	tokenPair, err := h.jwtService.GenerateTokenPair(user.UserID, session.ID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成令牌失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
 
@@ -61,7 +61,7 @@ func (h *AuthHandler) EmailLogin(c *gin.Context) {
 	})
 }
 
-// EmailRegister 邮箱预注册
+// EmailRegister Email pre-registration
 func (h *AuthHandler) EmailRegister(c *gin.Context) {
 	var req struct {
 		Email    string `json:"email" binding:"required,email"`
@@ -72,11 +72,11 @@ func (h *AuthHandler) EmailRegister(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request parameters"})
 		return
 	}
 
-	// 预注册邮箱用户，只发送验证邮件，不创建用户
+	// Pre-register email user, only send verification email, don't create user
 	_, err := h.emailAuth.EmailPreregister(req.Email, req.Password, req.Nickname, req.Title, req.Content)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -84,43 +84,43 @@ func (h *AuthHandler) EmailRegister(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "验证邮件已发送，请查收并点击验证链接完成注册",
+		"message": "Verification email has been sent, please check and click the verification link to complete registration",
 		"email":   req.Email,
 	})
 }
 
-// EmailVerify 邮箱验证并完成注册
+// EmailVerify Email verification and complete registration
 func (h *AuthHandler) EmailVerify(c *gin.Context) {
 	token := c.Query("token")
 	if token == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "缺少验证令牌"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing verification token"})
 		return
 	}
 
-	// 验证邮箱并完成注册
+	// Verify email and complete registration
 	user, err := h.emailAuth.VerifyEmail(token)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// 创建会话
+	// Create session
 	clientIP := c.ClientIP()
 	session, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), auth.RefreshTokenExpiration+time.Hour)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建会话失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 		return
 	}
 
 	tokenPair, err := h.jwtService.GenerateTokenPair(user.UserID, session.ID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成令牌失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
 
 	c.SetCookie("refreshToken", tokenPair.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
 	c.JSON(http.StatusOK, gin.H{
-		"message":     "邮箱验证成功，注册完成",
+		"message":     "Email verification successful, registration complete",
 		"user_id":     user.UserID,
 		"token":       tokenPair.AccessToken,
 		"profile":     user.Profile,
@@ -128,7 +128,7 @@ func (h *AuthHandler) EmailVerify(c *gin.Context) {
 	})
 }
 
-// ResendEmailVerification 重新发送邮箱验证邮件
+// ResendEmailVerification Resend email verification
 func (h *AuthHandler) ResendEmailVerification(c *gin.Context) {
 	var req struct {
 		Email   string `json:"email" binding:"required,email"`
@@ -137,7 +137,7 @@ func (h *AuthHandler) ResendEmailVerification(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request parameters"})
 		return
 	}
 
@@ -147,10 +147,10 @@ func (h *AuthHandler) ResendEmailVerification(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "验证邮件已重新发送，请查收"})
+	c.JSON(http.StatusOK, gin.H{"message": "Verification email has been resent, please check"})
 }
 
-// EmailPasswordReset 邮箱密码重置
+// EmailPasswordReset Email password reset
 func (h *AuthHandler) EmailPasswordReset(c *gin.Context) {
 	var req struct {
 		Email   string `json:"email" binding:"required,email"`
@@ -159,11 +159,11 @@ func (h *AuthHandler) EmailPasswordReset(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request parameters"})
 		return
 	}
 
-	// 发起密码重置
+	// Initiate password reset
 	_, err := h.emailAuth.InitiatePasswordReset(req.Email, req.Title, req.Content)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -171,11 +171,11 @@ func (h *AuthHandler) EmailPasswordReset(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "密码重置邮件已发送，请查收",
+		"message": "Password reset email has been sent, please check",
 	})
 }
 
-// CompleteEmailPasswordReset 完成邮箱密码重置
+// CompleteEmailPasswordReset Complete email password reset
 func (h *AuthHandler) CompleteEmailPasswordReset(c *gin.Context) {
 	var req struct {
 		Token       string `json:"token" binding:"required"`
@@ -183,15 +183,15 @@ func (h *AuthHandler) CompleteEmailPasswordReset(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request parameters"})
 		return
 	}
 
-	// 完成密码重置
+	// Complete password reset
 	if err := h.emailAuth.CompletePasswordReset(req.Token, req.NewPassword); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "密码重置成功"})
+	c.JSON(http.StatusOK, gin.H{"message": "Password reset successful"})
 }

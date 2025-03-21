@@ -10,18 +10,18 @@ import (
 func (h *AuthHandler) GetUserSessions(c *gin.Context) {
 	userID := c.GetString("user_id")
 	if userID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "未授权"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
 	sessions, err := h.sessionMgr.GetUserSessions(userID)
 	if err != nil {
-		h.logger.Printf("获取用户会话失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询会话失败"})
+		h.logger.Printf("Failed to get user sessions: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to query sessions"})
 		return
 	}
 
-	// 确保sessions不是null
+	// Ensure sessions is not null
 	if sessions == nil {
 		sessions = []*auth.Session{}
 	}
@@ -34,69 +34,69 @@ func (h *AuthHandler) GetUserSessions(c *gin.Context) {
 func (h *AuthHandler) TerminateUserSession(c *gin.Context) {
 	sessionID := c.Param("session_id")
 	if sessionID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "会话ID不能为空"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Session ID cannot be empty"})
 		return
 	}
 	userID := c.GetString("user_id")
 	if userID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "未授权"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
-	// 参数验证
+	// Parameter validation
 	if sessionID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "会话ID不能为空"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Session ID cannot be empty"})
 		return
 	}
 
-	// 创建会话管理器
+	// Create session manager
 	sessionManager := h.sessionMgr
 
-	// 从Redis中删除会话
+	// Delete session from Redis
 	if err := sessionManager.DeleteSession(userID, sessionID); err != nil {
-		h.logger.Printf("终止会话失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "终止会话失败"})
+		h.logger.Printf("Failed to terminate session: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to terminate session"})
 		return
 	}
 
-	// 撤销JWT会话
+	// Revoke JWT session
 	if err := h.jwtService.RevokeJWTByID(userID, sessionID); err != nil {
-		h.logger.Printf("撤销JWT会话失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "撤销JWT会话失败"})
+		h.logger.Printf("Failed to revoke JWT session: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to revoke JWT session"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "会话已成功终止"})
+	c.JSON(http.StatusOK, gin.H{"message": "Session successfully terminated"})
 }
 
 func (h *AuthHandler) TerminateAllUserSessions(c *gin.Context) {
 	userID := c.GetString("user_id")
 	if userID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "未授权"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
 	sessionManager := h.sessionMgr
 
-	// 终止所有普通会话
+	// Terminate all regular sessions
 	deletedCount, err := sessionManager.DeleteUserSessions(userID)
 	if err != nil {
-		h.logger.Printf("终止用户会话失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "终止普通会话失败"})
+		h.logger.Printf("Failed to terminate user sessions: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to terminate regular sessions"})
 		return
 	}
 
-	// 撤销JWT会话
+	// Revoke JWT sessions
 	for _, sessionID := range deletedCount {
 		if err := h.jwtService.RevokeJWTByID(userID, sessionID); err != nil {
-			h.logger.Printf("撤销JWT会话失败: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "撤销JWT会话失败"})
+			h.logger.Printf("Failed to revoke JWT session: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to revoke JWT session"})
 			return
 		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":       "用户所有会话已成功终止",
+		"message":       "All user sessions successfully terminated",
 		"user_id":       userID,
 		"deleted_count": len(deletedCount),
 	})

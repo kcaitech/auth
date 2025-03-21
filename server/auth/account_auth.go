@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// 用户角色
+// User Roles
 type UserRole string
 
 const (
@@ -18,7 +18,7 @@ const (
 	RoleGuest UserRole = "guest"
 )
 
-// 权限
+// Permissions
 type Permission string
 
 const (
@@ -30,7 +30,7 @@ const (
 	PermDeleteAdmin Permission = "delete:admin"
 )
 
-// 验证类型
+// Verification Types
 type VerificationType string
 
 const (
@@ -39,7 +39,7 @@ const (
 	VerificationTypeTwoFactor VerificationType = "2fa"
 )
 
-// 登录尝试记录
+// Login Attempt Record
 type LoginAttempt struct {
 	UserID    string `gorm:"primarykey"`
 	IP        string `gorm:"size:45"`
@@ -47,9 +47,9 @@ type LoginAttempt struct {
 	CreatedAt time.Time
 }
 
-// User 用户模型
-type User struct { // 系统自动生成的ID
-	UserID        string      `json:"user_id" gorm:"primarykey"` // 登录标识符，对于普通账号即登录账号，邮箱账号则自动生成
+// User User Model
+type User struct { // Automatically generated ID
+	UserID        string      `json:"user_id" gorm:"primarykey"` // Login identifier, for normal accounts this is the login account, for email accounts it's automatically generated
 	Password      string      `json:"-" gorm:"not null"`
 	Status        UserStatus  `json:"status" gorm:"not null;default:'active'"`
 	Profile       UserProfile `json:"profile" gorm:"embedded"`
@@ -60,22 +60,22 @@ type User struct { // 系统自动生成的ID
 	UpdatedAt     time.Time   `json:"updated_at"`
 }
 
-// 扩展 AccountAuth
+// Extended AccountAuth
 type AccountAuth struct {
 	db                *gorm.DB
 	maxLoginAttempts  int
 	loginLockDuration time.Duration
-	redis             *AccountRedisStore // 使用 AccountRedisStore
+	redis             *AccountRedisStore // Using AccountRedisStore
 }
 
-// 配置选项
+// Configuration Options
 type AccountAuthConfig struct {
 	MaxLoginAttempts  int
 	LoginLockDuration time.Duration
-	Redis             *AccountRedisStore // 使用 AccountRedisStore
+	Redis             *AccountRedisStore // Using AccountRedisStore
 }
 
-// NewAccountAuth 创建账户认证实例
+// NewAccountAuth Create account authentication instance
 func NewAccountAuth(db *gorm.DB, config AccountAuthConfig) *AccountAuth {
 	return &AccountAuth{
 		db:                db,
@@ -85,9 +85,9 @@ func NewAccountAuth(db *gorm.DB, config AccountAuthConfig) *AccountAuth {
 	}
 }
 
-// AutoMigrate 自动迁移数据库表结构
+// AutoMigrate Automatically migrate database table structure
 func (a *AccountAuth) AutoMigrate() error {
-	// 确保先注册UserRole类型
+	// Ensure UserRole type is registered first
 	if err := a.db.AutoMigrate(
 		&User{},
 	); err != nil {
@@ -97,21 +97,21 @@ func (a *AccountAuth) AutoMigrate() error {
 	return nil
 }
 
-// RecordLoginAttempt 记录登录尝试
+// RecordLoginAttempt Record login attempt
 func (a *AccountAuth) RecordLoginAttempt(userID string, ip string, success bool) error {
-	// 仅在登录失败时增加计数
+	// Only increase count on login failure
 	if !success {
-		// 增加失败计数
+		// Increase failure count
 		_, err := a.redis.IncrLoginAttempts(userID, ip, a.loginLockDuration)
 		if err != nil {
-			return fmt.Errorf("记录登录尝试失败: %w", err)
+			return fmt.Errorf("failed to record login attempt: %w", err)
 		}
 
-		// 可以在此处记录登录失败的日志等
+		// Can log login failures here
 		return nil
 	}
 
-	// 如果登录成功，重置失败计数
+	// If login successful, reset failure count
 	if success {
 		return a.redis.ResetLoginAttempts(userID, ip)
 	}
@@ -119,34 +119,34 @@ func (a *AccountAuth) RecordLoginAttempt(userID string, ip string, success bool)
 	return nil
 }
 
-// CheckLoginAttempts 检查登录尝试次数
+// CheckLoginAttempts Check login attempt count
 func (a *AccountAuth) CheckLoginAttempts(userID string, ip string) error {
-	// 获取指定用户IP的失败尝试次数
+	// Get failure attempt count for specified user IP
 	count, err := a.redis.GetLoginAttempts(userID, ip)
 	if err != nil {
-		return fmt.Errorf("检查登录尝试次数失败: %w", err)
+		return fmt.Errorf("failed to check login attempt count: %w", err)
 	}
 
 	if count >= a.maxLoginAttempts {
-		return NewAppError(ErrCodeTooManyRequests, "登录尝试次数过多，请稍后再试", nil)
+		return NewAppError(ErrCodeTooManyRequests, "Too many login attempts, please try again later", nil)
 	}
 
 	return nil
 }
 
-// Login 用户登录
+// Login User login
 func (a *AccountAuth) Login(userID string, password string) (*User, error) {
 	user, err := a.GetUserByID(userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrInvalidPassword("无效的账号密码")
+			return nil, ErrInvalidPassword("Invalid account or password")
 		}
 		return nil, err
 	}
 
-	// 验证密码
+	// Verify password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-		return nil, ErrInvalidPassword("无效的账号密码")
+		return nil, ErrInvalidPassword("Invalid account or password")
 	}
 
 	now := time.Now()
@@ -158,37 +158,37 @@ func (a *AccountAuth) Login(userID string, password string) (*User, error) {
 	return user, nil
 }
 
-// VerifyPassword 验证密码
+// VerifyPassword Verify password
 // func (a *AccountAuth) VerifyPassword(userID string, password string) error {
 // 	user, err := a.GetUserByID(userID)
 // 	if err != nil {
 // 		return err
 // 	}
 // 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-// 		return ErrInvalidPassword("无效的账号密码")
+// 		return ErrInvalidPassword("Invalid account or password")
 // 	}
 // 	return nil
 // }
 
-// CreateUser 创建新用户
+// CreateUser Create new user
 func (a *AccountAuth) CreateUser(user *User) error {
-	// 检查UserID是否已存在
+	// Check if UserID already exists
 	var count int64
 	if err := a.db.Model(&User{}).Where("user_id = ?", user.UserID).Count(&count).Error; err != nil {
 		return err
 	}
 	if count > 0 {
-		return ErrUserIDTaken("账号ID已被使用")
+		return ErrUserIDTaken("Account ID is already in use")
 	}
 
-	// 需要加密密码
+	// Need to encrypt password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
 	user.Password = string(hashedPassword)
 
-	// 设置创建时间和更新时间
+	// Set creation time and update time
 	now := time.Now()
 	user.CreatedAt = now
 	user.UpdatedAt = now
@@ -197,13 +197,13 @@ func (a *AccountAuth) CreateUser(user *User) error {
 	return a.db.Create(user).Error
 }
 
-// UpdateUser 更新用户信息
+// UpdateUser Update user information
 func (a *AccountAuth) UpdateUser(user *User) error {
 	user.UpdatedAt = time.Now()
 	return a.db.Save(user).Error
 }
 
-// GetUserByID 通过ID获取用户
+// GetUserByID Get user by ID
 func (a *AccountAuth) GetUserByID(id string) (*User, error) {
 	var user User
 	if err := a.db.First(&user, "user_id = ?", id).Error; err != nil {
@@ -215,22 +215,22 @@ func (a *AccountAuth) GetUserByID(id string) (*User, error) {
 	return &user, nil
 }
 
-// UpdateProfile 更新用户档案
+// UpdateProfile Update user profile
 func (a *AccountAuth) UpdateProfile(userID string, updates map[string]interface{}) error {
-	// 检查用户是否存在
+	// Check if user exists
 	user, err := a.GetUserByID(userID)
 	if err != nil {
 		return err
 	}
 
-	// 检查用户ID是否已被占用
+	// Check if user ID is already taken
 	if newUserID, ok := updates["user_id"]; ok && newUserID != user.UserID {
 		var count int64
 		if err := a.db.Model(&User{}).Where("user_id = ?", newUserID).Count(&count).Error; err != nil {
 			return err
 		}
 		if count > 0 {
-			return ErrUserIDTaken("账号ID已被占用")
+			return ErrUserIDTaken("Account ID is already taken")
 		}
 	}
 
@@ -238,24 +238,24 @@ func (a *AccountAuth) UpdateProfile(userID string, updates map[string]interface{
 	return a.db.Model(user).Updates(updates).Error
 }
 
-// ChangePassword 修改用户密码
+// ChangePassword Change user password
 func (a *AccountAuth) ChangePassword(userID string, oldPassword, newPassword string) error {
 	user, err := a.GetUserByID(userID)
 	if err != nil {
 		return err
 	}
 
-	// 验证旧密码
+	// Verify old password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(oldPassword)); err != nil {
 		return ErrInvalidPassword("Invalid old password")
 	}
 
-	// 验证新密码强度
+	// Validate new password strength
 	if len(newPassword) < 8 {
 		return ErrWeakPassword("Password must be at least 8 characters long")
 	}
 
-	// 加密新密码
+	// Encrypt new password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return err
@@ -267,14 +267,14 @@ func (a *AccountAuth) ChangePassword(userID string, oldPassword, newPassword str
 	}).Error
 }
 
-// Register 用户注册 (普通账号)
+// Register User registration (normal account)
 func (a *AccountAuth) Register(userID string, password string) error {
 
 	if userID == "" {
-		return ErrInvalidInput("普通账号必须提供账号ID")
+		return ErrInvalidInput("Account ID must be provided for normal account")
 	}
 
-	// 检查UserID是否重复
+	// Check if UserID is duplicate
 	if err := a.CheckDuplicateUserID(userID); err != nil {
 		return err
 	}
@@ -308,7 +308,7 @@ func (a *AccountAuth) Register(userID string, password string) error {
 	return nil
 }
 
-// ValidateToken 验证令牌
+// ValidateToken Validate token
 func (a *AccountAuth) ValidateToken(token string) error {
 	if token == "" {
 		return ErrInvalidToken("Token cannot be empty")
@@ -316,7 +316,7 @@ func (a *AccountAuth) ValidateToken(token string) error {
 	return nil
 }
 
-// ValidatePassword 验证密码
+// ValidatePassword Validate password
 func (a *AccountAuth) ValidatePassword(password string) error {
 	if len(password) < 8 {
 		return ErrWeakPassword("Password must be at least 8 characters long")
@@ -324,19 +324,19 @@ func (a *AccountAuth) ValidatePassword(password string) error {
 	return nil
 }
 
-// CheckDuplicateUsername 检查用户名是否重复
+// CheckDuplicateUsername Check if username is duplicate
 func (a *AccountAuth) CheckDuplicateUsername(username string) error {
 	return a.CheckDuplicateUserID(username)
 }
 
-// CleanExpiredVerifications 清理过期的验证记录
+// CleanExpiredVerifications Clean expired verification records
 func (a *AccountAuth) CleanExpiredVerifications() error {
-	// 使用Redis时不需要手动清理过期的验证记录，Redis会自动完成
-	// 此方法保留以保持兼容性
+	// Manual cleanup of expired verification records not needed when using Redis, Redis will handle this automatically
+	// This method is kept for compatibility
 	return nil
 }
 
-// GetUserByUserID 通过UserID获取用户
+// GetUserByUserID Get user by UserID
 func (a *AccountAuth) GetUserByUserID(userID string) (*User, error) {
 	var user User
 	if err := a.db.Where("user_id = ?", userID).First(&user).Error; err != nil {
@@ -348,14 +348,14 @@ func (a *AccountAuth) GetUserByUserID(userID string) (*User, error) {
 	return &user, nil
 }
 
-// CheckDuplicateUserID 检查UserID是否重复
+// CheckDuplicateUserID Check if UserID is duplicate
 func (a *AccountAuth) CheckDuplicateUserID(userID string) error {
 	var count int64
 	if err := a.db.Model(&User{}).Where("user_id = ?", userID).Count(&count).Error; err != nil {
 		return err
 	}
 	if count > 0 {
-		return ErrDuplicateUser("账号ID已被使用")
+		return ErrDuplicateUser("Account ID is already in use")
 	}
 	return nil
 }

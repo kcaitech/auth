@@ -4,94 +4,94 @@ import (
 	"log"
 )
 
-// SMSConfig SMS配置
+// SMS Configuration
 type SMSConfig struct {
-	Provider   string // 短信服务提供商，如 "aliyun", "tencent" 等
-	AccessKey  string // 访问密钥
-	SecretKey  string // 密钥
-	SignName   string // 短信签名
-	TemplateID string // 模板ID
-	Region     string // 区域
+	Provider   string // SMS service provider, such as "aliyun", "tencent", etc.
+	AccessKey  string // Access key
+	SecretKey  string // Secret key
+	SignName   string // SMS signature
+	TemplateID string // Template ID
+	Region     string // Region
 }
 
-// DefaultSMSService 默认的SMS服务实现
+// Default SMS Service implementation
 type DefaultSMSService struct {
 	config SMSConfig
 }
 
-// NewSMSService 创建新的SMS服务
+// Create a new SMS service
 func NewSMSService(config SMSConfig) SMSService {
 	return &DefaultSMSService{
 		config: config,
 	}
 }
 
-// SendVerificationSMS 发送验证码短信
+// Send verification code SMS
 func (s *DefaultSMSService) SendVerificationSMS(phone, code string) error {
-	// 实际项目中，这里应该调用SMS API发送短信
-	// 示例实现，仅打印日志
-	log.Printf("发送验证码短信到 %s，验证码: %s", phone, code)
+	// In a real project, this should call the SMS API to send a message
+	// Example implementation, only logs
+	log.Printf("Sending verification code SMS to %s, code: %s", phone, code)
 
-	// 可以根据不同的短信提供商进行集成
+	// Can be integrated with different SMS providers
 	switch s.config.Provider {
 	case "aliyun":
-		// 调用阿里云SMS API
-		return s.sendAliyunSMS(phone, code, "验证码")
+		// Call Aliyun SMS API
+		return s.sendAliyunSMS(phone, code, "Verification Code")
 	case "tencent":
-		// 调用腾讯云SMS API
-		return s.sendTencentSMS(phone, code, "验证码")
+		// Call Tencent Cloud SMS API
+		return s.sendTencentSMS(phone, code, "Verification Code")
 	default:
-		// 默认打印到日志
-		log.Printf("[SMS服务] 验证码短信: 手机号=%s, 验证码=%s", phone, code)
+		// Default to log
+		log.Printf("[SMS Service] Verification SMS: Phone=%s, Code=%s", phone, code)
 		return nil
 	}
 }
 
-// SendPasswordResetSMS 发送密码重置短信
+// Send password reset SMS
 func (s *DefaultSMSService) SendPasswordResetSMS(phone, code string) error {
-	// 示例实现，仅打印日志
-	log.Printf("发送密码重置短信到 %s，验证码: %s", phone, code)
+	// Example implementation, only logs
+	log.Printf("Sending password reset SMS to %s, code: %s", phone, code)
 
 	switch s.config.Provider {
 	case "aliyun":
-		// 调用阿里云SMS API
-		return s.sendAliyunSMS(phone, code, "密码重置")
+		// Call Aliyun SMS API
+		return s.sendAliyunSMS(phone, code, "Password Reset")
 	case "tencent":
-		// 调用腾讯云SMS API
-		return s.sendTencentSMS(phone, code, "密码重置")
+		// Call Tencent Cloud SMS API
+		return s.sendTencentSMS(phone, code, "Password Reset")
 	default:
-		// 默认打印到日志
-		log.Printf("[SMS服务] 密码重置短信: 手机号=%s, 验证码=%s", phone, code)
+		// Default to log
+		log.Printf("[SMS Service] Password reset SMS: Phone=%s, Code=%s", phone, code)
 		return nil
 	}
 }
 
-// SendLoginNotificationSMS 发送登录通知短信
+// Send login notification SMS
 func (s *DefaultSMSService) SendLoginNotificationSMS(phone, ip string) error {
-	// 示例实现，仅打印日志
-	log.Printf("发送登录通知短信到 %s，IP: %s", phone, ip)
+	// Example implementation, only logs
+	log.Printf("Sending login notification SMS to %s, IP: %s", phone, ip)
 
 	switch s.config.Provider {
 	case "aliyun":
-		// 调用阿里云SMS API
-		return s.sendAliyunSMS(phone, ip, "登录通知")
+		// Call Aliyun SMS API
+		return s.sendAliyunSMS(phone, ip, "Login Notification")
 	case "tencent":
-		// 调用腾讯云SMS API
-		return s.sendTencentSMS(phone, ip, "登录通知")
+		// Call Tencent Cloud SMS API
+		return s.sendTencentSMS(phone, ip, "Login Notification")
 	default:
-		// 默认打印到日志
-		log.Printf("[SMS服务] 登录通知短信: 手机号=%s, IP=%s", phone, ip)
+		// Default to log
+		log.Printf("[SMS Service] Login notification SMS: Phone=%s, IP=%s", phone, ip)
 		return nil
 	}
 }
 
-// 阿里云SMS API集成示例
+// Aliyun SMS API integration example
 func (s *DefaultSMSService) sendAliyunSMS(phone, content, smsType string) error {
-	// 实际项目中，这里应该集成阿里云SMS SDK
-	// 这只是一个占位示例
-	log.Printf("[阿里云SMS] 发送%s短信到 %s: %s", smsType, phone, content)
+	// In a real project, this should integrate the Aliyun SMS SDK
+	// This is just a placeholder example
+	log.Printf("[Aliyun SMS] Sending %s SMS to %s: %s", smsType, phone, content)
 
-	// 实际实现代码示例:
+	// Actual implementation code example:
 	/*
 		client, err := dysmsapi.NewClientWithAccessKey(s.config.Region, s.config.AccessKey, s.config.SecretKey)
 		if err != nil {
@@ -111,20 +111,20 @@ func (s *DefaultSMSService) sendAliyunSMS(phone, content, smsType string) error 
 		}
 
 		if response.Code != "OK" {
-			return fmt.Errorf("发送短信失败: %s", response.Message)
+			return fmt.Errorf("Failed to send SMS: %s", response.Message)
 		}
 	*/
 
 	return nil
 }
 
-// 腾讯云SMS API集成示例
+// Tencent Cloud SMS API integration example
 func (s *DefaultSMSService) sendTencentSMS(phone, content, smsType string) error {
-	// 实际项目中，这里应该集成腾讯云SMS SDK
-	// 这只是一个占位示例
-	log.Printf("[腾讯云SMS] 发送%s短信到 %s: %s", smsType, phone, content)
+	// In a real project, this should integrate the Tencent Cloud SMS SDK
+	// This is just a placeholder example
+	log.Printf("[Tencent Cloud SMS] Sending %s SMS to %s: %s", smsType, phone, content)
 
-	// 实际实现代码示例:
+	// Actual implementation code example:
 	/*
 		credential := common.NewCredential(s.config.AccessKey, s.config.SecretKey)
 		client, err := sms.NewClient(credential, s.config.Region, clientProfile)
@@ -145,7 +145,7 @@ func (s *DefaultSMSService) sendTencentSMS(phone, content, smsType string) error
 		}
 
 		if response.Response.SendStatusSet[0].Code != "Ok" {
-			return fmt.Errorf("发送短信失败: %s", *response.Response.SendStatusSet[0].Message)
+			return fmt.Errorf("Failed to send SMS: %s", *response.Response.SendStatusSet[0].Message)
 		}
 	*/
 

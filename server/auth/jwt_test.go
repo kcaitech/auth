@@ -7,15 +7,15 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// 测试用的密钥
+// Test secret key
 var testSecretKey = []byte("test-secret-key-for-jwt-testing")
 
-// 创建测试用的 JWTService
+// Create JWTService for testing
 // func setupJWTService() *JWTService {
-// 	// 创建模拟的 RedisStore
+// 	// Create mock RedisStore
 // 	mockRedis := &RedisStore{
 // 		client: redis.NewClient(&redis.Options{
-// 			Addr: "localhost:6379", // 使用本地Redis或模拟
+// 			Addr: "localhost:6379", // Use local Redis or mock
 // 		}),
 // 		ctx: context.Background(),
 // 	}
@@ -25,9 +25,9 @@ var testSecretKey = []byte("test-secret-key-for-jwt-testing")
 // 	})
 // }
 
-// 为测试创建一个简化版的 GenerateJWT 函数
+// Create a simplified GenerateJWT function for testing
 func testGenerateJWT(userID string) (string, error) {
-	// 创建Claims
+	// Create Claims
 	claims := CustomClaims{
 		UserID: userID,
 		// Email:     email,
@@ -41,15 +41,15 @@ func testGenerateJWT(userID string) (string, error) {
 		},
 	}
 
-	// 创建Token
+	// Create Token
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	// token.Header["kid"] = claims.KeyID
 
-	// 签名Token
+	// Sign Token
 	return token.SignedString(testSecretKey)
 }
 
-// 为测试创建一个简化版的 ValidateJWT 函数
+// Create a simplified ValidateJWT function for testing
 func testValidateJWT(tokenString string) (*CustomClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return testSecretKey, nil
@@ -67,45 +67,45 @@ func testValidateJWT(tokenString string) (*CustomClaims, error) {
 }
 
 func TestGenerateAndValidateJWT(t *testing.T) {
-	// 测试数据
+	// Test data
 	userID := "123"
 	// email := "test@example.com"
 
-	// 测试生成JWT
+	// Test generating JWT
 	token, err := testGenerateJWT(userID)
 	if err != nil {
-		t.Errorf("生成JWT失败: %v", err)
+		t.Errorf("Failed to generate JWT: %v", err)
 	}
 	if token == "" {
-		t.Error("生成的token不能为空")
+		t.Error("Generated token cannot be empty")
 	}
 
-	// 测试验证JWT
+	// Test validating JWT
 	claims, err := testValidateJWT(token)
 	if err != nil {
-		t.Errorf("验证JWT失败: %v", err)
+		t.Errorf("Failed to validate JWT: %v", err)
 	}
 
-	// 验证claims中的数据是否正确
+	// Verify that the data in claims is correct
 	if claims.UserID != userID {
-		t.Errorf("userID不匹配, 期望: %s, 实际: %s", userID, claims.UserID)
+		t.Errorf("userID does not match, expected: %s, actual: %s", userID, claims.UserID)
 	}
 	// if claims.Email != email {
-	// 	t.Errorf("Email不匹配, 期望: %s, 实际: %s", email, claims.Email)
+	// 	t.Errorf("Email does not match, expected: %s, actual: %s", email, claims.Email)
 	// }
 }
 
 func TestInvalidToken(t *testing.T) {
-	// 测试无效的token
+	// Test invalid token
 	invalidToken := "invalid.token.string"
 	_, err := testValidateJWT(invalidToken)
 	if err == nil {
-		t.Error("期望无效token返回错误，但是没有")
+		t.Error("Expected error for invalid token, but did not get one")
 	}
 }
 
 func TestExpiredToken(t *testing.T) {
-	// 创建一个已过期的token
+	// Create an expired token
 	claims := CustomClaims{
 		UserID: "123",
 		// Email:     "test@example.com",
@@ -113,7 +113,7 @@ func TestExpiredToken(t *testing.T) {
 		// KeyID:     "test-key-id",
 		TokenType: AccessTokenType,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(-24 * time.Hour)), // 过期时间设置为24小时前
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(-24 * time.Hour)), // Set expiration time to 24 hours ago
 			IssuedAt:  jwt.NewNumericDate(time.Now().Add(-48 * time.Hour)),
 			Issuer:    "kcauth-test",
 		},
@@ -122,9 +122,9 @@ func TestExpiredToken(t *testing.T) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, _ := token.SignedString(testSecretKey)
 
-	// 验证过期的token
+	// Validate expired token
 	_, err := testValidateJWT(tokenString)
 	if err == nil {
-		t.Error("期望过期token返回错误，但是没有")
+		t.Error("Expected error for expired token, but did not get one")
 	}
 }

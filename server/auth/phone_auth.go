@@ -11,37 +11,37 @@ import (
 	"gorm.io/gorm"
 )
 
-// PhoneUser 手机用户模型
+// PhoneUser Phone user model
 type PhoneUser struct {
-	UserID    string    `json:"user_id" gorm:"primarykey"`     // 关联到 User 表的用户ID
-	Phone     string    `json:"phone" gorm:"unique"`           // 手机号，作为登录凭证
-	Verified  bool      `json:"verified" gorm:"default:false"` // 手机号是否已验证
+	UserID string `json:"user_id" gorm:"primarykey"` // Associated with User table's user ID
+	Phone  string `json:"phone" gorm:"unique"`       // Phone number, used as login credential
+	// Verified  bool      `json:"verified" gorm:"default:false"` // Whether the phone number is verified
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// SMSService 短信服务接口
+// SMSService SMS service interface
 type SMSService interface {
 	SendVerificationSMS(phone, code string) error
 	SendPasswordResetSMS(phone, code string) error
 	SendLoginNotificationSMS(phone, ip string) error
 }
 
-// 验证类型
+// Verification types
 const (
-	VerificationTypePhone      VerificationType = "phone"       // 新增：手机验证类型
-	VerificationTypePhoneReset VerificationType = "phone_reset" // 手机密码重置
+	VerificationTypePhone      VerificationType = "phone"       // New: Phone verification type
+	VerificationTypePhoneReset VerificationType = "phone_reset" // Phone password reset
 )
 
-// 预注册信息，存储在Redis中
+// Pre-registration information, stored in Redis
 type PhonePreregisterInfo struct {
 	Phone     string    `json:"phone"`
-	Password  string    `json:"password"` // 已加密的密码
+	Password  string    `json:"password"` // Encrypted password
 	Nickname  string    `json:"nickname"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// PhoneAuth 手机认证结构体
+// PhoneAuth Phone authentication structure
 type PhoneAuth struct {
 	db                 *gorm.DB
 	verificationExpiry time.Duration
@@ -49,14 +49,14 @@ type PhoneAuth struct {
 	redis              *AccountRedisStore
 }
 
-// PhoneAuthConfig 手机认证配置
+// PhoneAuthConfig Phone authentication configuration
 type PhoneAuthConfig struct {
 	VerificationExpiry time.Duration
 	SMSService         SMSService
 	Redis              *AccountRedisStore
 }
 
-// NewPhoneAuth 创建手机认证实例
+// NewPhoneAuth Create phone authentication instance
 func NewPhoneAuth(db *gorm.DB, config PhoneAuthConfig) *PhoneAuth {
 	return &PhoneAuth{
 		db:                 db,
@@ -66,7 +66,7 @@ func NewPhoneAuth(db *gorm.DB, config PhoneAuthConfig) *PhoneAuth {
 	}
 }
 
-// AutoMigrate 自动迁移数据库表结构
+// AutoMigrate Automatically migrate database table structure
 func (a *PhoneAuth) AutoMigrate() error {
 	if err := a.db.AutoMigrate(
 		&User{},
@@ -77,38 +77,38 @@ func (a *PhoneAuth) AutoMigrate() error {
 	return nil
 }
 
-// 生成验证码
+// Generate verification code
 func generateVerificationCode() (string, error) {
-	// 生成6位随机数字验证码
+	// Generate 6-digit random numeric verification code
 	max := big.NewInt(1000000)
 	n, err := rand.Int(rand.Reader, max)
 	if err != nil {
 		return "", err
 	}
 
-	// 格式化为6位数字，不足前面补0
+	// Format as 6 digits, pad with leading zeros if necessary
 	return fmt.Sprintf("%06d", n), nil
 }
 
-// InitiatePasswordReset 发起密码重置
+// InitiatePasswordReset Initiate password reset
 func (a *PhoneAuth) InitiatePasswordReset(phone string) (string, error) {
 	user, err := a.GetUserByPhone(phone)
 	if err != nil {
 		return "", err
 	}
 
-	// 生成验证码
+	// Generate verification code
 	code, err := generateVerificationCode()
 	if err != nil {
 		return "", err
 	}
 
-	// 将验证记录存储到Redis中并设置过期时间
+	// Store verification record in Redis with expiration time
 	if err := a.redis.StoreVerification(VerificationTypePhoneReset, phone, code, user.UserID, a.verificationExpiry); err != nil {
-		return "", fmt.Errorf("存储手机密码重置验证信息失败: %w", err)
+		return "", fmt.Errorf("failed to store phone password reset verification information: %w", err)
 	}
 
-	// 发送重置短信
+	// Send reset SMS
 	if err := a.smsService.SendPasswordResetSMS(phone, code); err != nil {
 		return "", err
 	}
@@ -116,26 +116,26 @@ func (a *PhoneAuth) InitiatePasswordReset(phone string) (string, error) {
 	return code, nil
 }
 
-// CompletePasswordReset 完成密码重置
+// CompletePasswordReset Complete password reset
 func (a *PhoneAuth) CompletePasswordReset(code, phone, newPassword string) error {
-	// 从Redis获取验证记录
+	// Get verification record from Redis
 	verification, err := a.redis.GetVerification(VerificationTypePhoneReset, phone)
 	if err != nil {
-		return ErrInvalidToken("验证码无效或已过期")
+		return ErrInvalidToken("Invalid or expired verification code")
 	}
 
-	// 验证新密码强度
+	// Validate new password strength
 	if len(newPassword) < 8 {
-		return ErrWeakPassword("密码至少需要8个字符")
+		return ErrWeakPassword("Password must be at least 8 characters")
 	}
 
-	// 加密新密码
+	// Encrypt new password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
 
-	// 更新 User 表中的密码
+	// Update password in User table
 	result := a.db.Model(&User{}).Where("user_id = ?", verification.UserID).
 		Update("password", string(hashedPassword))
 
@@ -144,48 +144,48 @@ func (a *PhoneAuth) CompletePasswordReset(code, phone, newPassword string) error
 	}
 
 	if result.RowsAffected == 0 {
-		return ErrInvalidToken("无效的用户ID")
+		return ErrInvalidToken("Invalid user ID")
 	}
 
-	// 使用完验证码后删除
+	// Delete verification code after use
 	return a.redis.DeleteVerification(VerificationTypePhoneReset, phone, code)
 }
 
-// SendVerificationSMS 发送验证短信
-func (a *PhoneAuth) SendVerificationSMS(userID string) error {
-	// 查询 PhoneUser 记录
-	var phoneUser PhoneUser
-	if err := a.db.Where("user_id = ?", userID).First(&phoneUser).Error; err != nil {
-		return err
-	}
+// SendVerificationSMS Send verification SMS
+// func (a *PhoneAuth) SendVerificationSMS(userID string) error {
+// 	// Query PhoneUser record
+// 	var phoneUser PhoneUser
+// 	if err := a.db.Where("user_id = ?", userID).First(&phoneUser).Error; err != nil {
+// 		return err
+// 	}
 
-	if phoneUser.Verified {
-		return errors.New("用户手机号已经验证过")
-	}
+// 	if phoneUser.Verified {
+// 		return errors.New("user's phone number has already been verified")
+// 	}
 
-	code, err := generateVerificationCode()
-	if err != nil {
-		return err
-	}
+// 	code, err := generateVerificationCode()
+// 	if err != nil {
+// 		return err
+// 	}
 
-	// 将验证记录存储到Redis中
-	if err := a.redis.StoreVerification(VerificationTypePhone, phoneUser.Phone, code, userID, a.verificationExpiry); err != nil {
-		return fmt.Errorf("存储手机验证信息失败: %w", err)
-	}
+// 	// Store verification record in Redis
+// 	if err := a.redis.StoreVerification(VerificationTypePhone, phoneUser.Phone, code, userID, a.verificationExpiry); err != nil {
+// 		return fmt.Errorf("failed to store phone verification information: %w", err)
+// 	}
 
-	// 发送验证短信
-	return a.smsService.SendVerificationSMS(phoneUser.Phone, code)
-}
+// 	// Send verification SMS
+// 	return a.smsService.SendVerificationSMS(phoneUser.Phone, code)
+// }
 
-// VerifyPhone 验证手机号
+// VerifyPhone Verify phone number
 func (a *PhoneAuth) VerifyPhone(code string) error {
-	// 从Redis获取验证记录
+	// Get verification record from Redis
 	verification, err := a.redis.GetVerificationByToken(VerificationTypePhone, code)
 	if err != nil {
-		return ErrInvalidToken("验证码无效或已过期")
+		return ErrInvalidToken("Invalid or expired verification code")
 	}
 
-	// 更新PhoneUser记录
+	// Update PhoneUser record
 	result := a.db.Model(&PhoneUser{}).Where("user_id = ?", verification.UserID).
 		Update("verified", true)
 
@@ -194,41 +194,48 @@ func (a *PhoneAuth) VerifyPhone(code string) error {
 	}
 
 	if result.RowsAffected == 0 {
-		return ErrInvalidToken("无效的用户ID")
+		return ErrInvalidToken("Invalid user ID")
 	}
 
-	// 使用完验证码后删除
+	// Delete verification code after use
 	return a.redis.DeleteVerification(VerificationTypePhone, verification.Identifier, code)
 }
 
-// PhoneLogin 使用手机号登录
+// Login Login with phone number and password
 func (a *PhoneAuth) PhoneLogin(phone, password string) (*User, error) {
-	// 查找手机用户记录
+	// Validate phone number format
+	if err := a.ValidatePhoneFormat(phone); err != nil {
+		return nil, err
+	}
+
 	var phoneUser PhoneUser
 	if err := a.db.Where("phone = ?", phone).First(&phoneUser).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrInvalidCredentials("无效的手机号码或密码")
+			return nil, ErrInvalidCredentials("Invalid phone number or password")
 		}
 		return nil, err
 	}
 
-	// 检查手机号是否已验证
-	if !phoneUser.Verified {
-		return nil, ErrEmailNotVerified("手机号未验证，请先验证手机号")
-	}
+	// Check if phone number is verified
+	// if !phoneUser.Verified {
+	// 	return nil, ErrEmailNotVerified("Phone number not verified, please verify first")
+	// }
 
-	// 通过userID获取User记录
+	// Get associated user record
 	var user User
 	if err := a.db.Where("user_id = ?", phoneUser.UserID).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrInvalidCredentials("User account not found")
+		}
 		return nil, err
 	}
 
-	// 验证密码
+	// Verify password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-		return nil, ErrInvalidCredentials("无效的手机号码或密码")
+		return nil, ErrInvalidCredentials("Invalid phone number or password")
 	}
 
-	// 更新最后登录时间
+	// Update last login time
 	now := time.Now()
 	user.LastLogin = &now
 	if err := a.db.Save(&user).Error; err != nil {
@@ -238,12 +245,12 @@ func (a *PhoneAuth) PhoneLogin(phone, password string) (*User, error) {
 	return &user, nil
 }
 
-// GetUserByPhone 通过手机号获取用户
+// GetUserByPhone Get user by phone number
 func (a *PhoneAuth) GetUserByPhone(phone string) (*User, error) {
 	var phoneUser PhoneUser
 	if err := a.db.Where("phone = ?", phone).First(&phoneUser).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrUserNotFound("未找到手机号对应的用户")
+			return nil, ErrUserNotFound("User not found for this phone number")
 		}
 		return nil, err
 	}
@@ -251,7 +258,7 @@ func (a *PhoneAuth) GetUserByPhone(phone string) (*User, error) {
 	var user User
 	if err := a.db.Where("user_id = ?", phoneUser.UserID).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrUserNotFound("未找到用户")
+			return nil, ErrUserNotFound("User not found")
 		}
 		return nil, err
 	}
@@ -259,48 +266,48 @@ func (a *PhoneAuth) GetUserByPhone(phone string) (*User, error) {
 	return &user, nil
 }
 
-// CheckDuplicatePhone 检查手机号是否已被使用
+// CheckDuplicatePhone Check if phone number is already in use
 func (a *PhoneAuth) CheckDuplicatePhone(phone string) error {
 	var count int64
 	if err := a.db.Model(&PhoneUser{}).Where("phone = ?", phone).Count(&count).Error; err != nil {
 		return err
 	}
 	if count > 0 {
-		return ErrPhoneTaken("该手机号已被注册")
+		return ErrPhoneTaken("This phone number is already registered")
 	}
 	return nil
 }
 
-// PhonePreregister 手机预注册，发送验证码但不创建用户
+// PhonePreregister Phone pre-registration, sends verification code but doesn't create user
 func (a *PhoneAuth) PhonePreregister(phone, password, nickname string) (string, error) {
-	// 检查手机号格式
+	// Check phone number format
 	if err := a.ValidatePhoneFormat(phone); err != nil {
 		return "", err
 	}
 
-	// 检查手机号是否已被使用
+	// Check if phone number is already in use
 	if err := a.CheckDuplicatePhone(phone); err != nil {
 		return "", err
 	}
 
-	// 验证密码强度
+	// Validate password strength
 	if len(password) < 8 {
-		return "", ErrWeakPassword("密码至少需要8个字符")
+		return "", ErrWeakPassword("Password must be at least 8 characters")
 	}
 
-	// 加密密码
+	// Encrypt password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return "", fmt.Errorf("密码加密失败: %v", err)
+		return "", fmt.Errorf("failed to encrypt password: %v", err)
 	}
 
-	// 生成验证码
+	// Generate verification code
 	code, err := generateVerificationCode()
 	if err != nil {
 		return "", err
 	}
 
-	// 创建预注册信息
+	// Create pre-registration information
 	preregInfo := &PhonePreregisterInfo{
 		Phone:     phone,
 		Password:  string(hashedPassword),
@@ -308,110 +315,110 @@ func (a *PhoneAuth) PhonePreregister(phone, password, nickname string) (string, 
 		CreatedAt: time.Now(),
 	}
 
-	// 将预注册信息存储到Redis中
+	// Store pre-registration information in Redis
 	preregKey := fmt.Sprintf("phone_prereg:%s:%s", phone, code)
 	if err := a.redis.Set(preregKey, preregInfo, a.verificationExpiry); err != nil {
-		return "", fmt.Errorf("存储预注册信息失败: %w", err)
+		return "", fmt.Errorf("failed to store pre-registration information: %w", err)
 	}
 
-	// 将验证码关联到手机号
+	// Associate verification code with phone number
 	if err := a.redis.StoreVerification(VerificationTypePhone, phone, code, "", a.verificationExpiry); err != nil {
-		return "", fmt.Errorf("存储手机验证信息失败: %w", err)
+		return "", fmt.Errorf("failed to store phone verification information: %w", err)
 	}
 
-	// 发送验证短信
+	// Send verification SMS
 	if err := a.smsService.SendVerificationSMS(phone, code); err != nil {
-		return "", fmt.Errorf("发送验证短信失败: %w", err)
+		return "", fmt.Errorf("failed to send verification SMS: %w", err)
 	}
 
 	return code, nil
 }
 
-// ResendPhoneVerification 重新发送手机验证码
+// ResendPhoneVerification Resend phone verification code
 func (a *PhoneAuth) ResendPhoneVerification(phone string) (string, error) {
-	// 从Redis获取之前的验证记录
+	// Get previous verification record from Redis
 	verification, err := a.redis.GetVerification(VerificationTypePhone, phone)
 	if err != nil {
 		return "", err
 	}
 
-	// 生成新的验证码
+	// Generate new verification code
 	code, err := generateVerificationCode()
 	if err != nil {
 		return "", err
 	}
 
-	// 更新验证记录
+	// Update verification record
 	if err := a.redis.UpdateVerification(VerificationTypePhone, phone, verification.Token, code, a.verificationExpiry); err != nil {
-		return "", fmt.Errorf("更新手机验证信息失败: %w", err)
+		return "", fmt.Errorf("failed to update phone verification information: %w", err)
 	}
 
-	// 发送验证短信
+	// Send verification SMS
 	if err := a.smsService.SendVerificationSMS(phone, code); err != nil {
-		return "", fmt.Errorf("发送验证短信失败: %w", err)
+		return "", fmt.Errorf("failed to send verification SMS: %w", err)
 	}
 
 	return code, nil
 }
 
-// VerifyPhoneAndRegister 验证手机号并完成注册
+// VerifyPhoneAndRegister Verify phone number and complete registration
 func (a *PhoneAuth) VerifyPhoneAndRegister(phone, code string) (*User, error) {
-	// 从Redis获取验证记录
+	// Get verification record from Redis
 	verification, err := a.redis.GetVerification(VerificationTypePhone, phone)
 	if err != nil {
-		return nil, ErrInvalidToken("验证码无效或已过期")
+		return nil, ErrInvalidToken("Invalid or expired verification code")
 	}
 
-	// 验证验证码
+	// Verify verification code
 	if verification.Token != code {
-		return nil, ErrInvalidToken("验证码不正确")
+		return nil, ErrInvalidToken("Incorrect verification code")
 	}
 
-	// 尝试获取预注册信息
+	// Try to get pre-registration information
 	preregKey := fmt.Sprintf("phone_prereg:%s:%s", phone, code)
 	var preregInfo PhonePreregisterInfo
 	if err := a.redis.Get(preregKey, &preregInfo); err != nil {
-		return nil, ErrInvalidToken("找不到预注册信息或已过期，请重新注册")
+		return nil, ErrInvalidToken("Pre-registration information not found or expired, please register again")
 	}
 
-	// 创建事务
+	// Create transaction
 	tx := a.db.Begin()
 	if tx.Error != nil {
 		return nil, tx.Error
 	}
 
-	// 如果发生错误则回滚事务
+	// Rollback transaction if error occurs
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
 		}
 	}()
 
-	// 生成随机用户ID
+	// Generate random user ID
 	userID, err := GenerateBase62ID()
 	if err != nil {
-		return nil, fmt.Errorf("生成随机ID失败: %v", err)
+		return nil, fmt.Errorf("failed to generate random ID: %v", err)
 	}
 
-	// 确保UserID唯一
+	// Ensure UserID is unique
 	for {
 		var count int64
 		a.db.Model(&User{}).Where("user_id = ?", userID).Count(&count)
 		if count == 0 {
 			break
 		}
-		// 生成新的UserID
+		// Generate new UserID
 		userID, err = GenerateBase62ID()
 		if err != nil {
-			return nil, fmt.Errorf("生成随机ID失败: %v", err)
+			return nil, fmt.Errorf("failed to generate random ID: %v", err)
 		}
 	}
 
-	// 创建 User 记录
+	// Create User record
 	now := time.Now()
 	user := &User{
 		UserID:   userID,
-		Password: preregInfo.Password, // 已加密的密码
+		Password: preregInfo.Password, // Already encrypted password
 		Status:   UserStatusActive,
 		Profile: UserProfile{
 			Nickname: preregInfo.Nickname,
@@ -425,11 +432,11 @@ func (a *PhoneAuth) VerifyPhoneAndRegister(phone, code string) (*User, error) {
 		return nil, err
 	}
 
-	// 创建 PhoneUser 记录
+	// Create PhoneUser record
 	phoneUser := &PhoneUser{
-		UserID:    userID,
-		Phone:     phone,
-		Verified:  true, // 手机号已验证
+		UserID: userID,
+		Phone:  phone,
+		// Verified:  true, // Phone number is verified
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
@@ -439,94 +446,93 @@ func (a *PhoneAuth) VerifyPhoneAndRegister(phone, code string) (*User, error) {
 		return nil, err
 	}
 
-	// 提交事务
+	// Commit transaction
 	if err := tx.Commit().Error; err != nil {
 		return nil, err
 	}
 
-	// 使用完验证码后删除
+	// Delete verification code after use
 	if err := a.redis.DeleteVerification(VerificationTypePhone, phone, code); err != nil {
-		// 仅记录错误，不影响注册流程
-		fmt.Printf("删除验证码失败: %v\n", err)
+		// Just log error, does not affect registration process
+		fmt.Printf("Failed to delete verification code: %v\n", err)
 	}
 
-	// 删除预注册信息
+	// Delete pre-registration information
 	if err := a.redis.Delete(preregKey); err != nil {
-		// 仅记录错误，不影响注册流程
-		fmt.Printf("删除预注册信息失败: %v\n", err)
+		// Just log error, does not affect registration process
+		fmt.Printf("Failed to delete pre-registration information: %v\n", err)
 	}
 
 	return user, nil
 }
 
-// PhoneCodeLogin 手机验证码登录（不需要密码）
+// PhoneCodeLogin Phone verification code login (no password required)
 func (a *PhoneAuth) PhoneCodeLogin(phone, code string) (*User, error) {
-	// 从Redis获取验证记录
-	verification, err := a.redis.GetVerification(VerificationTypePhone, phone)
+	// Get verification record from Redis
+	_, err := a.redis.GetVerificationByToken(VerificationTypePhone, code)
 	if err != nil {
-		return nil, ErrInvalidToken("验证码无效或已过期")
+		return nil, err
 	}
 
-	// 查找手机用户记录
+	// Find phone user record
 	var phoneUser PhoneUser
-	if err := a.db.Where("phone = ? AND user_id = ?", phone, verification.UserID).First(&phoneUser).Error; err != nil {
+	if err := a.db.Where("phone = ?", phone).First(&phoneUser).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrInvalidCredentials("无效的手机号码或验证码")
+			return nil, ErrUserNotFound("Phone number not found")
 		}
 		return nil, err
 	}
 
-	// 通过userID获取User记录
+	// Get User record by userID
 	var user User
-	if err := a.db.Where("user_id = ?", phoneUser.UserID).First(&user).Error; err != nil {
+	if err := a.db.First(&user, "user_id = ?", phoneUser.UserID).Error; err != nil {
 		return nil, err
 	}
 
-	// 如果手机号未验证，则现在将其设为已验证
-	if !phoneUser.Verified {
-		phoneUser.Verified = true
-		if err := a.db.Save(&phoneUser).Error; err != nil {
-			return nil, err
-		}
-	}
+	// If phone number is not verified, mark it as verified now
+	// if !phoneUser.Verified {
+	// 	phoneUser.Verified = true
+	// 	if err := a.db.Save(&phoneUser).Error; err != nil {
+	// 		return nil, err
+	// 	}
+	// }
 
-	// 更新最后登录时间
+	// Update last login time
 	now := time.Now()
 	user.LastLogin = &now
 	if err := a.db.Save(&user).Error; err != nil {
 		return nil, err
 	}
 
-	// 使用完验证码后删除
+	// Delete verification code after use
 	_ = a.redis.DeleteVerification(VerificationTypePhone, phone, code)
 
 	return &user, nil
 }
 
-// SendLoginSMS 发送登录验证码
+// SendLoginSMS Send login verification code
 func (a *PhoneAuth) SendLoginSMS(phone string) (string, error) {
-	// 检查手机号是否已注册
+	// Check if phone number is registered
 	var phoneUser PhoneUser
 	if err := a.db.Where("phone = ?", phone).First(&phoneUser).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "", ErrUserNotFound("该手机号码未注册")
+			return "", ErrUserNotFound("This phone number is not registered")
 		}
 		return "", err
 	}
 
-	// 生成验证码
+	// Generate verification code
 	code, err := generateVerificationCode()
 	if err != nil {
 		return "", err
 	}
 
-	// 将验证记录存储到Redis中并设置过期时间(5分钟)
-	verificationExpiry := 5 * time.Minute
-	if err := a.redis.StoreVerification(VerificationTypePhone, phoneUser.Phone, code, phoneUser.UserID, verificationExpiry); err != nil {
-		return "", fmt.Errorf("存储手机登录验证信息失败: %w", err)
+	// Store verification record in Redis and set expiration time (5 minutes)
+	if err := a.redis.StoreVerification(VerificationTypePhone, phone, code, phoneUser.UserID, time.Minute*5); err != nil {
+		return "", err
 	}
 
-	// 发送验证码短信
+	// Send verification code SMS
 	if err := a.smsService.SendVerificationSMS(phone, code); err != nil {
 		return "", err
 	}
@@ -534,11 +540,11 @@ func (a *PhoneAuth) SendLoginSMS(phone string) (string, error) {
 	return code, nil
 }
 
-// ValidatePhoneFormat 验证手机号格式
+// ValidatePhoneFormat Validate phone number format
 func (a *PhoneAuth) ValidatePhoneFormat(phone string) error {
-	// 这里仅做简单示例，实际应根据不同国家/地区的手机号规则进行严格验证
+	// This is just a simple example, actual implementation should strictly validate according to phone number rules for different countries/regions
 	if len(phone) < 11 {
-		return ErrInvalidPhoneFormat("无效的手机号格式")
+		return ErrInvalidPhoneFormat("Invalid phone number format")
 	}
 	return nil
 }

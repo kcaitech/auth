@@ -12,31 +12,31 @@ func TestBase62EncodeDecode(t *testing.T) {
 		data []byte
 	}{
 		{
-			name: "简单字节",
+			name: "Simple bytes",
 			data: []byte{1, 2, 3, 4, 5},
 		},
 		{
-			name: "零字节",
-			data: []byte{0, 0, 0, 0, 0, 0, 0, 0, 0}, // 增加更多零字节以触发混淆
+			name: "Zero bytes",
+			data: []byte{0, 0, 0, 0, 0, 0, 0, 0, 0}, // Add more zero bytes to trigger obfuscation
 		},
 		{
-			name: "随机字节",
+			name: "Random bytes",
 			data: []byte{255, 128, 64, 32, 16, 8, 4, 2, 1},
 		},
 		{
-			name: "字母字节",
+			name: "Alphabetic bytes",
 			data: []byte("HelloWorld"),
 		},
 		{
-			name: "中文字节",
+			name: "Chinese bytes",
 			data: []byte("你好世界"),
 		},
 		{
-			name: "空数组",
+			name: "Empty array",
 			data: []byte{},
 		},
 		{
-			name: "32字节随机数据",
+			name: "32 bytes random data",
 			data: func() []byte {
 				b := make([]byte, 32)
 				for i := 0; i < len(b); i++ {
@@ -46,7 +46,7 @@ func TestBase62EncodeDecode(t *testing.T) {
 			}(),
 		},
 		{
-			name: "真实随机数据",
+			name: "Real random data",
 			data: func() []byte {
 				b := make([]byte, 32)
 				rand.Read(b)
@@ -57,120 +57,120 @@ func TestBase62EncodeDecode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// 编码测试数据
+			// Encode test data
 			encoded := Base62Encode(tt.data)
 
-			// 确保有数据时编码结果不为空
+			// Ensure encoded result is not empty when there is data
 			if encoded == "" && len(tt.data) > 0 {
-				t.Errorf("Base62Encode() 返回空字符串，但预期有结果")
+				t.Errorf("Base62Encode() returned empty string, but expected results")
 			}
 
-			// 记录原始编码供调试
-			t.Logf("原始数据: %v", tt.data)
-			t.Logf("编码结果: %s", encoded)
+			// Record original encoding for debugging
+			t.Logf("Original data: %v", tt.data)
+			t.Logf("Encoded result: %s", encoded)
 
-			// 解码结果
+			// Decode result
 			decoded, err := DecodeBase62ID(encoded)
 			if err != nil {
-				t.Errorf("DecodeBase62ID() 错误 = %v", err)
+				t.Errorf("DecodeBase62ID() error = %v", err)
 				return
 			}
 
-			t.Logf("解码结果: %v", decoded)
+			t.Logf("Decoded result: %v", decoded)
 
-			// 如果原数据为空，确保解码结果为 [0]
+			// If original data is empty, ensure decoded result is [0]
 			if len(tt.data) == 0 {
 				if !bytes.Equal(decoded, []byte{0}) {
-					t.Errorf("对于空输入，解码结果应为 [0]，但得到 %v", decoded)
+					t.Errorf("For empty input, decoded result should be [0], but got %v", decoded)
 				}
 				return
 			}
 
-			// 由于编码-解码过程中可能存在信息损失（混淆字符），
-			// 对于ID验证的目的，我们主要关注以下两点：
-			// 1. 解码结果不应为空
-			// 2. 相同的编码应该产生相同的解码结果
+			// Due to possible information loss during encoding-decoding process (obfuscation characters),
+			// for ID validation purposes, we mainly care about two points:
+			// 1. Decoded result should not be empty
+			// 2. Same encoding should produce same decoding result
 
 			if len(decoded) == 0 {
-				t.Errorf("解码结果不应为空")
+				t.Errorf("Decoded result should not be empty")
 			}
 
-			// 测试编码-解码-编码的一致性
-			// 即，相同的编码字符串应该始终得到相同的解码结果
+			// Test encode-decode-encode consistency
+			// That is, the same encoded string should always get the same decoded result
 			decoded1, err := DecodeBase62ID(encoded)
 			if err != nil {
-				t.Errorf("首次解码出错: %v", err)
+				t.Errorf("First decoding error: %v", err)
 				return
 			}
 
 			decoded2, err := DecodeBase62ID(encoded)
 			if err != nil {
-				t.Errorf("第二次解码出错: %v", err)
+				t.Errorf("Second decoding error: %v", err)
 				return
 			}
 
 			if !bytes.Equal(decoded1, decoded2) {
-				t.Errorf("对相同编码的两次解码结果不一致")
+				t.Errorf("Two decoding results for the same encoding are not consistent")
 			}
 
-			// 对于32字节的随机数据，我们期望编码后的长度为43以上
+			// For 32 bytes of random data, we expect the encoded length to be at least 43
 			if len(tt.data) == 32 && len(encoded) < 43 {
-				t.Errorf("32字节随机数据的编码长度应至少为43，但实际为%d", len(encoded))
+				t.Errorf("Encoded length for 32 bytes random data should be at least 43, but got %d", len(encoded))
 			}
 		})
 	}
 }
 
 func TestBase62DecodeError(t *testing.T) {
-	// 测试无效字符
+	// Test invalid characters
 	invalidChars := []string{
-		"abc!def", // 包含感叹号
-		"xyz@123", // 包含@符号
-		"测试",      // 非ASCII字符
+		"abc!def", // Contains exclamation mark
+		"xyz@123", // Contains @ symbol
+		"测试",      // Non-ASCII characters
 	}
 
 	for _, invalid := range invalidChars {
-		t.Run("无效字符："+invalid, func(t *testing.T) {
+		t.Run("Invalid character: "+invalid, func(t *testing.T) {
 			_, err := DecodeBase62ID(invalid)
 			if err == nil {
-				t.Errorf("对于包含无效字符的输入 %s，期望返回错误但没有", invalid)
+				t.Errorf("Expected error for input containing invalid character %s, but got none", invalid)
 			}
 		})
 	}
 }
 
 func TestGenerateBase62ID(t *testing.T) {
-	// 测试ID生成
+	// Test ID generation
 	id1, err := GenerateBase62ID()
 	if err != nil {
-		t.Errorf("GenerateBase62ID() 错误 = %v", err)
+		t.Errorf("GenerateBase62ID() error = %v", err)
 		return
 	}
 
-	// 生成的ID不应为空
+	// Generated ID should not be empty
 	if id1 == "" {
-		t.Error("GenerateBase62ID() 返回空字符串")
+		t.Error("GenerateBase62ID() returned empty string")
 	}
 
-	// 生成另一个ID，确保它们不相同（随机性检查）
+	// Generate another ID, make sure they are different (randomness check)
 	id2, err := GenerateBase62ID()
 	if err != nil {
-		t.Errorf("GenerateBase62ID() 第二次调用错误 = %v", err)
+		t.Errorf("GenerateBase62ID() second call error = %v", err)
 		return
 	}
 
 	if id1 == id2 {
-		t.Error("GenerateBase62ID() 两次生成的ID相同，表明随机性不足")
+		t.Error("GenerateBase62ID() generated the same ID twice, indicating insufficient randomness")
 	}
 
-	// 验证生成的ID可以被正确解码
+	// Verify that generated ID can be properly decoded
 	decoded1, err := DecodeBase62ID(id1)
 	if err != nil {
-		t.Errorf("无法解码生成的ID: %v", err)
+		t.Errorf("Could not decode generated ID: %v", err)
 		return
 	}
 
 	if len(decoded1) == 0 {
-		t.Error("解码后的ID不应为空")
+		t.Error("Decoded ID should not be empty")
 	}
 }

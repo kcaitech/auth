@@ -7,57 +7,64 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Enable2FA 启用双因素认证
+// Enable2FA Enable two-factor authentication
 func (h *AuthHandler) Enable2FA(c *gin.Context) {
 	if h.twoFactor == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "双因素认证未启用"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Two-factor authentication is not enabled"})
 		return
 	}
 
-	// 从上下文中获取用户ID
+	// Get user ID from context
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "未找到用户ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID not found"})
 		return
 	}
 
-	// 将userID转换为字符串
+	// Convert userID to string
 	userIDStr, ok := userID.(string)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "用户ID格式错误"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "User ID format error"})
 		return
 	}
 
-	// 获取用户信息用于账户名称
+	// Get user information for account name
 	user, err := h.accountAuth.GetUserByID(userIDStr)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("获取用户信息失败: %v", err)})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to get user information: %v", err)})
 		return
 	}
 
-	// 使用用户昵称或ID作为账户名
+	// Use user nickname or ID as account name
 	accountName := user.Profile.Nickname
 	if accountName == "" {
 		accountName = userIDStr
 	}
 
-	// 生成双因素认证密钥
-	key, err := h.twoFactor.GenerateSecret(userIDStr, accountName)
+	// Generate two-factor authentication key
+	tfaData, err := h.twoFactor.GenerateSecret(userIDStr, accountName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Get QR code URL
+	qrCodeURL, err := h.twoFactor.GetQRCodeURL(userIDStr)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"secret":  key.Secret(),
-		"qr_code": key.URL(),
+		"secret":  tfaData.TempSecret,
+		"qr_code": qrCodeURL,
 	})
 }
 
-// Disable2FA 禁用双因素认证
+// Disable2FA Disable two-factor authentication
 func (h *AuthHandler) Disable2FA(c *gin.Context) {
 	if h.twoFactor == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "双因素认证未启用"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Two-factor authentication is not enabled"})
 		return
 	}
 
@@ -66,21 +73,21 @@ func (h *AuthHandler) Disable2FA(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request parameters"})
 		return
 	}
 
-	// 从上下文中获取用户ID
+	// Get user ID from context
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "未找到用户ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID not found"})
 		return
 	}
 
-	// 将userID转换为字符串
+	// Convert userID to string
 	userIDStr, ok := userID.(string)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "用户ID格式错误"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "User ID format error"})
 		return
 	}
 
@@ -89,13 +96,13 @@ func (h *AuthHandler) Disable2FA(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "双因素认证已禁用"})
+	c.JSON(http.StatusOK, gin.H{"message": "Two-factor authentication has been disabled"})
 }
 
-// Verify2FA 验证双因素认证码
+// Verify2FA Verify two-factor authentication code
 func (h *AuthHandler) Verify2FA(c *gin.Context) {
 	if h.twoFactor == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "双因素认证未启用"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Two-factor authentication is not enabled"})
 		return
 	}
 
@@ -105,7 +112,7 @@ func (h *AuthHandler) Verify2FA(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request parameters"})
 		return
 	}
 
@@ -114,13 +121,13 @@ func (h *AuthHandler) Verify2FA(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "验证成功"})
+	c.JSON(http.StatusOK, gin.H{"message": "Verification successful"})
 }
 
-// GenerateRecoveryCodes 生成恢复码
+// GenerateRecoveryCodes Generate recovery codes
 func (h *AuthHandler) GenerateRecoveryCodes(c *gin.Context) {
 	if h.twoFactor == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "双因素认证未启用"})
+		c.JSON(http.StatusNotFound, gin.H{"error": "Two-factor authentication is not enabled"})
 		return
 	}
 
@@ -129,21 +136,21 @@ func (h *AuthHandler) GenerateRecoveryCodes(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request parameters"})
 		return
 	}
 
-	// 从上下文中获取用户ID
+	// Get user ID from context
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "未找到用户ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID not found"})
 		return
 	}
 
-	// 将userID转换为字符串
+	// Convert userID to string
 	userIDStr, ok := userID.(string)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "用户ID格式错误"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "User ID format error"})
 		return
 	}
 

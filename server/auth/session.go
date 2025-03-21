@@ -10,13 +10,13 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-// SessionManager 会话管理器
+// Session Manager
 type SessionManager struct {
 	redis *SessionRedisStore
 	// db    *gorm.DB
 }
 
-// NewSessionManager 创建新的会话管理器
+// NewSessionManager Create a new session manager
 func NewSessionManager(redis *SessionRedisStore) *SessionManager {
 	return &SessionManager{
 		redis: redis,
@@ -24,70 +24,70 @@ func NewSessionManager(redis *SessionRedisStore) *SessionManager {
 	}
 }
 
-// CreateSession 创建新会话并保存到Redis
+// CreateSession Create a new session and save to Redis
 func (s *SessionManager) CreateSession(userId string, session *Session) error {
-	// 计算过期时间（相对于当前时间的秒数）
+	// Calculate expiration time (seconds relative to current time)
 	expiration := time.Until(session.ExpiresAt)
 	if expiration <= 0 {
-		return fmt.Errorf("会话过期时间无效")
+		return fmt.Errorf("invalid session expiration time")
 	}
 
-	// 保存会话到Redis
+	// Save session to Redis
 	if err := s.redis.StoreSession(userId, session.ID, session, expiration); err != nil {
-		return fmt.Errorf("保存会话失败: %w", err)
+		return fmt.Errorf("failed to save session: %w", err)
 	}
 
-	// 保存用户session列表
+	// Save user session list
 	if err := s.redis.StoreUserSessionList(userId, session.ID); err != nil {
-		return fmt.Errorf("保存用户会话列表失败: %w", err)
+		return fmt.Errorf("failed to save user session list: %w", err)
 	}
 
 	return nil
 }
 
-// GetSession 从Redis获取会话信息
+// GetSession Get session information from Redis
 func (s *SessionManager) GetSession(userID, sessionID string) (*Session, error) {
 	return s.redis.GetSession(userID, sessionID)
 }
 
-// DeleteSession 从Redis删除会话
+// DeleteSession Delete session from Redis
 func (s *SessionManager) DeleteSession(userID, sessionID string) error {
 	return s.redis.DeleteSession(userID, sessionID)
 }
 
-// RefreshSession 刷新会话过期时间
+// RefreshSession Refresh session expiration time
 func (s *SessionManager) RefreshSession(userID string, sessionID string, duration time.Duration) error {
-	// 获取现有会话
+	// Get existing session
 	session, err := s.GetSession(userID, sessionID)
 	if err != nil {
 		return err
 	}
 
-	// 更新过期时间
+	// Update expiration time
 	session.ExpiresAt = time.Now().Add(duration)
 	session.UpdatedAt = time.Now()
 
-	// 重新保存到Redis
+	// Save back to Redis
 	return s.CreateSession(userID, session)
 }
 
-// 生成会话ID
+// Generate session ID
 // func (s *SessionManager) GenerateSessionID() (string, error) {
 // 	b := make([]byte, 32)
 // 	_, err := rand.Read(b)
 // 	if err != nil {
-// 		return "", fmt.Errorf("生成随机字节失败: %w", err)
+// 		return "", fmt.Errorf("failed to generate random bytes: %w", err)
 // 	}
 
-// 	// 使用62进制编码（数字+大小写字母）来缩短ID长度
+// 	// Use base62 encoding (numbers + uppercase and lowercase letters) to shorten ID length
 // 	return Base62Encode(b), nil
 // }
 
-// 创建新的用户会话
+// Create a new user session
 func (s *SessionManager) CreateUserSession(userID string, ip, userAgent string, duration time.Duration) (*Session, error) {
-	// 检查是否存在相同IP和UserAgent的会话
+	// Check if a session with the same IP and UserAgent exists
 	session, err := s.HasSessionWithIPAndUserAgent(userID, ip, userAgent)
-	// 如果存在相同IP和UserAgent的会话，则返回该会话
+	// If a session with the same IP and UserAgent exists, return that session
 	if session != nil && err == nil {
 		// refresh session
 		if err := s.RefreshSession(userID, session.ID, duration); err != nil {
@@ -96,13 +96,13 @@ func (s *SessionManager) CreateUserSession(userID string, ip, userAgent string, 
 		return session, nil
 	}
 
-	// 生成会话ID
-	sessionID, err := GenerateBase62String(10) // 用userID隔离，10个62进制足够了
+	// Generate session ID
+	sessionID, err := GenerateBase62String(10) // Using userID for isolation, 10 base62 characters is enough
 	if err != nil {
 		return nil, err
 	}
 
-	// 创建会话记录
+	// Create session record
 	now := time.Now()
 	session = &Session{
 		ID:        sessionID,
@@ -114,7 +114,7 @@ func (s *SessionManager) CreateUserSession(userID string, ip, userAgent string, 
 		UpdatedAt: now,
 	}
 
-	// 保存到Redis
+	// Save to Redis
 	if err := s.CreateSession(userID, session); err != nil {
 		return nil, err
 	}
@@ -122,13 +122,13 @@ func (s *SessionManager) CreateUserSession(userID string, ip, userAgent string, 
 	return session, nil
 }
 
-// 会话是否有效
+// Check if session is valid
 func (s *SessionManager) IsSessionValid(userID, sessionID string) bool {
 	_, err := s.GetSession(userID, sessionID)
 	return err == nil
 }
 
-// 获取用户的所有活跃会话
+// Get all active sessions for a user
 func (s *SessionManager) GetUserSessions(userID string) ([]*Session, error) {
 	sessionIDs, err := s.redis.GetUserSessionList(userID)
 	if err != nil {
@@ -138,18 +138,18 @@ func (s *SessionManager) GetUserSessions(userID string) ([]*Session, error) {
 	return s.redis.GetSessionsData(userID, sessionIDs)
 }
 
-// 删除用户的所有会话（例如，当用户更改密码或注销所有设备时）
+// Delete all sessions for a user (e.g., when a user changes password or logs out of all devices)
 func (s *SessionManager) DeleteUserSessions(userID string) ([]string, error) {
-	// 获取用户的所有会话
+	// Get all sessions for the user
 	sessions, err := s.GetUserSessions(userID)
 	if err != nil {
 		return nil, err
 	}
 
-	// 删除计数
+	// Deletion count
 	// deletedCount := 0
 	var deletedSessionIDs []string
-	// 删除每个会话
+	// Delete each session
 	for _, session := range sessions {
 		if err := s.DeleteSession(userID, session.ID); err == nil {
 			// deletedCount++
@@ -157,7 +157,7 @@ func (s *SessionManager) DeleteUserSessions(userID string) ([]string, error) {
 		}
 	}
 
-	// 删除用户会话列表
+	// Delete user session list
 	if err := s.redis.RemoveUserSessionList(userID, deletedSessionIDs); err != nil {
 		return deletedSessionIDs, err
 	}
@@ -165,62 +165,62 @@ func (s *SessionManager) DeleteUserSessions(userID string) ([]string, error) {
 	return deletedSessionIDs, nil
 }
 
-// 获取会话统计
+// Session statistics
 type SessionStats struct {
-	TotalSessions  int      // 总会话数
-	ActiveSessions int      // 活跃会话数（24小时内）
-	UserCount      int      // 独立用户数
-	UserIDs        []string // 用户ID列表
+	TotalSessions  int      // Total number of sessions
+	ActiveSessions int      // Active sessions (within 24 hours)
+	UserCount      int      // Number of unique users
+	UserIDs        []string // List of user IDs
 }
 
-// 获取活跃会话统计
+// Get active session statistics
 func (s *SessionManager) GetSessionStats() (*SessionStats, error) {
-	// 使用模式匹配获取所有会话键
+	// Use pattern matching to get all session keys
 	pattern := "session:*"
 	keys, err := s.redis.client.Keys(context.Background(), pattern).Result()
 	if err != nil {
-		return nil, fmt.Errorf("获取会话键失败: %w", err)
+		return nil, fmt.Errorf("failed to get session keys: %w", err)
 	}
 
 	stats := &SessionStats{
 		TotalSessions: len(keys),
 	}
 
-	// 存储唯一用户ID
+	// Store unique user IDs
 	userIDMap := make(map[string]bool)
 
-	// 24小时前的时间点
+	// Time point 24 hours ago
 	activeTime := time.Now().Add(-24 * time.Hour)
 
-	// 遍历所有会话键
+	// Iterate through all session keys
 	for _, key := range keys {
-		// 获取会话数据
+		// Get session data
 		data, err := s.redis.client.Get(context.Background(), key).Bytes()
 		if err != nil {
-			// 忽略不存在的键
+			// Ignore non-existent keys
 			if errors.Is(err, redis.Nil) {
 				continue
 			}
-			return nil, fmt.Errorf("获取会话数据失败: %w", err)
+			return nil, fmt.Errorf("failed to get session data: %w", err)
 		}
 
-		// 解析会话数据
+		// Parse session data
 		var session Session
 		if err := json.Unmarshal(data, &session); err != nil {
-			// 忽略无法解析的会话数据
+			// Ignore unparseable session data
 			continue
 		}
 
-		// 记录唯一用户
+		// Record unique users
 		userIDMap[session.UserID] = true
 
-		// 检查是否是活跃会话（24小时内）
+		// Check if it's an active session (within 24 hours)
 		if session.UpdatedAt.After(activeTime) {
 			stats.ActiveSessions++
 		}
 	}
 
-	// 转换用户ID映射为数组
+	// Convert user ID map to array
 	stats.UserCount = len(userIDMap)
 	stats.UserIDs = make([]string, 0, stats.UserCount)
 	for userID := range userIDMap {
@@ -230,40 +230,40 @@ func (s *SessionManager) GetSessionStats() (*SessionStats, error) {
 	return stats, nil
 }
 
-// 检查是否存在指定IP和UserAgent的会话（防止会话固定攻击）
+// Check if a session with the specified IP and UserAgent exists (to prevent session fixation attacks)
 func (s *SessionManager) HasSessionWithIPAndUserAgent(userId, ip, userAgent string) (*Session, error) {
-	// 使用模式匹配获取所有会话键
+	// Use pattern matching to get all session keys
 	// pattern := "session:*"
 	// keys, err := s.redis.client.Keys(context.Background(), pattern).Result()
 	// if err != nil {
-	// 	return false, fmt.Errorf("获取会话键失败: %w", err)
+	// 	return false, fmt.Errorf("failed to get session keys: %w", err)
 	// }
 
 	keys, err := s.redis.GetUserSessionList(userId)
 	if err != nil {
-		return nil, fmt.Errorf("获取用户会话列表失败: %w", err)
+		return nil, fmt.Errorf("failed to get user session list: %w", err)
 	}
 
-	// 遍历所有会话键
+	// Iterate through all session keys
 	for _, key := range keys {
-		// 获取会话数据
+		// Get session data
 		data, err := s.redis.client.Get(context.Background(), key).Bytes()
 		if err != nil {
-			// 忽略不存在的键
+			// Ignore non-existent keys
 			if errors.Is(err, redis.Nil) {
 				continue
 			}
-			return nil, fmt.Errorf("获取会话数据失败: %w", err)
+			return nil, fmt.Errorf("failed to get session data: %w", err)
 		}
 
-		// 解析会话数据
+		// Parse session data
 		var session Session
 		if err := json.Unmarshal(data, &session); err != nil {
-			// 忽略无法解析的会话数据
+			// Ignore unparseable session data
 			continue
 		}
 
-		// 检查IP和UserAgent是否匹配
+		// Check if IP and UserAgent match
 		if session.IP == ip && session.UserAgent == userAgent {
 			return &session, nil
 		}
@@ -272,156 +272,27 @@ func (s *SessionManager) HasSessionWithIPAndUserAgent(userId, ip, userAgent stri
 	return nil, nil
 }
 
-// 使用Redis扫描批量获取用户会话（优化性能）
-// func (s *SessionManager) GetUserSessionsOptimized(userID string) ([]*Session, error) {
-// 	ctx := context.Background()
-// 	var cursor uint64
-// 	var sessions []*Session
-// 	var keys []string
-
-// 	// 使用Redis的SCAN操作，避免阻塞Redis
-// 	for {
-// 		var scanKeys []string
-// 		var err error
-// 		scanKeys, cursor, err = s.redis.client.Scan(ctx, cursor, "session:*", 100).Result()
-// 		if err != nil {
-// 			return nil, fmt.Errorf("扫描会话键失败: %w", err)
-// 		}
-
-// 		keys = append(keys, scanKeys...)
-
-// 		// 如果cursor为0，表示扫描完成
-// 		if cursor == 0 {
-// 			break
-// 		}
-// 	}
-
-// 	// 如果没有找到键，直接返回空结果
-// 	if len(keys) == 0 {
-// 		return []*Session{}, nil
-// 	}
-
-// 	// 使用管道批量获取会话数据
-// 	pipe := s.redis.client.Pipeline()
-// 	cmds := make([]*redis.StringCmd, len(keys))
-
-// 	for i, key := range keys {
-// 		cmds[i] = pipe.Get(ctx, key)
-// 	}
-
-// 	_, err := pipe.Exec(ctx)
-// 	if err != nil && !errors.Is(err, redis.Nil) {
-// 		return nil, fmt.Errorf("批量获取会话失败: %w", err)
-// 	}
-
-// 	// 处理结果
-// 	for _, cmd := range cmds {
-// 		data, err := cmd.Bytes()
-// 		// 跳过不存在或错误的键
-// 		if err != nil {
-// 			continue
-// 		}
-
-// 		var session Session
-// 		if err := json.Unmarshal(data, &session); err != nil {
-// 			continue
-// 		}
-
-// 		// 匹配用户ID
-// 		if session.UserID == userID {
-// 			sessions = append(sessions, &session)
-// 		}
-// 	}
-
-// 	return sessions, nil
-// }
-
-// // 批量会话管理（使用Redis管道提高性能）
-// func (s *SessionManager) BatchRefreshSessions(sessionIDs []string, duration time.Duration) (int, error) {
-// 	// 如果没有会话ID，直接返回
-// 	if len(sessionIDs) == 0 {
-// 		return 0, nil
-// 	}
-
-// 	ctx := context.Background()
-// 	pipe := s.redis.client.Pipeline()
-// 	getCmds := make([]*redis.StringCmd, len(sessionIDs))
-// 	sessionKeys := make([]string, len(sessionIDs))
-
-// 	// 准备所有get命令
-// 	for i, id := range sessionIDs {
-// 		sessionKeys[i] = fmt.Sprintf("session:%s", id)
-// 		getCmds[i] = pipe.Get(ctx, sessionKeys[i])
-// 	}
-
-// 	// 执行所有get命令
-// 	_, err := pipe.Exec(ctx)
-// 	if err != nil && !errors.Is(err, redis.Nil) {
-// 		return 0, fmt.Errorf("批量获取会话失败: %w", err)
-// 	}
-
-// 	// 准备所有set命令
-// 	pipe = s.redis.client.Pipeline()
-// 	successCount := 0
-
-// 	for i, cmd := range getCmds {
-// 		data, err := cmd.Bytes()
-// 		if err != nil {
-// 			continue
-// 		}
-
-// 		var session Session
-// 		if err := json.Unmarshal(data, &session); err != nil {
-// 			continue
-// 		}
-
-// 		// 更新会话
-// 		session.ExpiresAt = time.Now().Add(duration)
-// 		session.UpdatedAt = time.Now()
-
-// 		// 序列化并保存
-// 		updatedData, err := json.Marshal(session)
-// 		if err != nil {
-// 			continue
-// 		}
-
-// 		expiration := time.Until(session.ExpiresAt)
-// 		pipe.Set(ctx, sessionKeys[i], updatedData, expiration)
-// 		successCount++
-// 	}
-
-// 	// 执行所有set命令
-// 	if successCount > 0 {
-// 		_, err = pipe.Exec(ctx)
-// 		if err != nil {
-// 			return 0, fmt.Errorf("批量更新会话失败: %w", err)
-// 		}
-// 	}
-
-// 	return successCount, nil
-// }
-
-// 获取会话超时时间
+// Get session timeout
 func (s *SessionManager) GetSessionTTL(sessionID string) (time.Duration, error) {
 	sessionKey := fmt.Sprintf("session:%s", sessionID)
 	ttl, err := s.redis.client.TTL(context.Background(), sessionKey).Result()
 	if err != nil {
-		return 0, fmt.Errorf("获取会话超时时间失败: %w", err)
+		return 0, fmt.Errorf("failed to get session timeout: %w", err)
 	}
 
 	if ttl < 0 {
-		// -1表示键没有设置过期时间，-2表示键不存在
+		// -1 means the key has no expiration time, -2 means the key does not exist
 		if ttl == -2 {
 			return 0, ErrInvalidSession
 		}
-		return 0, fmt.Errorf("会话没有设置过期时间")
+		return 0, fmt.Errorf("session has no expiration time set")
 	}
 
 	return ttl, nil
 }
 
-// 会话即将过期清理器（由定时任务调用）
-// 清理即将过期的会话（例如，提前24小时通知用户）
+// Session expiration cleaner (called by scheduled task)
+// Clean up sessions that are about to expire (e.g., notify users 24 hours in advance)
 func (s *SessionManager) NotifyExpiringSessionsToUsers() ([]string, error) {
 	pattern := "session:*"
 	var cursor uint64
@@ -429,28 +300,28 @@ func (s *SessionManager) NotifyExpiringSessionsToUsers() ([]string, error) {
 	notifiedMap := make(map[string]bool)
 	ctx := context.Background()
 
-	// 设置临界值，例如48小时内过期的会话
+	// Set critical value, e.g., sessions expiring within 48 hours
 	thresholdTime := time.Hour * 48
 
-	// 使用SCAN命令扫描所有会话键
+	// Use the SCAN command to scan all session keys
 	for {
 		var keys []string
 		var err error
 		keys, cursor, err = s.redis.client.Scan(ctx, cursor, pattern, 100).Result()
 		if err != nil {
-			return nil, fmt.Errorf("扫描会话键失败: %w", err)
+			return nil, fmt.Errorf("failed to scan session keys: %w", err)
 		}
 
-		// 对于每个键，检查其TTL
+		// For each key, check its TTL
 		for _, key := range keys {
 			ttl, err := s.redis.client.TTL(ctx, key).Result()
 			if err != nil {
 				continue
 			}
 
-			// 如果TTL小于阈值，表示会话即将过期
+			// If TTL is less than the threshold, the session is about to expire
 			if ttl > 0 && ttl < thresholdTime {
-				// 获取会话数据
+				// Get session data
 				data, err := s.redis.client.Get(ctx, key).Bytes()
 				if err != nil {
 					continue
@@ -461,7 +332,7 @@ func (s *SessionManager) NotifyExpiringSessionsToUsers() ([]string, error) {
 					continue
 				}
 
-				// 记录需要通知的用户
+				// Record users that need to be notified
 				if !notifiedMap[session.UserID] {
 					notifiedMap[session.UserID] = true
 					notifiedUserIDs = append(notifiedUserIDs, session.UserID)
@@ -469,7 +340,7 @@ func (s *SessionManager) NotifyExpiringSessionsToUsers() ([]string, error) {
 			}
 		}
 
-		// 如果cursor为0，表示扫描完成
+		// If cursor is 0, the scan is complete
 		if cursor == 0 {
 			break
 		}
@@ -478,22 +349,22 @@ func (s *SessionManager) NotifyExpiringSessionsToUsers() ([]string, error) {
 	return notifiedUserIDs, nil
 }
 
-// 健康检查方法
+// Health check method
 func (s *SessionManager) HealthCheck() error {
-	// 检查Redis连接是否正常
+	// Check if Redis connection is normal
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	err := s.redis.client.Ping(ctx).Err()
 	if err != nil {
-		return fmt.Errorf("redis连接失败: %w", err)
+		return fmt.Errorf("redis connection failed: %w", err)
 	}
 
 	return nil
 }
 
-// 会话初始化，自动清理过期的连接信息
+// Session initialization, automatically clean up expired connection information
 func (s *SessionManager) Init() error {
-	// Redis自动会清理过期键，这里只做连接测试
+	// Redis automatically cleans up expired keys, only do connection testing here
 	return s.HealthCheck()
 }

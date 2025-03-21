@@ -9,15 +9,15 @@ import (
 	"kcaitech.com/kcauth/server/auth"
 )
 
-// 用户注册类型常量
+// User registration type constants
 type UserType string
 
 const (
-	UserTypeRegular UserType = "regular" // 普通账号
-	UserTypeEmail   UserType = "email"   // 邮箱账号
+	UserTypeRegular UserType = "regular" // Regular account
+	UserTypeEmail   UserType = "email"   // Email account
 )
 
-// Register 普通账号密码注册
+// Register Regular username/password registration
 func (h *AuthHandler) Register(c *gin.Context) {
 	var req struct {
 		Username string `json:"username" binding:"required"`
@@ -27,11 +27,11 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request parameters"})
 		return
 	}
 
-	// 创建用户
+	// Create user
 	user := &auth.User{
 		UserID:   req.Username,
 		Password: req.Password,
@@ -46,8 +46,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	// 直接返回登陆信息
-	// 检查登录尝试次数限制
+	// Directly return login information
+	// Check login attempt limits
 	clientIP := c.ClientIP()
 	// if err := h.accountAuth.CheckLoginAttempts(req.Username, clientIP); err != nil {
 	// 	c.JSON(http.StatusTooManyRequests, gin.H{"error": err.Error()})
@@ -56,28 +56,28 @@ func (h *AuthHandler) Register(c *gin.Context) {
 
 	// user, err := h.accountAuth.Login(req.Username, req.Password)
 	// if err != nil {
-	// 	// 记录失败的登录尝试
+	// 	// Record failed login attempt
 	// 	h.accountAuth.RecordLoginAttempt(req.Username, clientIP, false)
 	// 	c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 	// 	return
 	// }
 
-	// 记录成功的登录尝试
+	// Record successful login attempt
 	// h.accountAuth.RecordLoginAttempt(req.Username, clientIP, true)
 
-	// 创建JWT令牌
+	// Create JWT token
 	// token, err := h.jwtService.GenerateJWT(user.UserID, "", "")
 
-	// 或者创建会话
+	// Or create session
 	session, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), auth.RefreshTokenExpiration+time.Hour)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建会话失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 		return
 	}
 
 	tokenPair, err := h.jwtService.GenerateTokenPair(user.UserID, session.ID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "生成令牌失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
 
@@ -90,19 +90,19 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	})
 }
 
-// Login 普通登录
+// Login Regular login
 func (h *AuthHandler) Login(c *gin.Context) {
 	var req struct {
-		Username string `json:"username" binding:"required"` // 用户名或邮箱
+		Username string `json:"username" binding:"required"` // Username or email
 		Password string `json:"password" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request parameters"})
 		return
 	}
 
-	// 检查登录尝试次数限制
+	// Check login attempt limits
 	clientIP := c.ClientIP()
 	if err := h.accountAuth.CheckLoginAttempts(req.Username, clientIP); err != nil {
 		c.JSON(http.StatusTooManyRequests, gin.H{"error": err.Error()})
@@ -111,19 +111,19 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	user, err := h.accountAuth.Login(req.Username, req.Password)
 	if err != nil {
-		// 记录失败的登录尝试
+		// Record failed login attempt
 		h.accountAuth.RecordLoginAttempt(req.Username, clientIP, false)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
-	// 记录成功的登录尝试
+	// Record successful login attempt
 	h.accountAuth.RecordLoginAttempt(req.Username, clientIP, true)
 
-	// 创建JWT令牌
+	// Create JWT token
 	// token, err := h.jwtService.GenerateJWT(user.UserID, "", "")
 
-	// 或者创建会话
+	// Or create session
 	session, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), auth.RefreshTokenExpiration+time.Hour)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -145,60 +145,60 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	})
 }
 
-// Logout 登出处理
+// Logout Logout handling
 func (h *AuthHandler) Logout(c *gin.Context) {
 
-	// 获取会话ID
+	// Get session ID
 	sessionID, ok := c.Get("session_id")
 	if !ok {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "未找到会话ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Session ID not found"})
 		return
 	}
 
-	// 从上下文获取用户信息
+	// Get user information from context
 	userID, ok := c.Get("user_id")
 	if !ok {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "未找到用户ID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID not found"})
 		return
 	}
 
-	// 撤销刷新令牌
+	// Revoke refresh token
 	if err := h.jwtService.RevokeJWTByID(userID.(string), sessionID.(string)); err != nil {
-		h.logger.Printf("撤销刷新令牌失败: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "撤销刷新令牌失败"})
+		h.logger.Printf("Failed to revoke refresh token: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to revoke refresh token"})
 		return
 	}
 
-	// 清除客户端Cookie
+	// Clear client cookie
 	c.SetCookie("refreshToken", "", -1, "/", "", true, true)
 
-	// 删除会话
+	// Delete session
 	if err := h.sessionMgr.DeleteSession(userID.(string), sessionID.(string)); err != nil {
-		// 即使会话删除失败也继续尝试撤销令牌
-		h.logger.Printf("删除会话失败: %v", err)
+		// Even if session deletion fails, continue trying to revoke token
+		h.logger.Printf("Failed to delete session: %v", err)
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "登出成功"})
+	c.JSON(http.StatusOK, gin.H{"message": "Logout successful"})
 }
 
-// RefreshSession 刷新会话
+// RefreshSession Refresh session
 // func (h *AuthHandler) RefreshSession(c *gin.Context) {
 // 	sessionID := c.GetHeader("Session-ID")
 // 	if sessionID == "" {
-// 		c.JSON(http.StatusBadRequest, gin.H{"error": "未提供会话ID"})
+// 		c.JSON(http.StatusBadRequest, gin.H{"error": "Session ID not provided"})
 // 		return
 // 	}
 
-// 	// 刷新会话，延长有效期为7天
+// 	// Refresh session, extend validity to 7 days
 // 	if err := h.sessionMgr.RefreshSession(sessionID, auth.RefreshTokenExpiration); err != nil {
-// 		c.JSON(http.StatusUnauthorized, gin.H{"error": "刷新会话失败"})
+// 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Failed to refresh session"})
 // 		return
 // 	}
 
-// 	// 获取刷新后的会话
+// 	// Get refreshed session
 // 	session, err := h.sessionMgr.GetSession(sessionID)
 // 	if err != nil {
-// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取会话失败"})
+// 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get session"})
 // 		return
 // 	}
 
@@ -208,7 +208,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 // 	})
 // }
 
-// ResetPassword 重置密码
+// ResetPassword Reset password
 func (h *AuthHandler) ResetPassword(c *gin.Context) {
 	var req struct {
 		OldPassword string `json:"old_password" binding:"required"`
@@ -216,13 +216,13 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request parameters"})
 		return
 	}
 
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登录"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not logged in"})
 		return
 	}
 
@@ -231,20 +231,20 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "密码修改成功"})
+	c.JSON(http.StatusOK, gin.H{"message": "Password changed successfully"})
 
 }
 
-// GetUserInfo 获取用户信息
+// GetUserInfo Get user information
 func (h *AuthHandler) GetUserInfo(c *gin.Context) {
-	// 从Session或者JWT中获取用户ID
+	// Get user ID from Session or JWT
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登录"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not logged in"})
 		return
 	}
 
-	// 将userID转换为字符串
+	// Convert userID to string
 	userIDStr := ""
 	switch v := userID.(type) {
 	case string:
@@ -254,7 +254,7 @@ func (h *AuthHandler) GetUserInfo(c *gin.Context) {
 	case int:
 		userIDStr = strconv.Itoa(v)
 	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "无效的用户ID类型"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID type"})
 		return
 	}
 
@@ -267,7 +267,7 @@ func (h *AuthHandler) GetUserInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"user": user})
 }
 
-// UpdateUserInfo 更新用户信息
+// UpdateUserInfo Update user information
 func (h *AuthHandler) UpdateUserInfo(c *gin.Context) {
 	var req struct {
 		UserID   string           `json:"user_id"`
@@ -276,18 +276,18 @@ func (h *AuthHandler) UpdateUserInfo(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request parameters"})
 		return
 	}
 
-	// 从Session或者JWT中获取用户ID
+	// Get user ID from Session or JWT
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "未登录"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not logged in"})
 		return
 	}
 
-	// 将userID转换为字符串
+	// Convert userID to string
 	userIDStr := ""
 	switch v := userID.(type) {
 	case string:
@@ -297,33 +297,33 @@ func (h *AuthHandler) UpdateUserInfo(c *gin.Context) {
 	case int:
 		userIDStr = strconv.Itoa(v)
 	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "无效的用户ID类型"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID type"})
 		return
 	}
 
-	// 获取现有用户信息
+	// Get existing user information
 	user, err := h.accountAuth.GetUserByID(userIDStr)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// 准备更新数据
+	// Prepare update data
 	updates := make(map[string]interface{})
 
-	// 更新用户信息
+	// Update user information
 	if req.UserID != "" && req.UserID != user.UserID {
 		updates["user_id"] = req.UserID
 	}
 
-	// 更新用户资料
+	// Update user profile
 	if req.Nickname != "" {
 		if user.Profile.Nickname != req.Nickname {
 			updates["profile.nickname"] = req.Nickname
 		}
 	}
 
-	// 更新其他资料字段
+	// Update other profile fields
 	if req.Profile.Avatar != "" && user.Profile.Avatar != req.Profile.Avatar {
 		updates["profile.avatar"] = req.Profile.Avatar
 	}
@@ -346,23 +346,23 @@ func (h *AuthHandler) UpdateUserInfo(c *gin.Context) {
 	// 	updates["profile.phone"] = req.Profile.Phone
 	// }
 
-	// 如果有需要更新的字段
+	// If there are fields to update
 	if len(updates) > 0 {
 		if err := h.accountAuth.UpdateProfile(userIDStr, updates); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"message": "用户信息已更新"})
+		c.JSON(http.StatusOK, gin.H{"message": "User information updated"})
 	} else {
-		c.JSON(http.StatusOK, gin.H{"message": "没有需要更新的信息"})
+		c.JSON(http.StatusOK, gin.H{"message": "No information to update"})
 	}
 }
 
-// ValidateToken 验证JWT令牌
+// ValidateToken Validate JWT token
 func (h *AuthHandler) ValidateToken(c *gin.Context) {
 	authHeader := c.GetHeader("Authorization")
 	if authHeader == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "未提供令牌"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token not provided"})
 		return
 	}
 
@@ -370,7 +370,7 @@ func (h *AuthHandler) ValidateToken(c *gin.Context) {
 	if authHeader != "" && len(authHeader) > 7 && authHeader[:7] == "Bearer " {
 		token := authHeader[7:]
 		var claims *auth.CustomClaims
-		// 验证JWT
+		// Validate JWT
 		claims, err = h.jwtService.ValidateJWT(token)
 		if err == nil && claims != nil {
 			c.JSON(http.StatusOK, gin.H{"user_id": claims.UserID})
@@ -380,16 +380,16 @@ func (h *AuthHandler) ValidateToken(c *gin.Context) {
 	c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 }
 
-// AuthRequired 验证用户是否已登录
+// AuthRequired Verify if user is logged in
 func (h *AuthHandler) AuthRequired() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 从请求头中获取会话ID
+		// Get session ID from request header
 		// sessionID := c.GetHeader("Session-ID")
 		// if sessionID != "" {
-		// 	// 验证会话
+		// 	// Validate session
 		// 	session, err := h.sessionMgr.GetSession(sessionID)
 		// 	if err == nil && session != nil {
-		// 		// 会话有效，设置用户ID并继续
+		// 		// Session valid, set user ID and continue
 		// 		c.Set("user_id", session.UserID)
 		// 		c.Next()
 		// 		return
@@ -397,45 +397,45 @@ func (h *AuthHandler) AuthRequired() gin.HandlerFunc {
 		// }
 
 		var err error
-		// 没有有效会话，尝试验证JWT
+		// No valid session, try to validate JWT
 		authHeader := c.GetHeader("Authorization")
 		if authHeader != "" && len(authHeader) > 7 && authHeader[:7] == "Bearer " {
 			token := authHeader[7:]
 			var claims *auth.CustomClaims
-			// 验证JWT
+			// Validate JWT
 			claims, err = h.jwtService.ValidateJWT(token)
 			if err == nil && claims != nil {
-				// JWT有效，设置用户ID
-				// 注意：claims.Subject 应包含用户ID
+				// JWT valid, set user ID
+				// Note: claims.Subject should contain user ID
 				c.Set("user_id", claims.UserID)
 				c.Set("session_id", claims.SessionID)
 				c.Next()
 				return
 			} else {
-				// JWT无效，拒绝访问
+				// JWT invalid, deny access
 				c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 				c.Abort()
 				return
 			}
 		} else {
-			// 未认证，拒绝访问
+			// Not authenticated, deny access
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "no Authorization header"})
 			c.Abort()
 			return
 		}
 
-		// 未认证，拒绝访问
-		// c.JSON(http.StatusUnauthorized, gin.H{"error": "认证失败，请登录"})
+		// Not authenticated, deny access
+		// c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication failed, please log in"})
 		// c.Abort()
 	}
 }
 
-// RefreshToken JWT刷新令牌
+// RefreshToken JWT refresh token
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
-	// 从Cookie获取refreshtoken
+	// Get refreshtoken from Cookie
 	refreshToken, err := c.Cookie("refreshToken")
 	if err != nil || refreshToken == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "未提供刷新令牌"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Refresh token not provided"})
 		return
 	}
 
@@ -444,29 +444,29 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	// }
 
 	// if err := c.ShouldBindJSON(&req); err != nil {
-	// 	c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+	// 	c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request parameters"})
 	// 	return
 	// }
 
 	claims, err := h.jwtService.ValidateJWT(refreshToken)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "无效的访问令牌"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid access token"})
 		return
 	}
 
-	// 刷新session
+	// Refresh session
 	if err := h.sessionMgr.RefreshSession(claims.UserID, claims.SessionID, auth.RefreshTokenExpiration); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "刷新会话失败"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to refresh session"})
 		return
 	}
-	// 刷新JWT令牌
+	// Refresh JWT token
 	tokenPair, err := h.jwtService.RefreshJWT(refreshToken)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
 
-	// 自动更新refreshToken
+	// Automatically update refreshToken
 	c.SetCookie("refreshToken", tokenPair.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
 	c.JSON(http.StatusOK, gin.H{
 		// "user_id":     user.UserID,

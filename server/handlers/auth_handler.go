@@ -9,7 +9,7 @@ import (
 	"kcaitech.com/kcauth/server/middleware"
 )
 
-// AuthHandler 认证处理器
+// AuthHandler Authentication handler
 type AuthHandler struct {
 	useAccountAuth bool
 	accountAuth    auth.AccountAuth
@@ -26,7 +26,7 @@ type AuthHandler struct {
 	logger *log.Logger
 }
 
-// NewAuthHandler 创建新的认证处理器
+// NewAuthHandler Create new authentication handler
 func NewAuthHandler(
 	useAccountAuth bool,
 	accountAuth auth.AccountAuth,
@@ -55,24 +55,24 @@ func NewAuthHandler(
 	}
 }
 
-// RegisterRoutes 注册路由
+// RegisterRoutes Register routes
 func (h *AuthHandler) RegisterRoutes(r *gin.Engine) {
-	// 添加错误处理中间件
+	// Add error handling middleware
 	r.Use(auth.ErrorHandler())
 
-	// 添加监控中间件
+	// Add monitoring middleware
 	r.Use(middleware.MetricsMiddleware())
 
-	// 添加速率限制中间件
+	// Add rate limiting middleware
 	rateLimiter := middleware.RateLimiter{}
 	r.Use(rateLimiter.RateLimitMiddleware())
-	// 认证相关路由组
+	// Authentication related route group
 	authGroup := r.Group("/auth")
 	{
-		// 获取支持的登录方式
+		// Get supported login methods
 		authGroup.GET("/providers", h.GetSupportedProviders)
 
-		// 账号登录相关路由
+		// Account login related routes
 		if h.useAccountAuth {
 			authGroup.POST("/account/register", h.Register)
 			authGroup.POST("/account/login", h.Login)
@@ -82,7 +82,7 @@ func (h *AuthHandler) RegisterRoutes(r *gin.Engine) {
 		authGroup.POST("/token/refresh", h.RefreshToken)
 		authGroup.POST("/token/validate", h.ValidateToken)
 
-		// 邮箱登录相关路由
+		// Email login related routes
 		if h.emailAuth != nil {
 			authGroup.POST("/email/login", h.EmailLogin)
 			authGroup.POST("/email/register", h.EmailRegister)
@@ -92,29 +92,29 @@ func (h *AuthHandler) RegisterRoutes(r *gin.Engine) {
 			authGroup.POST("/email/password/reset/complete", h.CompleteEmailPasswordReset)
 		}
 
-		// Google OAuth相关路由
+		// Google OAuth related routes
 		if h.googleOAuth != nil {
 			authGroup.GET("/google/login", h.GoogleLogin)
 			authGroup.GET("/google/callback", h.GoogleCallback)
 			authGroup.POST("/google", h.GoogleLoginPost)
 		}
 
-		// 微信登录相关路由
+		// WeChat login related routes
 		if h.weixinLogin != nil {
 			authGroup.GET("/weixin/url", h.WeixinLoginURL)
 			authGroup.GET("/weixin/login", h.WeixinLoginHandler)
 			authGroup.GET("/weixin/callback", h.WeixinCallback)
 		}
 
-		// 手机登录相关路由
+		// Phone login related routes
 		if h.phoneAuth != nil {
-			// 创建手机处理器
+			// Create phone handler
 			phoneHandler := NewPhoneHandler(h.phoneAuth, h.sessionMgr, h.jwtService)
-			// 注册手机认证路由
+			// Register phone authentication routes
 			phoneHandler.RegisterRoutes(authGroup)
 		}
 
-		// 双因素认证相关路由
+		// Two-factor authentication related routes
 		if h.twoFactor != nil {
 			authGroup.POST("/2fa/enable", h.AuthRequired(), h.Enable2FA)
 			authGroup.POST("/2fa/disable", h.AuthRequired(), h.Disable2FA)
@@ -122,41 +122,41 @@ func (h *AuthHandler) RegisterRoutes(r *gin.Engine) {
 			authGroup.POST("/2fa/recovery", h.AuthRequired(), h.GenerateRecoveryCodes)
 		}
 
-		// 用户信息相关路由
+		// User information related routes
 		authGroup.GET("/user", h.AuthRequired(), h.GetUserInfo)
 		authGroup.PUT("/user", h.AuthRequired(), h.UpdateUserInfo)
-		// 用户会话信息
+		// User session information
 		authGroup.GET("/sessions", h.AuthRequired(), h.GetUserSessions)
 		authGroup.DELETE("/sessions/:session_id", h.AuthRequired(), h.TerminateUserSession)
 		authGroup.DELETE("/sessions", h.AuthRequired(), h.TerminateAllUserSessions)
 	}
 }
 
-// GetSupportedProviders 获取支持的登录方式
+// GetSupportedProviders Get supported login methods
 func (h *AuthHandler) GetSupportedProviders(c *gin.Context) {
 	providers := []string{}
 
-	// 添加账号登录方式
+	// Add account login method
 	if h.useAccountAuth {
 		providers = append(providers, "account")
 	}
 
-	// 添加邮箱登录方式
+	// Add email login method
 	if h.emailAuth != nil {
 		providers = append(providers, "email")
 	}
 
-	// 添加Google登录方式
+	// Add Google login method
 	if h.googleOAuth != nil {
 		providers = append(providers, "google")
 	}
 
-	// 添加微信登录方式
+	// Add WeChat login method
 	if h.weixinLogin != nil {
 		providers = append(providers, "weixin")
 	}
 
-	// 添加手机登录方式
+	// Add phone login method
 	if h.phoneAuth != nil {
 		providers = append(providers, "phone")
 	}

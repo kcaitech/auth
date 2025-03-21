@@ -12,16 +12,16 @@ import (
 	"gorm.io/gorm"
 )
 
-// EmailUser 邮箱用户模型
+// Email User Model
 type EmailUser struct {
-	UserID string `json:"user_id" gorm:"primarykey"` // 关联到 User 表的用户ID
-	Email  string `json:"email" gorm:"unique"`       // 邮箱，作为登录凭证
-	// Verified  bool      `json:"verified" gorm:"default:false"` // 邮箱是否已验证
+	UserID string `json:"user_id" gorm:"primarykey"` // User ID associated with the User table
+	Email  string `json:"email" gorm:"unique"`       // Email, used as login credential
+	// Verified  bool      `json:"verified" gorm:"default:false"` // Whether the email has been verified
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// 扩展 AccountAuth
+// Extended AccountAuth
 type EmailAuth struct {
 	db *gorm.DB
 	// maxLoginAttempts   int
@@ -31,22 +31,22 @@ type EmailAuth struct {
 	redis              *AccountRedisStore
 }
 
-// EmailService 邮件服务接口
+// EmailService Email service interface
 type EmailService interface {
 	SendVerificationEmail(email, token, title, content string) error
 	SendPasswordResetEmail(email, token, title, content string) error
 	SendLoginNotificationEmail(email, ip, title, content string) error
 }
 
-// 预注册信息，存储在Redis中
+// Pre-registration information, stored in Redis
 type EmailPreregisterInfo struct {
 	Email     string    `json:"email"`
-	Password  string    `json:"password"` // 已加密的密码
+	Password  string    `json:"password"` // Encrypted password
 	Nickname  string    `json:"nickname"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// 配置选项
+// Configuration options
 type EmailAutnConfig struct {
 	VerificationExpiry time.Duration
 	EmailService       EmailService
@@ -58,11 +58,11 @@ func NewEmailAuth(db *gorm.DB, config EmailAutnConfig) *EmailAuth {
 		db:                 db,
 		verificationExpiry: config.VerificationExpiry,
 		emailService:       config.EmailService,
-		redis:              config.Redis, // 直接使用指针
+		redis:              config.Redis, // Use pointer directly
 	}
 }
 
-// AutoMigrate 自动迁移数据库表结构
+// AutoMigrate Automatically migrate database table structure
 func (a *EmailAuth) AutoMigrate() error {
 	if err := a.db.AutoMigrate(
 		&User{},
@@ -73,7 +73,7 @@ func (a *EmailAuth) AutoMigrate() error {
 	return nil
 }
 
-// 生成验证令牌
+// Generate verification token
 func generateToken() (string, error) {
 	bytes := make([]byte, 32)
 	if _, err := rand.Read(bytes); err != nil {
@@ -82,25 +82,25 @@ func generateToken() (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-// InitiatePasswordReset 发起密码重置
+// InitiatePasswordReset Initiate password reset
 func (a *EmailAuth) InitiatePasswordReset(email, title, content string) (string, error) {
 	user, err := a.GetUserByEmail(email)
 	if err != nil {
 		return "", err
 	}
 
-	// 生成重置令牌
+	// Generate reset token
 	token, err := generateToken()
 	if err != nil {
 		return "", err
 	}
 
-	// 将验证记录存储到Redis中并设置过期时间
+	// Store verification record in Redis with expiration time
 	if err := a.redis.StoreVerification(VerificationTypePassword, email, token, user.UserID, a.verificationExpiry); err != nil {
-		return "", fmt.Errorf("存储密码重置验证信息失败: %w", err)
+		return "", fmt.Errorf("failed to store password reset verification information: %w", err)
 	}
 
-	// 发送重置邮件
+	// Send reset email
 	if err := a.emailService.SendPasswordResetEmail(email, token, title, content); err != nil {
 		return "", err
 	}
@@ -108,26 +108,26 @@ func (a *EmailAuth) InitiatePasswordReset(email, title, content string) (string,
 	return token, nil
 }
 
-// CompletePasswordReset 完成密码重置
+// CompletePasswordReset Complete password reset
 func (a *EmailAuth) CompletePasswordReset(token, newPassword string) error {
-	// 从Redis获取验证记录
+	// Get verification record from Redis
 	verification, err := a.redis.GetVerificationByToken(VerificationTypePassword, token)
 	if err != nil {
-		return ErrInvalidToken("密码重置令牌无效或已过期")
+		return ErrInvalidToken("Password reset token is invalid or expired")
 	}
 
-	// 验证新密码强度
+	// Validate new password strength
 	if len(newPassword) < 8 {
-		return ErrWeakPassword("密码至少需要8个字符")
+		return ErrWeakPassword("Password must be at least 8 characters")
 	}
 
-	// 加密新密码
+	// Encrypt new password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
 
-	// 更新 User 表中的密码
+	// Update password in User table
 	result := a.db.Model(&User{}).Where("user_id = ?", verification.UserID).
 		Update("password", string(hashedPassword))
 
@@ -136,49 +136,49 @@ func (a *EmailAuth) CompletePasswordReset(token, newPassword string) error {
 	}
 
 	if result.RowsAffected == 0 {
-		return ErrInvalidToken("无效的用户ID")
+		return ErrInvalidToken("Invalid user ID")
 	}
 
-	// 使用完令牌后删除
+	// Delete token after use
 	return a.redis.DeleteVerification(VerificationTypePassword, verification.Identifier, token)
 }
 
-// EmailPreregister 邮箱预注册，发送验证邮件但不创建用户
+// EmailPreregister Email pre-registration, sends verification email but doesn't create user
 func (a *EmailAuth) EmailPreregister(email, password, nickname, title, content string) (string, error) {
-	// 邮箱必须提供
+	// Email must be provided
 	if email == "" {
-		return "", ErrInvalidInput("必须提供有效邮箱")
+		return "", ErrInvalidInput("Valid email must be provided")
 	}
 
-	// 检查邮箱是否重复
+	// Check if email is duplicate
 	if err := a.CheckDuplicateEmail(email); err != nil {
 		return "", err
 	}
 
-	// 如果没有提供昵称，使用邮箱前缀作为默认昵称
+	// If nickname is not provided, use email prefix as default nickname
 	if nickname == "" {
 		parts := strings.Split(email, "@")
 		nickname = parts[0]
 	}
 
-	// 验证密码强度
+	// Validate password strength
 	if err := a.ValidatePassword(password); err != nil {
 		return "", err
 	}
 
-	// 加密密码
+	// Encrypt password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return "", fmt.Errorf("密码加密失败: %v", err)
+		return "", fmt.Errorf("failed to encrypt password: %v", err)
 	}
 
-	// 生成验证令牌
+	// Generate verification token
 	token, err := generateToken()
 	if err != nil {
 		return "", err
 	}
 
-	// 创建预注册信息
+	// Create pre-registration information
 	preregInfo := &EmailPreregisterInfo{
 		Email:     email,
 		Password:  string(hashedPassword),
@@ -186,20 +186,20 @@ func (a *EmailAuth) EmailPreregister(email, password, nickname, title, content s
 		CreatedAt: time.Now(),
 	}
 
-	// 将预注册信息存储到Redis中
+	// Store pre-registration information in Redis
 	preregKey := fmt.Sprintf("email_prereg:%s:%s", email, token)
 	if err := a.redis.Set(preregKey, preregInfo, a.verificationExpiry); err != nil {
-		return "", fmt.Errorf("存储预注册信息失败: %w", err)
+		return "", fmt.Errorf("failed to store pre-registration information: %w", err)
 	}
 
-	// 将验证令牌关联到邮箱
+	// Associate verification token with email
 	if err := a.redis.StoreVerification(VerificationTypeEmail, email, token, "", a.verificationExpiry); err != nil {
-		return "", fmt.Errorf("存储邮箱验证信息失败: %w", err)
+		return "", fmt.Errorf("failed to store email verification information: %w", err)
 	}
 
-	// 发送验证邮件
+	// Send verification email
 	if err := a.emailService.SendVerificationEmail(email, token, title, content); err != nil {
-		return "", fmt.Errorf("发送验证邮件失败: %w", err)
+		return "", fmt.Errorf("failed to send verification email: %w", err)
 	}
 
 	return token, nil
@@ -211,53 +211,53 @@ func (a *EmailAuth) ResentEmailVerification(email, title, content string) (bool,
 		return false, err
 	}
 
-	// 发送验证邮件
+	// Send verification email
 	if err := a.emailService.SendVerificationEmail(email, verification.Token, title, content); err != nil {
-		return false, fmt.Errorf("发送验证邮件失败: %w", err)
+		return false, fmt.Errorf("failed to send verification email: %w", err)
 	}
 
 	return true, nil
 }
 
-// RegisterEmailUser 邮箱用户注册 - 这个函数现在是内部使用，在验证成功后调用
+// RegisterEmailUser Email user registration - this function is now used internally, called after verification
 func (a *EmailAuth) RegisterEmailUser(email, password, nickname string) (*User, error) {
-	// 邮箱必须提供
+	// Email must be provided
 	if email == "" {
-		return nil, ErrInvalidInput("必须提供有效邮箱")
+		return nil, ErrInvalidInput("Valid email must be provided")
 	}
 
-	// 检查邮箱是否重复
+	// Check if email is duplicate
 	if err := a.CheckDuplicateEmail(email); err != nil {
 		return nil, err
 	}
 
-	// 生成随机UserID
+	// Generate random UserID
 	userID, err := GenerateBase62ID()
 	if err != nil {
-		return nil, fmt.Errorf("生成随机ID失败: %v", err)
+		return nil, fmt.Errorf("failed to generate random ID: %v", err)
 	}
 
-	// 确保UserID唯一
+	// Ensure UserID is unique
 	for {
 		var count int64
 		a.db.Model(&User{}).Where("user_id = ?", userID).Count(&count)
 		if count == 0 {
 			break
 		}
-		// 生成新的UserID
+		// Generate new UserID
 		userID, err = GenerateBase62ID()
 		if err != nil {
-			return nil, fmt.Errorf("生成随机ID失败: %v", err)
+			return nil, fmt.Errorf("failed to generate random ID: %v", err)
 		}
 	}
 
-	// 如果没有提供昵称，使用邮箱前缀作为默认昵称
+	// If nickname is not provided, use email prefix as default nickname
 	if nickname == "" {
 		parts := strings.Split(email, "@")
 		nickname = parts[0]
 	}
 
-	// 开始事务
+	// Start transaction
 	tx := a.db.Begin()
 	if tx.Error != nil {
 		return nil, tx.Error
@@ -268,11 +268,11 @@ func (a *EmailAuth) RegisterEmailUser(email, password, nickname string) (*User, 
 		}
 	}()
 
-	// 创建基本用户记录
+	// Create basic user record
 	now := time.Now()
 	user := &User{
 		UserID:   userID,
-		Password: password, // 已加密的密码
+		Password: password, // Already encrypted password
 		Status:   UserStatusActive,
 		Profile: UserProfile{
 			Nickname: nickname,
@@ -283,79 +283,79 @@ func (a *EmailAuth) RegisterEmailUser(email, password, nickname string) (*User, 
 
 	if err := tx.Create(user).Error; err != nil {
 		tx.Rollback()
-		return nil, fmt.Errorf("创建用户失败: %v", err)
+		return nil, fmt.Errorf("failed to create user: %v", err)
 	}
 
-	// 创建邮箱用户关联记录
+	// Create email user association record
 	emailUser := &EmailUser{
 		UserID: userID,
 		Email:  email,
-		// Verified:  true, // 邮箱已验证
+		// Verified:  true, // Email is verified
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
 
 	if err := tx.Create(emailUser).Error; err != nil {
 		tx.Rollback()
-		return nil, fmt.Errorf("创建邮箱用户关联失败: %v", err)
+		return nil, fmt.Errorf("failed to create email user association: %v", err)
 	}
 
-	// 提交事务
+	// Commit transaction
 	if err := tx.Commit().Error; err != nil {
-		return nil, fmt.Errorf("保存数据失败: %v", err)
+		return nil, fmt.Errorf("failed to save data: %v", err)
 	}
 
 	return user, nil
 }
 
-// VerifyEmail 验证邮箱并完成注册
+// VerifyEmail Verify email and complete registration
 func (a *EmailAuth) VerifyEmail(token string) (*User, error) {
-	// 从Redis获取验证记录
+	// Get verification record from Redis
 	verification, err := a.redis.GetVerificationByToken(VerificationTypeEmail, token)
 	if err != nil {
-		return nil, ErrInvalidToken("邮箱验证令牌无效或已过期")
+		return nil, ErrInvalidToken("Email verification token is invalid or expired")
 	}
 
 	email := verification.Identifier
 
-	// 尝试获取预注册信息
+	// Try to get pre-registration information
 	preregKey := fmt.Sprintf("email_prereg:%s:%s", email, token)
 	var preregInfo EmailPreregisterInfo
 	if err := a.redis.Get(preregKey, &preregInfo); err != nil {
-		return nil, ErrInvalidToken("找不到预注册信息或已过期，请重新注册")
+		return nil, ErrInvalidToken("Pre-registration information not found or expired, please register again")
 	}
 
-	// 完成注册
+	// Complete registration
 	user, err := a.RegisterEmailUser(email, preregInfo.Password, preregInfo.Nickname)
 	if err != nil {
-		return nil, fmt.Errorf("完成注册失败: %w", err)
+		return nil, fmt.Errorf("failed to complete registration: %w", err)
 	}
 
-	// 使用完令牌后删除
+	// Delete token after use
 	if err := a.redis.DeleteVerification(VerificationTypeEmail, email, token); err != nil {
-		// 仅记录错误，不影响注册流程
-		fmt.Printf("删除验证令牌失败: %v\n", err)
+		// Only log error, doesn't affect registration process
+		fmt.Printf("Failed to delete verification token: %v\n", err)
 	}
 
-	// 删除预注册信息
+	// Delete pre-registration information
 	if err := a.redis.Delete(preregKey); err != nil {
-		// 仅记录错误，不影响注册流程
-		fmt.Printf("删除预注册信息失败: %v\n", err)
+		// Only log error, doesn't affect registration process
+		fmt.Printf("Failed to delete pre-registration information: %v\n", err)
 	}
 
 	return user, nil
 }
 
-// SendVerificationEmail 发送验证邮件 - 现在用于已注册用户重新验证邮箱
+// SendVerificationEmail Send verification email - now used for registered users to re-verify email
 // func (a *EmailAuth) SendVerificationEmail(userID, title, content string) error {
-// 	// 查询 EmailUser 记录
+// 	// Query EmailUser record
 // 	var emailUser EmailUser
 // 	if err := a.db.Where("user_id = ?", userID).First(&emailUser).Error; err != nil {
 // 		return err
 // 	}
 
 // 	if emailUser.Verified {
-// 		return errors.New("用户邮箱已经验证过")
+// 		return errors.New("User email has already been verified")
 // 	}
 
 // 	token, err := generateToken()
@@ -363,43 +363,38 @@ func (a *EmailAuth) VerifyEmail(token string) (*User, error) {
 // 		return err
 // 	}
 
-// 	// 将验证记录存储到Redis中并设置过期时间
+// 	// Store verification record in Redis with expiration time
 // 	if err := a.redis.StoreVerification(VerificationTypeEmail, emailUser.Email, token, userID, a.verificationExpiry); err != nil {
-// 		return fmt.Errorf("存储邮箱验证信息失败: %w", err)
+// 		return fmt.Errorf("Failed to store email verification information: %w", err)
 // 	}
 
 // 	return a.emailService.SendVerificationEmail(emailUser.Email, token, title, content)
 // }
 
-// EmailLogin 邮箱用户登录
+// EmailLogin Email user login
 func (a *EmailAuth) EmailLogin(email, password string) (*User, error) {
-	// 首先查询对应的邮箱用户
+	// First query the corresponding email user
 	var emailUser EmailUser
 	err := a.db.Where("email = ?", email).First(&emailUser).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrInvalidPassword("无效的邮箱或密码")
+			return nil, ErrInvalidPassword("Invalid email or password")
 		}
 		return nil, err
 	}
 
-	// 检查邮箱是否已验证
-	// if !emailUser.Verified {
-	// 	return nil, ErrEmailNotVerified("邮箱尚未验证，请先验证邮箱")
-	// }
-
-	// 通过 UserID 查询关联的 User 信息
+	// Query associated User information through UserID
 	var user User
 	if err := a.db.Where("user_id = ?", emailUser.UserID).First(&user).Error; err != nil {
 		return nil, err
 	}
 
-	// 验证密码
+	// Verify password
 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-		return nil, ErrInvalidPassword("无效的邮箱或密码")
+		return nil, ErrInvalidPassword("Invalid email or password")
 	}
 
-	// 更新最后登录时间
+	// Update last login time
 	now := time.Now()
 	user.LastLogin = &now
 	if err := a.db.Save(&user).Error; err != nil {
@@ -409,22 +404,22 @@ func (a *EmailAuth) EmailLogin(email, password string) (*User, error) {
 	return &user, nil
 }
 
-// GetUserByEmail 通过邮箱获取用户
+// GetUserByEmail Get user by email
 func (a *EmailAuth) GetUserByEmail(email string) (*User, error) {
-	// 先查询 EmailUser 记录
+	// First query EmailUser record
 	var emailUser EmailUser
 	if err := a.db.Where("email = ?", email).First(&emailUser).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, NewAppError(ErrCodeUserNotFound, "用户不存在", err)
+			return nil, NewAppError(ErrCodeUserNotFound, "User does not exist", err)
 		}
 		return nil, err
 	}
 
-	// 再通过 UserID 查询 User 记录
+	// Then query User record through UserID
 	var user User
 	if err := a.db.Where("user_id = ?", emailUser.UserID).First(&user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, NewAppError(ErrCodeUserNotFound, "用户不存在", err)
+			return nil, NewAppError(ErrCodeUserNotFound, "User does not exist", err)
 		}
 		return nil, err
 	}
@@ -432,22 +427,22 @@ func (a *EmailAuth) GetUserByEmail(email string) (*User, error) {
 	return &user, nil
 }
 
-// CheckDuplicateEmail 检查邮箱是否重复
+// CheckDuplicateEmail Check if email is duplicate
 func (a *EmailAuth) CheckDuplicateEmail(email string) error {
 	var count int64
 	if err := a.db.Model(&EmailUser{}).Where("email = ?", email).Count(&count).Error; err != nil {
 		return err
 	}
 	if count > 0 {
-		return ErrDuplicateUser("邮箱已被使用")
+		return ErrDuplicateUser("Email is already in use")
 	}
 	return nil
 }
 
-// ValidatePassword 验证密码强度
+// ValidatePassword Validate password strength
 func (a *EmailAuth) ValidatePassword(password string) error {
 	if len(password) < 8 {
-		return ErrWeakPassword("密码至少需要8个字符")
+		return ErrWeakPassword("Password must be at least 8 characters")
 	}
 	return nil
 }

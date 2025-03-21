@@ -1,6 +1,6 @@
 package auth
 
-// 微信登录
+// WeChat Login
 
 import (
 	"crypto/rand"
@@ -18,22 +18,22 @@ import (
 	"gorm.io/gorm"
 )
 
-// WeixinConfig 微信登录配置
+// WeixinConfig WeChat login configuration
 type WeixinConfig struct {
 	AppID       string
 	AppSecret   string
 	RedirectURL string
 }
 
-// Validate 验证配置
+// Validate Validate configuration
 func (c *WeixinConfig) Validate() error {
 	if c.AppID == "" || c.AppSecret == "" || c.RedirectURL == "" {
-		return ErrInvalidConfig("微信登录配置无效")
+		return ErrInvalidConfig("Invalid WeChat login configuration")
 	}
 	return nil
 }
 
-// WeixinLoginResponse 微信登录响应
+// WeixinLoginResponse WeChat login response
 type WeixinLoginResponse struct {
 	AccessToken  string `json:"access_token"`
 	ExpiresIn    int    `json:"expires_in"`
@@ -43,7 +43,7 @@ type WeixinLoginResponse struct {
 	UnionID      string `json:"unionid"`
 }
 
-// WeixinUserInfo 微信用户信息
+// WeixinUserInfo WeChat user information
 type WeixinUserInfo struct {
 	OpenID     string `json:"openid" gorm:"unique"`
 	Nickname   string `json:"nickname"`
@@ -55,7 +55,7 @@ type WeixinUserInfo struct {
 	UnionID    string `json:"unionid" gorm:"unique"`
 }
 
-// WeixinErrorResponse 微信错误响应
+// WeixinErrorResponse WeChat error response
 type WeixinErrorResponse struct {
 	ErrCode int    `json:"errcode"`
 	ErrMsg  string `json:"errmsg"`
@@ -66,13 +66,13 @@ type WeixinUser struct {
 	WeixinUserInfo
 }
 
-// WeixinLogin 微信登录处理结构体
+// WeixinLogin WeChat login handler struct
 type WeixinLogin struct {
 	Config WeixinConfig
 	db     *gorm.DB
 }
 
-// NewWeixinLogin 创建微信登录实例
+// NewWeixinLogin Create WeChat login instance
 func NewWeixinLogin(db *gorm.DB, config WeixinConfig) (*WeixinLogin, error) {
 	if err := config.Validate(); err != nil {
 		return nil, err
@@ -93,7 +93,7 @@ func (a *WeixinLogin) AutoMigrate() error {
 	return nil
 }
 
-// GetAuthURL 获取微信授权URL
+// GetAuthURL Get WeChat authorization URL
 func (w *WeixinLogin) GetAuthURL(state string) string {
 	return fmt.Sprintf(
 		"https://open.weixin.qq.com/connect/qrconnect?appid=%s&redirect_uri=%s&response_type=code&scope=snsapi_login&state=%s#wechat_redirect",
@@ -103,10 +103,10 @@ func (w *WeixinLogin) GetAuthURL(state string) string {
 	)
 }
 
-// HandleCallback 处理微信回调
+// HandleCallback Handle WeChat callback
 func (w *WeixinLogin) HandleCallback(code string) (*WeixinLoginResponse, error) {
 	if code == "" {
-		return nil, ErrInvalidCode("授权码为空")
+		return nil, ErrInvalidCode("Authorization code is empty")
 	}
 
 	url := fmt.Sprintf(
@@ -118,7 +118,7 @@ func (w *WeixinLogin) HandleCallback(code string) (*WeixinLoginResponse, error) 
 	return doRequest[WeixinLoginResponse](url)
 }
 
-// RefreshToken 刷新访问令牌
+// RefreshToken Refresh access token
 func (w *WeixinLogin) RefreshToken(refreshToken string) (*WeixinLoginResponse, error) {
 	if refreshToken == "" {
 		return nil, errors.New("refresh token is required")
@@ -132,7 +132,7 @@ func (w *WeixinLogin) RefreshToken(refreshToken string) (*WeixinLoginResponse, e
 	return doRequest[WeixinLoginResponse](url)
 }
 
-// GetUserInfo 获取用户信息
+// GetUserInfo Get user information
 func (w *WeixinLogin) GetUserInfo(accessToken, openID string) (*WeixinUserInfo, error) {
 	if accessToken == "" || openID == "" {
 		return nil, errors.New("access token and openid are required")
@@ -146,7 +146,7 @@ func (w *WeixinLogin) GetUserInfo(accessToken, openID string) (*WeixinUserInfo, 
 	return doRequest[WeixinUserInfo](url)
 }
 
-// ValidateAccessToken 验证访问令牌是否有效
+// ValidateAccessToken Validate whether access token is valid
 func (w *WeixinLogin) ValidateAccessToken(accessToken, openID string) error {
 	url := fmt.Sprintf(
 		"https://api.weixin.qq.com/sns/auth?access_token=%s&openid=%s",
@@ -165,7 +165,7 @@ func (w *WeixinLogin) ValidateAccessToken(accessToken, openID string) error {
 	return nil
 }
 
-// doRequest 执行HTTP请求并处理响应
+// doRequest Execute HTTP request and handle response
 func doRequest[T any](url string) (*T, error) {
 	log.Printf("Requesting WeChat API: %s", url)
 
@@ -184,7 +184,7 @@ func doRequest[T any](url string) (*T, error) {
 		return nil, fmt.Errorf("failed to read response body: %v", err)
 	}
 
-	// 检查是否包含错误响应
+	// Check if it contains error response
 	if strings.Contains(string(body), "errcode") {
 		var errResp WeixinErrorResponse
 		if err := json.Unmarshal(body, &errResp); err != nil {
@@ -203,23 +203,23 @@ func doRequest[T any](url string) (*T, error) {
 	return &result, nil
 }
 
-// GetUserByWeixinID 通过微信UnionID获取用户
+// GetUserByWeixinID Get user by WeChat UnionID
 func (w *WeixinLogin) GetUserByWeixinID(unionID string) (*User, error) {
-	// 先查询微信用户表
+	// First query WeChat user table
 	var weixinUser WeixinUser
 	err := w.db.Where("union_id = ?", unionID).First(&weixinUser).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, nil // 未找到，返回nil，让后续流程处理
+			return nil, nil // Not found, return nil to let subsequent process handle
 		}
 		return nil, err
 	}
 
-	// 再查询对应的User记录
+	// Then query the corresponding User record
 	var user User
 	if err := w.db.Where("user_id = ?", weixinUser.UserID).First(&user).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, NewAppError(ErrCodeUserNotFound, "用户不存在", err)
+			return nil, NewAppError(ErrCodeUserNotFound, "User does not exist", err)
 		}
 		return nil, err
 	}
@@ -227,74 +227,74 @@ func (w *WeixinLogin) GetUserByWeixinID(unionID string) (*User, error) {
 	return &user, nil
 }
 
-// RegisterOrLoginWithWeixin 通过微信登录或注册用户
+// RegisterOrLoginWithWeixin Register or login user via WeChat
 func (w *WeixinLogin) RegisterOrLoginWithWeixin(code string) (*User, *WeixinLoginResponse, error) {
-	// 1. 处理微信回调，获取访问令牌和OpenID
+	// 1. Handle WeChat callback, get access token and OpenID
 	loginResp, err := w.HandleCallback(code)
 	if err != nil {
-		return nil, nil, fmt.Errorf("处理微信回调失败: %w", err)
+		return nil, nil, fmt.Errorf("failed to process WeChat callback: %w", err)
 	}
 
-	// 2. 获取微信用户信息
+	// 2. Get WeChat user information
 	userInfo, err := w.GetUserInfo(loginResp.AccessToken, loginResp.OpenID)
 	if err != nil {
-		return nil, nil, fmt.Errorf("获取微信用户信息失败: %w", err)
+		return nil, nil, fmt.Errorf("failed to get WeChat user information: %w", err)
 	}
 
-	// 3. 查询是否已存在该微信用户
+	// 3. Check if this WeChat user already exists
 	user, err := w.GetUserByWeixinID(userInfo.UnionID)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// 4. 如果用户不存在，则创建新用户
+	// 4. If user doesn't exist, create a new user
 	if user == nil {
 		user, err = w.CreateUserFromWeixin(userInfo)
 		if err != nil {
-			return nil, nil, fmt.Errorf("创建微信用户失败: %w", err)
+			return nil, nil, fmt.Errorf("failed to create WeChat user: %w", err)
 		}
 	} else {
-		// 5. 如果用户已存在，则更新用户信息
+		// 5. If user already exists, update user information
 		if err := w.UpdateWeixinUserInfo(user.UserID, userInfo); err != nil {
-			log.Printf("更新微信用户信息失败: %v", err)
-			// 不影响登录流程，只记录日志
+			log.Printf("failed to update WeChat user information: %v", err)
+			// Doesn't affect login process, just log it
 		}
 	}
 
-	// 6. 更新最后登录时间
+	// 6. Update last login time
 	now := time.Now()
 	user.LastLogin = &now
 	if err := w.db.Save(user).Error; err != nil {
-		log.Printf("更新用户最后登录时间失败: %v", err)
-		// 不影响登录流程，只记录日志
+		log.Printf("failed to update user's last login time: %v", err)
+		// Doesn't affect login process, just log it
 	}
 
 	return user, loginResp, nil
 }
 
-// CreateUserFromWeixin 从微信用户信息创建系统用户
+// CreateUserFromWeixin Create system user from WeChat user information
 func (w *WeixinLogin) CreateUserFromWeixin(weixinInfo *WeixinUserInfo) (*User, error) {
-	// 生成随机UserID
+	// Generate random UserID
 	userID, err := GenerateBase62ID()
 	if err != nil {
-		return nil, fmt.Errorf("生成随机ID失败: %v", err)
+		return nil, fmt.Errorf("failed to generate random ID: %v", err)
 	}
 
-	// 确保UserID唯一
+	// Ensure UserID is unique
 	for {
 		var count int64
 		w.db.Model(&User{}).Where("user_id = ?", userID).Count(&count)
 		if count == 0 {
 			break
 		}
-		// 生成新的UserID
+		// Generate new UserID
 		userID, err = GenerateBase62ID()
 		if err != nil {
-			return nil, fmt.Errorf("生成随机ID失败: %v", err)
+			return nil, fmt.Errorf("failed to generate random ID: %v", err)
 		}
 	}
 
-	// 使用事务确保数据一致性
+	// Use transaction to ensure data consistency
 	tx := w.db.Begin()
 	if tx.Error != nil {
 		return nil, tx.Error
@@ -305,22 +305,22 @@ func (w *WeixinLogin) CreateUserFromWeixin(weixinInfo *WeixinUserInfo) (*User, e
 		}
 	}()
 
-	// 生成随机密码（用户无法直接使用密码登录）
+	// Generate random password (user cannot login directly with password)
 	randomPassword := make([]byte, 16)
 	if _, err := rand.Read(randomPassword); err != nil {
 		tx.Rollback()
-		return nil, fmt.Errorf("生成随机密码失败: %v", err)
+		return nil, fmt.Errorf("failed to generate random password: %v", err)
 	}
 	hashedPassword, err := bcrypt.GenerateFromPassword(randomPassword, bcrypt.DefaultCost)
 	if err != nil {
 		tx.Rollback()
-		return nil, fmt.Errorf("密码加密失败: %v", err)
+		return nil, fmt.Errorf("failed to encrypt password: %v", err)
 	}
 
-	// 创建基本用户记录
+	// Create basic user record
 	now := time.Now()
 
-	// 性别转换为字符串
+	// Convert gender to string
 	gender := "unknown"
 	if weixinInfo.Sex == 1 {
 		gender = "male"
@@ -345,10 +345,10 @@ func (w *WeixinLogin) CreateUserFromWeixin(weixinInfo *WeixinUserInfo) (*User, e
 
 	if err := tx.Create(user).Error; err != nil {
 		tx.Rollback()
-		return nil, fmt.Errorf("创建用户失败: %v", err)
+		return nil, fmt.Errorf("failed to create user: %v", err)
 	}
 
-	// 创建微信用户关联记录
+	// Create WeChat user association record
 	weixinUser := &WeixinUser{
 		UserID:         userID,
 		WeixinUserInfo: *weixinInfo,
@@ -356,20 +356,20 @@ func (w *WeixinLogin) CreateUserFromWeixin(weixinInfo *WeixinUserInfo) (*User, e
 
 	if err := tx.Create(weixinUser).Error; err != nil {
 		tx.Rollback()
-		return nil, fmt.Errorf("创建微信用户关联失败: %v", err)
+		return nil, fmt.Errorf("failed to create WeChat user association: %v", err)
 	}
 
-	// 提交事务
+	// Commit transaction
 	if err := tx.Commit().Error; err != nil {
-		return nil, fmt.Errorf("保存数据失败: %v", err)
+		return nil, fmt.Errorf("failed to save data: %v", err)
 	}
 
 	return user, nil
 }
 
-// UpdateWeixinUserInfo 更新微信用户信息
+// UpdateWeixinUserInfo Update WeChat user information
 func (w *WeixinLogin) UpdateWeixinUserInfo(userID string, weixinInfo *WeixinUserInfo) error {
-	// 更新微信用户表信息
+	// Update WeChat user table information
 	result := w.db.Model(&WeixinUser{}).Where("user_id = ?", userID).Updates(map[string]interface{}{
 		"nickname":     weixinInfo.Nickname,
 		"sex":          weixinInfo.Sex,
@@ -383,15 +383,15 @@ func (w *WeixinLogin) UpdateWeixinUserInfo(userID string, weixinInfo *WeixinUser
 		return result.Error
 	}
 
-	// 性别转换为字符串
-	gender := "未知"
+	// Convert gender to string
+	gender := "unknown"
 	if weixinInfo.Sex == 1 {
-		gender = "男"
+		gender = "male"
 	} else if weixinInfo.Sex == 2 {
-		gender = "女"
+		gender = "female"
 	}
 
-	// 同时更新用户资料
+	// Also update user profile
 	return w.db.Model(&User{}).Where("user_id = ?", userID).Update("profile", UserProfile{
 		Nickname: weixinInfo.Nickname,
 		Avatar:   weixinInfo.HeadImgURL,

@@ -9,13 +9,13 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-// SessionRedisStore 会话相关的Redis存储服务
+// SessionRedisStore Session-related Redis storage service
 type SessionRedisStore struct {
 	client *redis.Client
 	ctx    context.Context
 }
 
-// NewSessionRedisStore 创建新的会话Redis存储服务
+// NewSessionRedisStore Create a new session Redis storage service
 func NewSessionRedisStore(client *redis.Client) *SessionRedisStore {
 	return &SessionRedisStore{
 		client: client,
@@ -23,42 +23,42 @@ func NewSessionRedisStore(client *redis.Client) *SessionRedisStore {
 	}
 }
 
-// StoreSession 存储会话信息
+// StoreSession Store session information
 func (rs *SessionRedisStore) StoreSession(userID string, sessionID string, session *Session, expiry time.Duration) error {
 	key := fmt.Sprintf("session:%s:%s", userID, sessionID)
 	data, err := json.Marshal(session)
 	if err != nil {
-		return fmt.Errorf("序列化会话数据失败: %w", err)
+		return fmt.Errorf("failed to serialize session data: %w", err)
 	}
 
 	return rs.client.Set(rs.ctx, key, data, expiry).Err()
 }
 
-// StoreUserSessionList 存储用户会话列表
+// StoreUserSessionList Store user session list
 func (rs *SessionRedisStore) StoreUserSessionList(userID string, sessionID string) error {
 	key := fmt.Sprintf("user_sessions:%s", userID)
 	return rs.client.SAdd(rs.ctx, key, sessionID).Err()
 }
 
-// GetUserSessionList 获取用户会话列表
+// GetUserSessionList Get user session list
 func (rs *SessionRedisStore) GetUserSessionList(userID string) ([]string, error) {
 	key := fmt.Sprintf("user_sessions:%s", userID)
 	return rs.client.SMembers(rs.ctx, key).Result()
 }
 
-// DeleteUserSessionList 删除用户会话列表
+// DeleteUserSessionList Delete user session list
 func (rs *SessionRedisStore) DeleteUserSessionList(userID string) error {
 	key := fmt.Sprintf("user_sessions:%s", userID)
 	return rs.client.Del(rs.ctx, key).Err()
 }
 
-// UpdateUserSessionList 更新用户会话列表
+// UpdateUserSessionList Update user session list
 func (rs *SessionRedisStore) RemoveUserSessionList(userID string, sessionIDs []string) error {
 	key := fmt.Sprintf("user_sessions:%s", userID)
 	return rs.client.SRem(rs.ctx, key, sessionIDs).Err()
 }
 
-// GetSession 获取会话信息
+// GetSession Get session information
 func (rs *SessionRedisStore) GetSession(userID, sessionID string) (*Session, error) {
 	key := fmt.Sprintf("session:%s:%s", userID, sessionID)
 	data, err := rs.client.Get(rs.ctx, key).Bytes()
@@ -66,56 +66,56 @@ func (rs *SessionRedisStore) GetSession(userID, sessionID string) (*Session, err
 		if err == redis.Nil {
 			return nil, ErrInvalidSession
 		}
-		return nil, fmt.Errorf("获取会话数据失败: %w", err)
+		return nil, fmt.Errorf("failed to get session data: %w", err)
 	}
 
 	var session Session
 	if err := json.Unmarshal(data, &session); err != nil {
-		return nil, fmt.Errorf("解析会话数据失败: %w", err)
+		return nil, fmt.Errorf("failed to parse session data: %w", err)
 	}
 
 	return &session, nil
 }
 
-// DeleteSession 删除会话信息
+// DeleteSession Delete session information
 func (rs *SessionRedisStore) DeleteSession(userID, sessionID string) error {
 	key := fmt.Sprintf("session:%s:%s", userID, sessionID)
 	return rs.client.Del(rs.ctx, key).Err()
 }
 
-// ListSessionKeys 列出所有会话键
+// ListSessionKeys List all session keys
 // func (rs *SessionRedisStore) ListSessionKeys() ([]string, error) {
 // 	return rs.client.Keys(rs.ctx, "session:*").Result()
 // }
 
-// ScanSessions 使用扫描方式获取会话键
+// ScanSessions Get session keys using scan method
 // func (rs *SessionRedisStore) ScanSessions(count int64) ([]string, uint64, error) {
 // 	return rs.client.Scan(rs.ctx, 0, "session:*", count).Result()
 // }
 
-// GetSessionTTL 获取会话过期时间
+// GetSessionTTL Get session expiration time
 func (rs *SessionRedisStore) GetSessionTTL(userID, sessionID string) (time.Duration, error) {
 	key := fmt.Sprintf("session:%s:%s", userID, sessionID)
 	return rs.client.TTL(rs.ctx, key).Result()
 }
 
-// ExtendSession 延长会话过期时间
+// ExtendSession Extend session expiration time
 func (rs *SessionRedisStore) ExtendSession(userID, sessionID string, expiry time.Duration) error {
 	key := fmt.Sprintf("session:%s:%s", userID, sessionID)
 	return rs.client.Expire(rs.ctx, key, expiry).Err()
 }
 
-// Pipeline 获取管道以执行批量操作
+// Pipeline Get pipeline to execute batch operations
 func (rs *SessionRedisStore) Pipeline() redis.Pipeliner {
 	return rs.client.Pipeline()
 }
 
-// ExecutePipeline 执行管道中的命令
+// ExecutePipeline Execute commands in the pipeline
 func (rs *SessionRedisStore) ExecutePipeline(pipe redis.Pipeliner) ([]redis.Cmder, error) {
 	return pipe.Exec(rs.ctx)
 }
 
-// GetSessionsData 获取多个会话的数据
+// GetSessionsData Get data for multiple sessions
 func (rs *SessionRedisStore) GetSessionsData(userID string, sessionIDs []string) ([]*Session, error) {
 	if len(sessionIDs) == 0 {
 		return []*Session{}, nil
@@ -131,7 +131,7 @@ func (rs *SessionRedisStore) GetSessionsData(userID string, sessionIDs []string)
 
 	_, err := pipe.Exec(rs.ctx)
 	if err != nil && err != redis.Nil {
-		return nil, fmt.Errorf("批量获取会话失败: %w", err)
+		return nil, fmt.Errorf("failed to batch get sessions: %w", err)
 	}
 
 	var sessions []*Session
