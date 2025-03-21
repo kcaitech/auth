@@ -96,7 +96,7 @@ func (a *PhoneAuth) InitiatePasswordReset(phone string) (string, error) {
 	}
 
 	// 将验证记录存储到Redis中并设置过期时间
-	if err := a.redis.StoreVerification(VerificationTypePhoneReset, code, user.UserID, a.verificationExpiry); err != nil {
+	if err := a.redis.StoreVerification(VerificationTypePhoneReset, phone, code, user.UserID, a.verificationExpiry); err != nil {
 		return "", fmt.Errorf("存储手机密码重置验证信息失败: %w", err)
 	}
 
@@ -111,7 +111,7 @@ func (a *PhoneAuth) InitiatePasswordReset(phone string) (string, error) {
 // CompletePasswordReset 完成密码重置
 func (a *PhoneAuth) CompletePasswordReset(code, phone, newPassword string) error {
 	// 从Redis获取验证记录
-	verification, err := a.redis.GetVerification(VerificationTypePhoneReset, code)
+	verification, err := a.redis.GetVerification(VerificationTypePhoneReset, phone)
 	if err != nil {
 		return ErrInvalidToken("验证码无效或已过期")
 	}
@@ -140,7 +140,7 @@ func (a *PhoneAuth) CompletePasswordReset(code, phone, newPassword string) error
 	}
 
 	// 使用完验证码后删除
-	return a.redis.DeleteVerification(VerificationTypePhoneReset, code)
+	return a.redis.DeleteVerification(VerificationTypePhoneReset, phone, code)
 }
 
 // SendVerificationSMS 发送验证短信
@@ -161,7 +161,7 @@ func (a *PhoneAuth) SendVerificationSMS(userID string) error {
 	}
 
 	// 将验证记录存储到Redis中
-	if err := a.redis.StoreVerification(VerificationTypePhone, code, userID, a.verificationExpiry); err != nil {
+	if err := a.redis.StoreVerification(VerificationTypePhone, phoneUser.Phone, code, userID, a.verificationExpiry); err != nil {
 		return fmt.Errorf("存储手机验证信息失败: %w", err)
 	}
 
@@ -172,7 +172,7 @@ func (a *PhoneAuth) SendVerificationSMS(userID string) error {
 // VerifyPhone 验证手机号
 func (a *PhoneAuth) VerifyPhone(code string) error {
 	// 从Redis获取验证记录
-	verification, err := a.redis.GetVerification(VerificationTypePhone, code)
+	verification, err := a.redis.GetVerificationByToken(VerificationTypePhone, code)
 	if err != nil {
 		return ErrInvalidToken("验证码无效或已过期")
 	}
@@ -190,7 +190,7 @@ func (a *PhoneAuth) VerifyPhone(code string) error {
 	}
 
 	// 使用完验证码后删除
-	return a.redis.DeleteVerification(VerificationTypePhone, code)
+	return a.redis.DeleteVerification(VerificationTypePhone, verification.Identifier, code)
 }
 
 // PhoneLogin 使用手机号登录
@@ -362,7 +362,7 @@ func (a *PhoneAuth) RegisterPhoneUser(phone, password, nickname string) (*User, 
 // PhoneCodeLogin 手机验证码登录（不需要密码）
 func (a *PhoneAuth) PhoneCodeLogin(phone, code string) (*User, error) {
 	// 从Redis获取验证记录
-	verification, err := a.redis.GetVerification(VerificationTypePhone, code)
+	verification, err := a.redis.GetVerification(VerificationTypePhone, phone)
 	if err != nil {
 		return nil, ErrInvalidToken("验证码无效或已过期")
 	}
@@ -398,7 +398,7 @@ func (a *PhoneAuth) PhoneCodeLogin(phone, code string) (*User, error) {
 	}
 
 	// 使用完验证码后删除
-	_ = a.redis.DeleteVerification(VerificationTypePhone, code)
+	_ = a.redis.DeleteVerification(VerificationTypePhone, phone, code)
 
 	return &user, nil
 }
@@ -422,7 +422,7 @@ func (a *PhoneAuth) SendLoginSMS(phone string) (string, error) {
 
 	// 将验证记录存储到Redis中并设置过期时间(5分钟)
 	verificationExpiry := 5 * time.Minute
-	if err := a.redis.StoreVerification(VerificationTypePhone, code, phoneUser.UserID, verificationExpiry); err != nil {
+	if err := a.redis.StoreVerification(VerificationTypePhone, phoneUser.Phone, code, phoneUser.UserID, verificationExpiry); err != nil {
 		return "", fmt.Errorf("存储手机登录验证信息失败: %w", err)
 	}
 

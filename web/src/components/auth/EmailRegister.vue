@@ -22,6 +22,16 @@
         </button>
         <button @click="resetForm" class="reset-btn">使用其他邮箱</button>
       </div>
+      
+      <div v-if="resendSuccess" class="resend-success">
+        <div class="success-icon-small">✓</div>
+        验证邮件已重新发送，请查收
+      </div>
+      
+      <div v-if="resendError" class="resend-error">
+        <div class="error-icon-small">!</div>
+        {{ resendError }}
+      </div>
     </div>
     
     <!-- 注册表单 -->
@@ -86,37 +96,11 @@ const emit = defineEmits<{
 // 注册阶段状态: 'form' = 显示表单, 'emailSent' = 验证邮件已发送
 const registrationStage = ref<'form' | 'emailSent'>('form')
 const resending = ref(false) // 是否正在重发验证邮件
+const resendSuccess = ref(false) // 是否成功重发验证邮件
+const resendError = ref('') // 重发验证邮件失败信息
 
-// 邮件模板
-
-const baseURL = import.meta.env.VITE_BASE_URL
-
-const verificationEmailTpl = `
-  <h2>邮箱验证</h2>
-  <p>您好，请点击以下链接验证您的邮箱：</p>
-  <p><a href="${baseURL}/auth/verify-email?token={{.Token}}">验证邮箱</a></p>
-  <p>如果链接无法点击，请复制以下地址到浏览器打开：</p>
-  <p>${baseURL}/auth/verify-email?token={{.Token}}</p>
-  <p>此链接将在24小时后过期。</p>
-  `
-
-const passwordResetEmailTpl = `
-  <h2>密码重置</h2>
-  <p>您好，请点击以下链接重置您的密码：</p>
-  <p><a href="${baseURL}/auth/reset-password?token={{.Token}}">重置密码</a></p>
-  <p>如果链接无法点击，请复制以下地址到浏览器打开：</p>
-  <p>${baseURL}/auth/reset-password?token={{.Token}}</p>
-  <p>此链接将在24小时后过期。如果您没有请求重置密码，请忽略此邮件。</p>
-  `
-
-const loginNotificationEmailTpl = `
-  <h2>登录通知</h2>
-  <p>您好，您的账号刚刚在新设备上登录：</p>
-  <p>IP地址：{{.Ip}}</p>
-  <p>时间：{{.Time}}</p>
-  <p>如果这不是您本人的操作，请立即修改密码。</p>
-  `
-
+  // 邮件模板
+import { verificationEmailTpl } from './emailtpl'
 
 interface FormData {
   nickname: string
@@ -187,16 +171,30 @@ const resendVerification = async () => {
   
   try {
     resending.value = true
+    resendSuccess.value = false
+    resendError.value = ''
     
     await axios.post('/auth/email/resend-verification', {
       email: formData.email,
-      title: 'regist vextro.io',
+      title: '邮箱验证',
       content: verificationEmailTpl
     })
     
-    alert('验证邮件已重新发送，请查收')
+    // 显示内联成功提示，而不是使用alert
+    resendSuccess.value = true
+    
+    // 5秒后自动隐藏成功提示
+    setTimeout(() => {
+      resendSuccess.value = false
+    }, 5000)
   } catch (error: any) {
-    alert(error.response?.data?.message || '重新发送验证邮件失败，请重试')
+    // 显示内联错误提示，而不是使用alert
+    resendError.value = error.response?.data?.message || '重新发送验证邮件失败，请重试'
+    
+    // 5秒后自动隐藏错误提示
+    setTimeout(() => {
+      resendError.value = ''
+    }, 5000)
   } finally {
     resending.value = false
   }
@@ -381,5 +379,66 @@ input.error {
 
 .reset-btn:hover {
   background-color: #e0e0e0;
+}
+
+/* 重发成功提示样式 */
+.resend-success {
+  display: flex;
+  align-items: center;
+  margin-top: 12px;
+  padding: 8px 12px;
+  background-color: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 4px;
+  color: #52c41a;
+  font-size: 14px;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.success-icon-small {
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: #52c41a;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+/* 重发失败提示样式 */
+.resend-error {
+  display: flex;
+  align-items: center;
+  margin-top: 12px;
+  padding: 8px 12px;
+  background-color: #fff2f0;
+  border: 1px solid #ffccc7;
+  border-radius: 4px;
+  color: #ff4d4f;
+  font-size: 14px;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.error-icon-small {
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: #ff4d4f;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 </style> 

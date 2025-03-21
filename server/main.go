@@ -265,7 +265,7 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 
 		// 创建手机认证
 		phoneAuth = auth.NewPhoneAuth(globalDB, auth.PhoneAuthConfig{
-			VerificationExpiry: time.Hour * 24,
+			VerificationExpiry: time.Minute * 10, // 10分钟
 			SMSService:         smsService,
 			Redis:              auth.NewAccountRedisStore(globalRedisStore.GetClient()),
 		})

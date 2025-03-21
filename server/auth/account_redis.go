@@ -131,22 +131,33 @@ func (rs *AccountRedisStore) Delete(key string) error {
 }
 
 // StoreVerification 存储验证信息
-func (rs *AccountRedisStore) StoreVerification(verificationType VerificationType, token string, userID string, expiry time.Duration) error {
+func (rs *AccountRedisStore) StoreVerification(verificationType VerificationType, identifier string, token string, userID string, expiry time.Duration) error {
 	verification := &Verification{
-		UserID:    userID,
-		Type:      verificationType,
-		Token:     token,
-		ExpiresAt: time.Now().Add(expiry),
-		CreatedAt: time.Now(),
+		UserID:     userID,
+		Type:       verificationType,
+		Token:      token,
+		Identifier: identifier,
+		ExpiresAt:  time.Now().Add(expiry),
+		CreatedAt:  time.Now(),
 	}
 
-	key := fmt.Sprintf("verification:%s:%s", string(verificationType), token)
-	return rs.Set(key, verification, expiry)
+	key := fmt.Sprintf("verification:%s:%s", string(verificationType), identifier)
+	err := rs.Set(key, verification, expiry)
+	if err != nil {
+		return fmt.Errorf("存储验证信息失败: %w", err)
+	}
+
+	err = rs.Set(fmt.Sprintf("verification:identifier:%s", token), identifier, expiry)
+	if err != nil {
+		return fmt.Errorf("存储验证信息失败2: %w", err)
+	}
+
+	return nil
 }
 
 // GetVerification 获取验证信息
-func (rs *AccountRedisStore) GetVerification(verificationType VerificationType, token string) (*Verification, error) {
-	key := fmt.Sprintf("verification:%s:%s", string(verificationType), token)
+func (rs *AccountRedisStore) GetVerification(verificationType VerificationType, identifier string) (*Verification, error) {
+	key := fmt.Sprintf("verification:%s:%s", string(verificationType), identifier)
 	var verification Verification
 	err := rs.Get(key, &verification)
 	if err != nil {
@@ -162,7 +173,38 @@ func (rs *AccountRedisStore) GetVerification(verificationType VerificationType, 
 }
 
 // DeleteVerification 删除验证信息
-func (rs *AccountRedisStore) DeleteVerification(verificationType VerificationType, token string) error {
-	key := fmt.Sprintf("verification:%s:%s", string(verificationType), token)
-	return rs.Delete(key)
+func (rs *AccountRedisStore) DeleteVerification(verificationType VerificationType, identifier string, token string) error {
+	key := fmt.Sprintf("verification:%s:%s", string(verificationType), identifier)
+	err := rs.Delete(key)
+	if err != nil {
+		return fmt.Errorf("删除验证信息失败: %w", err)
+	}
+	key = fmt.Sprintf("verification:identifier:%s", token)
+	err = rs.Delete(key)
+	if err != nil {
+		return fmt.Errorf("删除验证信息失败2: %w", err)
+	}
+
+	return nil
+}
+
+func (rs *AccountRedisStore) GetVerificationByToken(verificationType VerificationType, token string) (*Verification, error) {
+	key := fmt.Sprintf("verification:identifier:%s", token)
+	var identifier string
+	err := rs.Get(key, &identifier)
+	if err != nil {
+		return nil, err
+	}
+
+	verification, err := rs.GetVerification(verificationType, identifier)
+	if err != nil {
+		return nil, err
+	}
+
+	// 验证下是否同一个token
+	if verification.Token != token {
+		return nil, NewAppError(ErrCodeInvalidToken, "验证令牌无效", nil)
+	}
+
+	return verification, nil
 }

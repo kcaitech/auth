@@ -96,7 +96,7 @@ func (a *EmailAuth) InitiatePasswordReset(email, title, content string) (string,
 	}
 
 	// 将验证记录存储到Redis中并设置过期时间
-	if err := a.redis.StoreVerification(VerificationTypePassword, token, user.UserID, a.verificationExpiry); err != nil {
+	if err := a.redis.StoreVerification(VerificationTypePassword, email, token, user.UserID, a.verificationExpiry); err != nil {
 		return "", fmt.Errorf("存储密码重置验证信息失败: %w", err)
 	}
 
@@ -111,7 +111,7 @@ func (a *EmailAuth) InitiatePasswordReset(email, title, content string) (string,
 // CompletePasswordReset 完成密码重置
 func (a *EmailAuth) CompletePasswordReset(token, newPassword string) error {
 	// 从Redis获取验证记录
-	verification, err := a.redis.GetVerification(VerificationTypePassword, token)
+	verification, err := a.redis.GetVerificationByToken(VerificationTypePassword, token)
 	if err != nil {
 		return ErrInvalidToken("密码重置令牌无效或已过期")
 	}
@@ -140,7 +140,7 @@ func (a *EmailAuth) CompletePasswordReset(token, newPassword string) error {
 	}
 
 	// 使用完令牌后删除
-	return a.redis.DeleteVerification(VerificationTypePassword, token)
+	return a.redis.DeleteVerification(VerificationTypePassword, verification.Identifier, token)
 }
 
 // EmailPreregister 邮箱预注册，发送验证邮件但不创建用户
@@ -193,7 +193,7 @@ func (a *EmailAuth) EmailPreregister(email, password, nickname, title, content s
 	}
 
 	// 将验证令牌关联到邮箱
-	if err := a.redis.StoreVerification(VerificationTypeEmail, token, email, a.verificationExpiry); err != nil {
+	if err := a.redis.StoreVerification(VerificationTypeEmail, email, token, "", a.verificationExpiry); err != nil {
 		return "", fmt.Errorf("存储邮箱验证信息失败: %w", err)
 	}
 
@@ -311,13 +311,12 @@ func (a *EmailAuth) RegisterEmailUser(email, password, nickname string) (*User, 
 // VerifyEmail 验证邮箱并完成注册
 func (a *EmailAuth) VerifyEmail(token string) (*User, error) {
 	// 从Redis获取验证记录
-	verification, err := a.redis.GetVerification(VerificationTypeEmail, token)
+	verification, err := a.redis.GetVerificationByToken(VerificationTypeEmail, token)
 	if err != nil {
 		return nil, ErrInvalidToken("邮箱验证令牌无效或已过期")
 	}
 
-	// 验证令牌中存储的是邮箱而不是UserID
-	email := verification.UserID
+	email := verification.Identifier
 
 	// 尝试获取预注册信息
 	preregKey := fmt.Sprintf("email_prereg:%s:%s", email, token)
@@ -333,7 +332,7 @@ func (a *EmailAuth) VerifyEmail(token string) (*User, error) {
 	}
 
 	// 使用完令牌后删除
-	if err := a.redis.DeleteVerification(VerificationTypeEmail, token); err != nil {
+	if err := a.redis.DeleteVerification(VerificationTypeEmail, email, token); err != nil {
 		// 仅记录错误，不影响注册流程
 		fmt.Printf("删除验证令牌失败: %v\n", err)
 	}
@@ -365,7 +364,7 @@ func (a *EmailAuth) SendVerificationEmail(userID, title, content string) error {
 	}
 
 	// 将验证记录存储到Redis中并设置过期时间
-	if err := a.redis.StoreVerification(VerificationTypeEmail, token, userID, a.verificationExpiry); err != nil {
+	if err := a.redis.StoreVerification(VerificationTypeEmail, emailUser.Email, token, userID, a.verificationExpiry); err != nil {
 		return fmt.Errorf("存储邮箱验证信息失败: %w", err)
 	}
 

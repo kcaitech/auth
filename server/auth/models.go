@@ -31,11 +31,12 @@ type UserProfile struct {
 
 // 验证记录
 type Verification struct {
-	UserID    string           `gorm:"primarykey"`
-	Type      VerificationType `gorm:"size:20"`
-	Token     string           `gorm:"size:100;index"`
-	ExpiresAt time.Time
-	CreatedAt time.Time
+	UserID     string           `gorm:"primarykey"`
+	Type       VerificationType `gorm:"size:20"`
+	Token      string           `gorm:"size:100;index"`
+	Identifier string           `gorm:"size:100"`
+	ExpiresAt  time.Time
+	CreatedAt  time.Time
 }
 
 // 用户角色关联

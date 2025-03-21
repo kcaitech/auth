@@ -34,7 +34,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-
+import { verificationEmailTpl } from './emailtpl'
+import axios from 'axios';
 const route = useRoute();
 const router = useRouter();
 
@@ -108,30 +109,29 @@ const resendVerification = async () => {
   try {
     resending.value = true;
     
-    const response = await fetch('/auth/email/resend-verification', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: verifiedEmail.value,
-        title: '邮箱验证',
-        content: `
-          <h2>邮箱验证</h2>
-          <p>您好，请点击以下链接验证您的邮箱：</p>
-          <p><a href="{{.BaseURL}}/auth/verify-email?token={{.token}}">验证邮箱</a></p>
-          <p>如果链接无法点击，请复制以下地址到浏览器打开：</p>
-          <p>{{.BaseURL}}/auth/verify-email?token={{.token}}</p>
-          <p>此链接将在24小时后过期。</p>
-        `
-      })
-    });
+    // const response = await fetch('/auth/email/resend-verification', {
+    //   method: 'POST',
+    //   headers: {
+    //     'Content-Type': 'application/json',
+    //   },
+    //   body: JSON.stringify({
+    //     email: verifiedEmail.value,
+    //     title: '邮箱验证',
+    //     content: verificationEmailTpl
+    //   })
+    // });
     
-    const data = await response.json();
+    // const data = await response.json();
+
+    await axios.post('/auth/email/resend-verification', {
+      email: verifiedEmail.value,
+      title: '邮箱验证',
+      content: verificationEmailTpl
+    })
     
-    if (!response.ok) {
-      throw new Error(data.error || '重新发送失败，请稍后重试');
-    }
+    // if (!response.ok) {
+    //   throw new Error(data.error || '重新发送失败，请稍后重试');
+    // }
     
     alert('验证邮件已重新发送，请查收');
     
