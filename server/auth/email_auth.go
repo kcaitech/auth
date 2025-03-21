@@ -33,9 +33,9 @@ type EmailAuth struct {
 
 // EmailService 邮件服务接口
 type EmailService interface {
-	SendVerificationEmail(email, token string) error
-	SendPasswordResetEmail(email, token string) error
-	SendLoginNotificationEmail(email, ip string) error
+	SendVerificationEmail(email, token, title, content string) error
+	SendPasswordResetEmail(email, token, title, content string) error
+	SendLoginNotificationEmail(email, ip, title, content string) error
 }
 
 // 预注册信息，存储在Redis中
@@ -83,7 +83,7 @@ func generateToken() (string, error) {
 }
 
 // InitiatePasswordReset 发起密码重置
-func (a *EmailAuth) InitiatePasswordReset(email string) (string, error) {
+func (a *EmailAuth) InitiatePasswordReset(email, title, content string) (string, error) {
 	user, err := a.GetUserByEmail(email)
 	if err != nil {
 		return "", err
@@ -101,7 +101,7 @@ func (a *EmailAuth) InitiatePasswordReset(email string) (string, error) {
 	}
 
 	// 发送重置邮件
-	if err := a.emailService.SendPasswordResetEmail(email, token); err != nil {
+	if err := a.emailService.SendPasswordResetEmail(email, token, title, content); err != nil {
 		return "", err
 	}
 
@@ -144,7 +144,7 @@ func (a *EmailAuth) CompletePasswordReset(token, newPassword string) error {
 }
 
 // EmailPreregister 邮箱预注册，发送验证邮件但不创建用户
-func (a *EmailAuth) EmailPreregister(email, password, nickname string) (string, error) {
+func (a *EmailAuth) EmailPreregister(email, password, nickname, title, content string) (string, error) {
 	// 邮箱必须提供
 	if email == "" {
 		return "", ErrInvalidInput("必须提供有效邮箱")
@@ -198,21 +198,21 @@ func (a *EmailAuth) EmailPreregister(email, password, nickname string) (string, 
 	}
 
 	// 发送验证邮件
-	if err := a.emailService.SendVerificationEmail(email, token); err != nil {
+	if err := a.emailService.SendVerificationEmail(email, token, title, content); err != nil {
 		return "", fmt.Errorf("发送验证邮件失败: %w", err)
 	}
 
 	return token, nil
 }
 
-func (a *EmailAuth) ResentEmailVerification(email string) (bool, error) {
+func (a *EmailAuth) ResentEmailVerification(email, title, content string) (bool, error) {
 	verification, err := a.redis.GetVerification(VerificationTypeEmail, email)
 	if err != nil {
 		return false, err
 	}
 
 	// 发送验证邮件
-	if err := a.emailService.SendVerificationEmail(email, verification.Token); err != nil {
+	if err := a.emailService.SendVerificationEmail(email, verification.Token, title, content); err != nil {
 		return false, fmt.Errorf("发送验证邮件失败: %w", err)
 	}
 
@@ -348,7 +348,7 @@ func (a *EmailAuth) VerifyEmail(token string) (*User, error) {
 }
 
 // SendVerificationEmail 发送验证邮件 - 现在用于已注册用户重新验证邮箱
-func (a *EmailAuth) SendVerificationEmail(userID string) error {
+func (a *EmailAuth) SendVerificationEmail(userID, title, content string) error {
 	// 查询 EmailUser 记录
 	var emailUser EmailUser
 	if err := a.db.Where("user_id = ?", userID).First(&emailUser).Error; err != nil {
@@ -369,7 +369,7 @@ func (a *EmailAuth) SendVerificationEmail(userID string) error {
 		return fmt.Errorf("存储邮箱验证信息失败: %w", err)
 	}
 
-	return a.emailService.SendVerificationEmail(emailUser.Email, token)
+	return a.emailService.SendVerificationEmail(emailUser.Email, token, title, content)
 }
 
 // EmailLogin 邮箱用户登录

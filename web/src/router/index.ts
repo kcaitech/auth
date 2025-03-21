@@ -18,6 +18,11 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/auth/verify-email',
+    name: 'EmailVerify',
+    component: () => import('../components/auth/EmailVerify.vue')
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('../views/NotFound.vue')

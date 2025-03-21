@@ -154,7 +154,7 @@ func (rs *AccountRedisStore) GetVerification(verificationType VerificationType, 
 	}
 
 	// 验证是否过期
-	if verification.ExpiresAt.Before(time.Now()) {
+	if verification.ExpiresAt.After(time.Now()) {
 		return nil, NewAppError(ErrCodeInvalidToken, "验证令牌已过期", nil)
 	}
 

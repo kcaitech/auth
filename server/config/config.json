@@ -40,8 +40,7 @@
             "port": 80,
             "username": "noreply@verify.vextra.io",
             "password": "DeXyxinC1xbce83",
-            "from": "noreply@verify.vextra.io",
-            "base_url": "http://localhost:8080"
+            "from": "Vextro <noreply@verify.vextra.io>"
         },
         "jwt": {
             "issuer": "kcaitech.com"

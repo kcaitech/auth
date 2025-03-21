@@ -123,7 +123,7 @@ type SmtpConfig struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 	From     string `json:"from"`
-	BaseURL  string `json:"base_url"` // 用于生成验证链接
+	// BaseURL  string `json:"base_url"` // 用于生成验证链接
 }
 
 // LoadConfig 从文件加载配置

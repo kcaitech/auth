@@ -193,7 +193,7 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 			Username: cfg.Auth.Smtp.Username,
 			Password: cfg.Auth.Smtp.Password,
 			From:     cfg.Auth.Smtp.From,
-			BaseURL:  cfg.Auth.Smtp.BaseURL,
+			// BaseURL:  cfg.Auth.Smtp.BaseURL,
 		})
 
 		// 使用文件中导入的类型，不要手动定义结构类型

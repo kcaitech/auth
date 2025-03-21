@@ -67,6 +67,8 @@ func (h *AuthHandler) EmailRegister(c *gin.Context) {
 		Email    string `json:"email" binding:"required,email"`
 		Password string `json:"password" binding:"required"`
 		Nickname string `json:"nickname"`
+		Title    string `json:"title" binding:"required"`
+		Content  string `json:"content" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -75,7 +77,7 @@ func (h *AuthHandler) EmailRegister(c *gin.Context) {
 	}
 
 	// 预注册邮箱用户，只发送验证邮件，不创建用户
-	_, err := h.emailAuth.EmailPreregister(req.Email, req.Password, req.Nickname)
+	_, err := h.emailAuth.EmailPreregister(req.Email, req.Password, req.Nickname, req.Title, req.Content)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -129,9 +131,9 @@ func (h *AuthHandler) EmailVerify(c *gin.Context) {
 // ResendEmailVerification 重新发送邮箱验证邮件
 func (h *AuthHandler) ResendEmailVerification(c *gin.Context) {
 	var req struct {
-		Email string `json:"email" binding:"required,email"`
-		// Password string `json:"password" binding:"required"`
-		// Nickname string `json:"nickname"`
+		Email   string `json:"email" binding:"required,email"`
+		Title   string `json:"title" binding:"required"`
+		Content string `json:"content" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -139,7 +141,7 @@ func (h *AuthHandler) ResendEmailVerification(c *gin.Context) {
 		return
 	}
 
-	_, err := h.emailAuth.ResentEmailVerification(req.Email)
+	_, err := h.emailAuth.ResentEmailVerification(req.Email, req.Title, req.Content)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -151,7 +153,9 @@ func (h *AuthHandler) ResendEmailVerification(c *gin.Context) {
 // EmailPasswordReset 邮箱密码重置
 func (h *AuthHandler) EmailPasswordReset(c *gin.Context) {
 	var req struct {
-		Email string `json:"email" binding:"required,email"`
+		Email   string `json:"email" binding:"required,email"`
+		Title   string `json:"title" binding:"required"`
+		Content string `json:"content" binding:"required"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -160,7 +164,7 @@ func (h *AuthHandler) EmailPasswordReset(c *gin.Context) {
 	}
 
 	// 发起密码重置
-	_, err := h.emailAuth.InitiatePasswordReset(req.Email)
+	_, err := h.emailAuth.InitiatePasswordReset(req.Email, req.Title, req.Content)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
