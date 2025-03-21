@@ -215,7 +215,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 // handleGoogleUser 处理谷歌用户，查找或创建用户
 func (h *AuthHandler) handleGoogleUser(googleID, email, name, pictureURL string) (*auth.User, error) {
 	if h.googleOAuth == nil {
-		return nil, fmt.Errorf("Google OAuth 未启用")
+		return nil, fmt.Errorf("google OAuth 未启用")
 	}
 
 	// 创建一个GoogleUserInfo对象

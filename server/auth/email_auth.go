@@ -38,6 +38,14 @@ type EmailService interface {
 	SendLoginNotificationEmail(email, ip string) error
 }
 
+// 预注册信息，存储在Redis中
+type EmailPreregisterInfo struct {
+	Email     string    `json:"email"`
+	Password  string    `json:"password"` // 已加密的密码
+	Nickname  string    `json:"nickname"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 // 配置选项
 type EmailAutnConfig struct {
 	VerificationExpiry time.Duration
@@ -135,7 +143,211 @@ func (a *EmailAuth) CompletePasswordReset(token, newPassword string) error {
 	return a.redis.DeleteVerification(VerificationTypePassword, token)
 }
 
-// SendVerificationEmail 发送验证邮件
+// EmailPreregister 邮箱预注册，发送验证邮件但不创建用户
+func (a *EmailAuth) EmailPreregister(email, password, nickname string) (string, error) {
+	// 邮箱必须提供
+	if email == "" {
+		return "", ErrInvalidInput("必须提供有效邮箱")
+	}
+
+	// 检查邮箱是否重复
+	if err := a.CheckDuplicateEmail(email); err != nil {
+		return "", err
+	}
+
+	// 如果没有提供昵称，使用邮箱前缀作为默认昵称
+	if nickname == "" {
+		parts := strings.Split(email, "@")
+		nickname = parts[0]
+	}
+
+	// 验证密码强度
+	if err := a.ValidatePassword(password); err != nil {
+		return "", err
+	}
+
+	// 加密密码
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", fmt.Errorf("密码加密失败: %v", err)
+	}
+
+	// 生成验证令牌
+	token, err := generateToken()
+	if err != nil {
+		return "", err
+	}
+
+	// 创建预注册信息
+	preregInfo := &EmailPreregisterInfo{
+		Email:     email,
+		Password:  string(hashedPassword),
+		Nickname:  nickname,
+		CreatedAt: time.Now(),
+	}
+
+	// 将预注册信息存储到Redis中
+	preregKey := fmt.Sprintf("email_prereg:%s:%s", email, token)
+	if err := a.redis.Set(preregKey, preregInfo, a.verificationExpiry); err != nil {
+		return "", fmt.Errorf("存储预注册信息失败: %w", err)
+	}
+
+	// 将验证令牌关联到邮箱
+	if err := a.redis.StoreVerification(VerificationTypeEmail, token, email, a.verificationExpiry); err != nil {
+		return "", fmt.Errorf("存储邮箱验证信息失败: %w", err)
+	}
+
+	// 发送验证邮件
+	if err := a.emailService.SendVerificationEmail(email, token); err != nil {
+		return "", fmt.Errorf("发送验证邮件失败: %w", err)
+	}
+
+	return token, nil
+}
+
+func (a *EmailAuth) ResentEmailVerification(email string) (bool, error) {
+	verification, err := a.redis.GetVerification(VerificationTypeEmail, email)
+	if err != nil {
+		return false, err
+	}
+
+	// 发送验证邮件
+	if err := a.emailService.SendVerificationEmail(email, verification.Token); err != nil {
+		return false, fmt.Errorf("发送验证邮件失败: %w", err)
+	}
+
+	return true, nil
+}
+
+// RegisterEmailUser 邮箱用户注册 - 这个函数现在是内部使用，在验证成功后调用
+func (a *EmailAuth) RegisterEmailUser(email, password, nickname string) (*User, error) {
+	// 邮箱必须提供
+	if email == "" {
+		return nil, ErrInvalidInput("必须提供有效邮箱")
+	}
+
+	// 检查邮箱是否重复
+	if err := a.CheckDuplicateEmail(email); err != nil {
+		return nil, err
+	}
+
+	// 生成随机UserID
+	userID, err := GenerateBase62ID()
+	if err != nil {
+		return nil, fmt.Errorf("生成随机ID失败: %v", err)
+	}
+
+	// 确保UserID唯一
+	for {
+		var count int64
+		a.db.Model(&User{}).Where("user_id = ?", userID).Count(&count)
+		if count == 0 {
+			break
+		}
+		// 生成新的UserID
+		userID, err = GenerateBase62ID()
+		if err != nil {
+			return nil, fmt.Errorf("生成随机ID失败: %v", err)
+		}
+	}
+
+	// 如果没有提供昵称，使用邮箱前缀作为默认昵称
+	if nickname == "" {
+		parts := strings.Split(email, "@")
+		nickname = parts[0]
+	}
+
+	// 开始事务
+	tx := a.db.Begin()
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// 创建基本用户记录
+	now := time.Now()
+	user := &User{
+		UserID:   userID,
+		Password: password, // 已加密的密码
+		Status:   UserStatusActive,
+		Profile: UserProfile{
+			Nickname: nickname,
+		},
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	if err := tx.Create(user).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("创建用户失败: %v", err)
+	}
+
+	// 创建邮箱用户关联记录
+	emailUser := &EmailUser{
+		UserID:    userID,
+		Email:     email,
+		Verified:  true, // 邮箱已验证
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	if err := tx.Create(emailUser).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("创建邮箱用户关联失败: %v", err)
+	}
+
+	// 提交事务
+	if err := tx.Commit().Error; err != nil {
+		return nil, fmt.Errorf("保存数据失败: %v", err)
+	}
+
+	return user, nil
+}
+
+// VerifyEmail 验证邮箱并完成注册
+func (a *EmailAuth) VerifyEmail(token string) (*User, error) {
+	// 从Redis获取验证记录
+	verification, err := a.redis.GetVerification(VerificationTypeEmail, token)
+	if err != nil {
+		return nil, ErrInvalidToken("邮箱验证令牌无效或已过期")
+	}
+
+	// 验证令牌中存储的是邮箱而不是UserID
+	email := verification.UserID
+
+	// 尝试获取预注册信息
+	preregKey := fmt.Sprintf("email_prereg:%s:%s", email, token)
+	var preregInfo EmailPreregisterInfo
+	if err := a.redis.Get(preregKey, &preregInfo); err != nil {
+		return nil, ErrInvalidToken("找不到预注册信息或已过期，请重新注册")
+	}
+
+	// 完成注册
+	user, err := a.RegisterEmailUser(email, preregInfo.Password, preregInfo.Nickname)
+	if err != nil {
+		return nil, fmt.Errorf("完成注册失败: %w", err)
+	}
+
+	// 使用完令牌后删除
+	if err := a.redis.DeleteVerification(VerificationTypeEmail, token); err != nil {
+		// 仅记录错误，不影响注册流程
+		fmt.Printf("删除验证令牌失败: %v\n", err)
+	}
+
+	// 删除预注册信息
+	if err := a.redis.Delete(preregKey); err != nil {
+		// 仅记录错误，不影响注册流程
+		fmt.Printf("删除预注册信息失败: %v\n", err)
+	}
+
+	return user, nil
+}
+
+// SendVerificationEmail 发送验证邮件 - 现在用于已注册用户重新验证邮箱
 func (a *EmailAuth) SendVerificationEmail(userID string) error {
 	// 查询 EmailUser 记录
 	var emailUser EmailUser
@@ -158,30 +370,6 @@ func (a *EmailAuth) SendVerificationEmail(userID string) error {
 	}
 
 	return a.emailService.SendVerificationEmail(emailUser.Email, token)
-}
-
-// VerifyEmail 验证邮箱
-func (a *EmailAuth) VerifyEmail(token string) error {
-	// 从Redis获取验证记录
-	verification, err := a.redis.GetVerification(VerificationTypeEmail, token)
-	if err != nil {
-		return ErrInvalidToken("邮箱验证令牌无效或已过期")
-	}
-
-	// 更新 EmailUser 验证状态
-	result := a.db.Model(&EmailUser{}).Where("user_id = ?", verification.UserID).
-		Update("verified", true)
-
-	if result.Error != nil {
-		return result.Error
-	}
-
-	if result.RowsAffected == 0 {
-		return ErrInvalidToken("无效的用户ID")
-	}
-
-	// 使用完令牌后删除
-	return a.redis.DeleteVerification(VerificationTypeEmail, token)
 }
 
 // EmailLogin 邮箱用户登录
@@ -255,113 +443,6 @@ func (a *EmailAuth) CheckDuplicateEmail(email string) error {
 		return ErrDuplicateUser("邮箱已被使用")
 	}
 	return nil
-}
-
-// RegisterEmailUser 邮箱用户注册
-func (a *EmailAuth) RegisterEmailUser(email, password, nickname string) (*User, error) {
-	// 邮箱必须提供
-	if email == "" {
-		return nil, ErrInvalidInput("必须提供有效邮箱")
-	}
-
-	// 检查邮箱是否重复
-	if err := a.CheckDuplicateEmail(email); err != nil {
-		return nil, err
-	}
-
-	// 生成随机UserID
-	userID, err := GenerateBase62ID()
-	if err != nil {
-		return nil, fmt.Errorf("生成随机ID失败: %v", err)
-	}
-
-	// 确保UserID唯一
-	for {
-		var count int64
-		a.db.Model(&User{}).Where("user_id = ?", userID).Count(&count)
-		if count == 0 {
-			break
-		}
-		// 生成新的UserID
-		userID, err = GenerateBase62ID()
-		if err != nil {
-			return nil, fmt.Errorf("生成随机ID失败: %v", err)
-		}
-	}
-
-	// 如果没有提供昵称，使用邮箱前缀作为默认昵称
-	if nickname == "" {
-		parts := strings.Split(email, "@")
-		nickname = parts[0]
-	}
-
-	// 验证密码强度
-	if err := a.ValidatePassword(password); err != nil {
-		return nil, err
-	}
-
-	// 加密密码
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, fmt.Errorf("密码加密失败: %v", err)
-	}
-
-	// 开始事务
-	tx := a.db.Begin()
-	if tx.Error != nil {
-		return nil, tx.Error
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
-
-	// 创建基本用户记录
-	now := time.Now()
-	user := &User{
-		UserID:   userID,
-		Password: string(hashedPassword),
-		Status:   UserStatusActive,
-		Profile: UserProfile{
-			Nickname: nickname,
-		},
-		// LastAttempt: now,
-		CreatedAt: now,
-		UpdatedAt: now,
-	}
-
-	if err := tx.Create(user).Error; err != nil {
-		tx.Rollback()
-		return nil, fmt.Errorf("创建用户失败: %v", err)
-	}
-
-	// 创建邮箱用户关联记录
-	emailUser := &EmailUser{
-		UserID:    userID,
-		Email:     email,
-		Verified:  false,
-		CreatedAt: now,
-		UpdatedAt: now,
-	}
-
-	if err := tx.Create(emailUser).Error; err != nil {
-		tx.Rollback()
-		return nil, fmt.Errorf("创建邮箱用户关联失败: %v", err)
-	}
-
-	// 提交事务
-	if err := tx.Commit().Error; err != nil {
-		return nil, fmt.Errorf("保存数据失败: %v", err)
-	}
-
-	// 发送验证邮件
-	if err := a.SendVerificationEmail(userID); err != nil {
-		// 仅记录错误，不影响注册流程
-		fmt.Printf("发送验证邮件失败: %v\n", err)
-	}
-
-	return user, nil
 }
 
 // ValidatePassword 验证密码强度

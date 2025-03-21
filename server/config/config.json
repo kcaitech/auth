@@ -36,11 +36,11 @@
             "secret_size": 20
         },
         "smtp": {
-            "host": "smtp.example.com",
-            "port": 587,
-            "username": "user@example.com",
-            "password": "password",
-            "from": "no-reply@example.com",
+            "host": "smtpdm.aliyun.com",
+            "port": 80,
+            "username": "noreply@verify.vextra.io",
+            "password": "DeXyxinC1xbce83",
+            "from": "noreply@verify.vextra.io",
             "base_url": "http://localhost:8080"
         },
         "jwt": {

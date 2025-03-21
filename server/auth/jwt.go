@@ -132,7 +132,7 @@ func (s *JWTService) generateToken(userID string, sessionID, tokenType string, e
 
 	// 创建Token
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	token.Header["kid"] = keyID
+	// token.Header["kid"] = keyID
 
 	// 签名Token
 	tokenString, err := token.SignedString(secretKey)

@@ -61,7 +61,7 @@ func (h *AuthHandler) EmailLogin(c *gin.Context) {
 	})
 }
 
-// EmailRegister 邮箱注册
+// EmailRegister 邮箱预注册
 func (h *AuthHandler) EmailRegister(c *gin.Context) {
 	var req struct {
 		Email    string `json:"email" binding:"required,email"`
@@ -74,8 +74,29 @@ func (h *AuthHandler) EmailRegister(c *gin.Context) {
 		return
 	}
 
-	// 注册邮箱用户
-	user, err := h.emailAuth.RegisterEmailUser(req.Email, req.Password, req.Nickname)
+	// 预注册邮箱用户，只发送验证邮件，不创建用户
+	_, err := h.emailAuth.EmailPreregister(req.Email, req.Password, req.Nickname)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "验证邮件已发送，请查收并点击验证链接完成注册",
+		"email":   req.Email,
+	})
+}
+
+// EmailVerify 邮箱验证并完成注册
+func (h *AuthHandler) EmailVerify(c *gin.Context) {
+	token := c.Query("token")
+	if token == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "缺少验证令牌"})
+		return
+	}
+
+	// 验证邮箱并完成注册
+	user, err := h.emailAuth.VerifyEmail(token)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -97,6 +118,7 @@ func (h *AuthHandler) EmailRegister(c *gin.Context) {
 
 	c.SetCookie("refreshToken", tokenPair.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
 	c.JSON(http.StatusOK, gin.H{
+		"message":     "邮箱验证成功，注册完成",
 		"user_id":     user.UserID,
 		"token":       tokenPair.AccessToken,
 		"profile":     user.Profile,
@@ -104,27 +126,12 @@ func (h *AuthHandler) EmailRegister(c *gin.Context) {
 	})
 }
 
-// EmailVerify 邮箱验证
-func (h *AuthHandler) EmailVerify(c *gin.Context) {
-	token := c.Query("token")
-	if token == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "缺少验证令牌"})
-		return
-	}
-
-	// 验证邮箱
-	if err := h.emailAuth.VerifyEmail(token); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"message": "邮箱验证成功"})
-}
-
 // ResendEmailVerification 重新发送邮箱验证邮件
 func (h *AuthHandler) ResendEmailVerification(c *gin.Context) {
 	var req struct {
 		Email string `json:"email" binding:"required,email"`
+		// Password string `json:"password" binding:"required"`
+		// Nickname string `json:"nickname"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -132,16 +139,9 @@ func (h *AuthHandler) ResendEmailVerification(c *gin.Context) {
 		return
 	}
 
-	// 获取用户信息
-	user, err := h.emailAuth.GetUserByEmail(req.Email)
+	_, err := h.emailAuth.ResentEmailVerification(req.Email)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "未找到该邮箱对应的用户"})
-		return
-	}
-
-	// 重新发送验证邮件
-	if err := h.emailAuth.SendVerificationEmail(user.UserID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "发送验证邮件失败"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
