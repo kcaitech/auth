@@ -6,7 +6,7 @@
         <input 
           v-model="formData.username" 
           type="text" 
-          placeholder="用户名"
+          :placeholder="$t('common.username')"
           :class="{ 'error': formErrors.username }"
         >
         <span v-if="formErrors.username" class="error-text">{{ formErrors.username }}</span>
@@ -16,14 +16,14 @@
         <input 
           v-model="formData.password" 
           type="password" 
-          placeholder="密码"
+          :placeholder="$t('common.password')"
           :class="{ 'error': formErrors.password }"
         >
         <span v-if="formErrors.password" class="error-text">{{ formErrors.password }}</span>
       </div>
 
       <button type="submit" :disabled="isLoading" class="submit-btn">
-        {{ isLoading ? '登录中...' : '登录' }}
+        {{ isLoading ? $t('common.loading') : $t('auth.login') }}
       </button>
     </form>
   </div>
@@ -33,6 +33,7 @@
 import { reactive, ref, defineEmits } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 
 const emit = defineEmits<{
   (e: 'login-success'): void
@@ -51,6 +52,7 @@ interface FormErrors {
 
 const authStore = useAuthStore()
 const router = useRouter()
+const { t } = useI18n()
 const isLoading = ref(false)
 const formData = reactive<FormData>({
   username: '',
@@ -65,12 +67,12 @@ const validateForm = () => {
   Object.keys(formErrors).forEach(key => delete formErrors[key as keyof FormErrors])
   
   if (!formData.username) {
-    formErrors.username = '请输入用户名'
+    formErrors.username = t('validation.required', { field: t('common.username') })
     isValid = false
   }
   
   if (!formData.password) {
-    formErrors.password = '请输入密码'
+    formErrors.password = t('validation.required', { field: t('common.password') })
     isValid = false
   }
   
@@ -94,7 +96,7 @@ const handleLogin = async () => {
     router.push('/dashboard')
   } catch (error: any) {
     // 登录失败，通知父组件
-    emit('login-error', error.message || '登录失败，请重试')
+    emit('login-error', error.message || t('errors.loginFailed'))
   } finally {
     isLoading.value = false
   }

@@ -6,13 +6,13 @@
         :class="['tab-btn', { active: phoneLoginMethod === 'password' }]" 
         @click="phoneLoginMethod = 'password'"
       >
-        密码登录
+        {{ $t('auth.passwordLogin') }}
       </button>
       <button 
         :class="['tab-btn', { active: phoneLoginMethod === 'code' }]" 
         @click="phoneLoginMethod = 'code'"
       >
-        验证码登录
+        {{ $t('auth.codeLogin') }}
       </button>
     </div>
 
@@ -22,7 +22,7 @@
         <input 
           v-model="passwordForm.phone" 
           type="text" 
-          placeholder="手机号"
+          :placeholder="$t('common.phoneNumber')"
           :class="{ 'error': formErrors.phone }"
         >
         <span v-if="formErrors.phone" class="error-text">{{ formErrors.phone }}</span>
@@ -32,14 +32,14 @@
         <input 
           v-model="passwordForm.password" 
           type="password" 
-          placeholder="密码"
+          :placeholder="$t('common.password')"
           :class="{ 'error': formErrors.password }"
         >
         <span v-if="formErrors.password" class="error-text">{{ formErrors.password }}</span>
       </div>
 
       <button type="submit" :disabled="isLoading" class="submit-btn">
-        {{ isLoading ? '登录中...' : '登录' }}
+        {{ isLoading ? $t('common.loading') : $t('auth.login') }}
       </button>
     </form>
 
@@ -49,7 +49,7 @@
         <input 
           v-model="codeForm.phone" 
           type="text" 
-          placeholder="手机号"
+          :placeholder="$t('common.phoneNumber')"
           :class="{ 'error': formErrors.phone }"
         >
         <span v-if="formErrors.phone" class="error-text">{{ formErrors.phone }}</span>
@@ -59,7 +59,7 @@
         <input 
           v-model="codeForm.code" 
           type="text" 
-          placeholder="验证码"
+          :placeholder="$t('common.verificationCode')"
           :class="{ 'error': formErrors.code }"
         >
         <button 
@@ -68,14 +68,14 @@
           :disabled="cooldown > 0 || !codeForm.phone || isLoading || isSendingCode"
           class="code-btn"
         >
-          <span v-if="isSendingCode">发送中...</span>
-          <span v-else>{{ cooldown > 0 ? `${cooldown}秒` : '获取验证码' }}</span>
+          <span v-if="isSendingCode">{{ $t('common.sending') }}</span>
+          <span v-else>{{ cooldown > 0 ? $t('common.secondsRemaining', { seconds: cooldown }) : $t('auth.getVerificationCode') }}</span>
         </button>
         <span v-if="formErrors.code" class="error-text">{{ formErrors.code }}</span>
       </div>
 
       <button type="submit" :disabled="isLoading" class="submit-btn">
-        {{ isLoading ? '登录中...' : '登录' }}
+        {{ isLoading ? $t('common.loading') : $t('auth.login') }}
       </button>
     </form>
   </div>
@@ -85,6 +85,7 @@
 import { reactive, ref, defineEmits } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 
 const emit = defineEmits<{
   (e: 'login-success'): void
@@ -93,6 +94,7 @@ const emit = defineEmits<{
 
 const authStore = useAuthStore()
 const router = useRouter()
+const { t } = useI18n()
 
 // 手机登录方式 (密码登录 或 验证码登录)
 const phoneLoginMethod = ref('password')
@@ -130,14 +132,14 @@ const isSendingCode = ref(false)
 // 验证手机号格式
 function validatePhone(phone: string): boolean {
   if (!phone) {
-    formErrors.phone = '请输入手机号'
+    formErrors.phone = t('validation.required', { field: t('common.phoneNumber') })
     return false
   }
   
   // 简单的手机号格式验证（中国大陆手机号）
   const phoneRegex = /^1[3-9]\d{9}$/
   if (!phoneRegex.test(phone)) {
-    formErrors.phone = '手机号格式不正确'
+    formErrors.phone = t('validation.invalidPhone')
     return false
   }
   
@@ -148,12 +150,12 @@ function validatePhone(phone: string): boolean {
 // 验证密码
 function validatePassword(password: string): boolean {
   if (!password) {
-    formErrors.password = '请输入密码'
+    formErrors.password = t('validation.required', { field: t('common.password') })
     return false
   }
   
   if (password.length < 8) {
-    formErrors.password = '密码长度至少为8位'
+    formErrors.password = t('validation.passwordLength', { min: 8 })
     return false
   }
   
@@ -164,12 +166,12 @@ function validatePassword(password: string): boolean {
 // 验证验证码
 function validateCode(code: string): boolean {
   if (!code) {
-    formErrors.code = '请输入验证码'
+    formErrors.code = t('validation.required', { field: t('common.verificationCode') })
     return false
   }
   
   if (code.length !== 6 || !/^\d+$/.test(code)) {
-    formErrors.code = '验证码应为6位数字'
+    formErrors.code = t('validation.verificationCodeFormat')
     return false
   }
   

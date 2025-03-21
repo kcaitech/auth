@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
+import { getPreferredLanguage } from '@/locales';
 
 // 扩展Window接口以包含谷歌API
 declare global {
@@ -53,8 +54,8 @@ export type AuthProvider = 'account' | 'email' | 'google' | 'weixin' | 'phone'
 // 手机注册表单
 interface PhoneRegisterForm {
   phone: string
+  code: string
   password: string
-  confirmPassword: string
   nickname: string
 }
 
@@ -388,7 +389,7 @@ export const useAuthStore = defineStore('auth', {
             text: 'signin_with',
             shape: 'rectangular',
             logo_alignment: 'center',
-            locale: 'zh_CN'
+            // locale: getPreferredLanguage()
           });
           
           console.log('谷歌登录按钮已渲染');

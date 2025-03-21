@@ -4,6 +4,7 @@ import App from './App.vue'
 import router from './router'
 import axios from 'axios'
 import { useAuthStore } from './stores/auth'
+import i18n, { getPreferredLanguage, setLanguage } from './locales'
 
 // 设置 axios 默认值
 axios.defaults.baseURL = import.meta.env.VITE_API_URL || '/api'
@@ -18,6 +19,12 @@ const app = createApp(App)
 const pinia = createPinia()
 app.use(pinia)
 app.use(router)
+app.use(i18n)
+
+// 设置语言
+const preferredLanguage = getPreferredLanguage()
+setLanguage(preferredLanguage)
+document.documentElement.setAttribute('lang', preferredLanguage)
 
 // 初始化认证状态
 const initAuth = async () => {

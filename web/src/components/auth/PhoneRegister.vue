@@ -6,7 +6,7 @@
         <input 
           v-model="formData.phone" 
           type="text" 
-          placeholder="手机号"
+          :placeholder="$t('common.phoneNumber')"
           :class="{ 'error': formErrors.phone }"
         >
         <span v-if="formErrors.phone" class="error-text">{{ formErrors.phone }}</span>
@@ -16,7 +16,7 @@
         <input 
           v-model="formData.code" 
           type="text" 
-          placeholder="验证码"
+          :placeholder="$t('common.verificationCode')"
           :class="{ 'error': formErrors.code }"
         >
         <button 
@@ -25,8 +25,8 @@
           :disabled="cooldown > 0 || !formData.phone || isLoading || isSendingCode"
           class="code-btn"
         >
-          <span v-if="isSendingCode">发送中...</span>
-          <span v-else>{{ cooldown > 0 ? `${cooldown}秒` : '获取验证码' }}</span>
+          <span v-if="isSendingCode">{{ $t('common.sending') }}</span>
+          <span v-else>{{ cooldown > 0 ? $t('common.secondsRemaining', { seconds: cooldown }) : $t('auth.getVerificationCode') }}</span>
         </button>
         <span v-if="formErrors.code" class="error-text">{{ formErrors.code }}</span>
       </div>
@@ -35,7 +35,7 @@
         <input 
           v-model="formData.nickname" 
           type="text" 
-          placeholder="昵称"
+          :placeholder="$t('common.nickname')"
           :class="{ 'error': formErrors.nickname }"
         >
         <span v-if="formErrors.nickname" class="error-text">{{ formErrors.nickname }}</span>
@@ -45,7 +45,7 @@
         <input 
           v-model="formData.password" 
           type="password" 
-          placeholder="密码"
+          :placeholder="$t('common.password')"
           :class="{ 'error': formErrors.password }"
         >
         <span v-if="formErrors.password" class="error-text">{{ formErrors.password }}</span>
@@ -55,23 +55,23 @@
         <input 
           v-model="formData.confirmPassword" 
           type="password" 
-          placeholder="确认密码"
+          :placeholder="$t('common.confirmPassword')"
           :class="{ 'error': formErrors.confirmPassword }"
         >
         <span v-if="formErrors.confirmPassword" class="error-text">{{ formErrors.confirmPassword }}</span>
       </div>
 
       <button type="submit" :disabled="isLoading" class="submit-btn">
-        {{ isLoading ? '注册中...' : '注册' }}
+        {{ isLoading ? $t('common.registering') : $t('auth.register') }}
       </button>
     </form>
     
     <!-- 验证成功提示 -->
     <div v-if="registerSuccess" class="modal-overlay">
       <div class="modal-content success-modal">
-        <h3>注册成功!</h3>
-        <p>您的手机号注册成功，可以开始登录使用了。</p>
-        <button @click="goToLogin" class="submit-btn">去登录</button>
+        <h3>{{ $t('auth.registerSuccess') }}!</h3>
+        <p>{{ $t('auth.phoneRegisterSuccessMessage') }}</p>
+        <button @click="goToLogin" class="submit-btn">{{ $t('auth.goToLogin') }}</button>
       </div>
     </div>
   </div>
@@ -81,6 +81,7 @@
 import { reactive, ref, defineEmits } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 
 const emit = defineEmits<{
   (e: 'register-success'): void
@@ -89,6 +90,7 @@ const emit = defineEmits<{
 
 const authStore = useAuthStore()
 const router = useRouter()
+const { t } = useI18n()
 
 // 注册表单数据
 const formData = reactive({
@@ -130,14 +132,14 @@ const registerSuccess = ref(false)
 // 验证手机号格式
 function validatePhone(phone: string): boolean {
   if (!phone) {
-    formErrors.phone = '请输入手机号'
+    formErrors.phone = t('validation.required', { field: t('common.phoneNumber') })
     return false
   }
   
   // 简单的手机号格式验证（中国大陆手机号）
   const phoneRegex = /^1[3-9]\d{9}$/
   if (!phoneRegex.test(phone)) {
-    formErrors.phone = '手机号格式不正确'
+    formErrors.phone = t('validation.invalidPhone')
     return false
   }
   
@@ -148,12 +150,12 @@ function validatePhone(phone: string): boolean {
 // 验证验证码
 function validateCode(code: string): boolean {
   if (!code) {
-    formErrors.code = '请输入验证码'
+    formErrors.code = t('validation.required', { field: t('common.verificationCode') })
     return false
   }
   
   if (code.length !== 6 || !/^\d+$/.test(code)) {
-    formErrors.code = '验证码应为6位数字'
+    formErrors.code = t('validation.verificationCodeFormat')
     return false
   }
   
@@ -164,12 +166,12 @@ function validateCode(code: string): boolean {
 // 验证昵称
 function validateNickname(nickname: string): boolean {
   if (!nickname) {
-    formErrors.nickname = '请输入昵称'
+    formErrors.nickname = t('validation.required', { field: t('common.nickname') })
     return false
   }
   
   if (nickname.length < 2 || nickname.length > 20) {
-    formErrors.nickname = '昵称长度应在2-20个字符之间'
+    formErrors.nickname = t('validation.nicknameLength', { min: 2, max: 20 })
     return false
   }
   
@@ -180,12 +182,12 @@ function validateNickname(nickname: string): boolean {
 // 验证密码
 function validatePassword(password: string): boolean {
   if (!password) {
-    formErrors.password = '请输入密码'
+    formErrors.password = t('validation.required', { field: t('common.password') })
     return false
   }
   
-  if (password.length < 8) {
-    formErrors.password = '密码长度至少为8位'
+  if (password.length < 6) {
+    formErrors.password = t('validation.passwordLength', { min: 6 })
     return false
   }
   
@@ -196,12 +198,12 @@ function validatePassword(password: string): boolean {
 // 验证确认密码
 function validateConfirmPassword(password: string, confirmPassword: string): boolean {
   if (!confirmPassword) {
-    formErrors.confirmPassword = '请确认密码'
+    formErrors.confirmPassword = t('validation.required', { field: t('common.confirmPassword') })
     return false
   }
   
   if (password !== confirmPassword) {
-    formErrors.confirmPassword = '两次密码输入不一致'
+    formErrors.confirmPassword = t('validation.passwordMismatch')
     return false
   }
   
@@ -212,7 +214,7 @@ function validateConfirmPassword(password: string, confirmPassword: string): boo
 // 验证协议
 function validateAgreement(agreement: boolean): boolean {
   if (!agreement) {
-    formErrors.agreement = '请阅读并同意用户协议和隐私政策'
+    formErrors.agreement = t('validation.agreementRequired')
     return false
   }
   
@@ -226,6 +228,8 @@ async function sendVerificationCode() {
   
   try {
     isSendingCode.value = true
+    
+    // 发送验证码的API调用
     await authStore.sendPhoneVerificationCode(formData.phone)
     
     // 开始倒计时
@@ -239,18 +243,17 @@ async function sendVerificationCode() {
     }, 1000)
     
   } catch (error: any) {
-    emit('register-error', error.message)
+    emit('register-error', error.message || t('errors.sendCodeFailed'))
   } finally {
     isSendingCode.value = false
   }
 }
 
-// 手机注册
+// 注册处理
 async function handleRegister() {
   // 重置表单错误
   Object.keys(formErrors).forEach(key => {
-    // @ts-ignore
-    formErrors[key] = ''
+    formErrors[key as keyof typeof formErrors] = ''
   })
   
   // 验证表单
@@ -259,43 +262,40 @@ async function handleRegister() {
   const isNicknameValid = validateNickname(formData.nickname)
   const isPasswordValid = validatePassword(formData.password)
   const isConfirmPasswordValid = validateConfirmPassword(formData.password, formData.confirmPassword)
-  const isAgreementValid = validateAgreement(formData.agreement)
   
-  if (!isPhoneValid || !isCodeValid || !isNicknameValid || !isPasswordValid || !isConfirmPasswordValid || !isAgreementValid) {
+  if (!isPhoneValid || !isCodeValid || !isNicknameValid || !isPasswordValid || !isConfirmPasswordValid) {
     return
   }
   
   try {
     isLoading.value = true
     
-    // 注册
+    // 注册API调用
     await authStore.registerPhone({
       phone: formData.phone,
-      password: formData.password,
-      confirmPassword: formData.confirmPassword,
+      // 使用 as any 临时绕过类型检查问题，后续可以更新 auth store 中的接口定义
+      code: formData.code as any,
       nickname: formData.nickname,
+      password: formData.password
     })
     
-    // 注册成功后验证手机号
-    await authStore.verifyPhone(formData.code)
-    
-    // 显示注册成功提示
+    // 注册成功
     registerSuccess.value = true
-    
-    // 发送注册成功事件
     emit('register-success')
-    
   } catch (error: any) {
-    emit('register-error', error.message)
+    emit('register-error', error.message || t('errors.phoneRegisterFailed'))
   } finally {
     isLoading.value = false
   }
 }
 
-// 跳转到登录页
+// 去登录页
 function goToLogin() {
+  // 清除注册成功状态
   registerSuccess.value = false
-  router.push({ path: '/login', query: { tab: 'login', type: 'phone' } })
+  
+  // 发出注册成功的事件，让父组件切换到登录选项卡
+  emit('register-success')
 }
 </script>
 

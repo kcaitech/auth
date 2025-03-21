@@ -5,13 +5,13 @@
         :class="['tab-btn', { active: activeTab === 'login' }]" 
         @click="activeTab = 'login'"
       >
-        登录
+        {{ $t('auth.login') }}
       </button>
       <button 
         :class="['tab-btn', { active: activeTab === 'register' }]" 
         @click="activeTab = 'register'"
       >
-        注册
+        {{ $t('auth.register') }}
       </button>
     </div>
 
@@ -24,21 +24,21 @@
           @click="loginType = 'account'"
           v-if="hasProvider('account')"
         >
-          账号登录
+          {{ $t('auth.accountLogin') }}
         </button>
         <button 
           :class="['login-type-btn', { active: loginType === 'email' }]" 
           @click="loginType = 'email'"
           v-if="hasProvider('email')"
         >
-          邮箱登录
+          {{ $t('auth.emailLogin') }}
         </button>
         <button 
           :class="['login-type-btn', { active: loginType === 'phone' }]" 
           @click="loginType = 'phone'"
           v-if="hasProvider('phone')"
         >
-          手机登录
+          {{ $t('auth.phoneLogin') }}
         </button>
       </div>
     
@@ -73,21 +73,21 @@
           @click="registerType = 'account'"
           v-if="hasProvider('account')"
         >
-          账号注册
+          {{ $t('auth.accountRegister') }}
         </button>
         <button 
           :class="['register-type-btn', { active: registerType === 'email' }]" 
           @click="registerType = 'email'"
           v-if="hasProvider('email')"
         >
-          邮箱注册
+          {{ $t('auth.emailRegister') }}
         </button>
         <button 
           :class="['register-type-btn', { active: registerType === 'phone' }]" 
           @click="registerType = 'phone'"
           v-if="hasProvider('phone')"
         >
-          手机注册
+          {{ $t('auth.phoneRegister') }}
         </button>
       </div>
       
@@ -114,7 +114,7 @@
     </div>
     
     <!-- 只有在有社交登录方式时才显示分隔线和社交登录按钮 -->
-    <div v-if="(hasProvider('google') || hasProvider('weixin')) && (hasProvider('account') || hasProvider('email') || hasProvider('phone'))" class="divider">或</div>
+    <div v-if="(hasProvider('google') || hasProvider('weixin')) && (hasProvider('account') || hasProvider('email') || hasProvider('phone'))" class="divider">{{ $t('common.or') }}</div>
     
     <div v-if="hasProvider('google') || hasProvider('weixin')" class="social-login">
       <!-- 社交登录按钮容器，确保所有按钮宽度一致 -->
@@ -140,7 +140,7 @@
     <!-- 加载中提示 -->
     <div v-if="initialLoading" class="loading-container">
       <div class="loading-spinner"></div>
-      <p>加载登录选项中...</p>
+      <p>{{ $t('auth.loadingLoginOptions') }}</p>
     </div>
   </div>
 </template>
@@ -149,13 +149,14 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useAuthStore, type AuthProvider } from '@/stores/auth'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import AccountLogin from '@/components/auth/AccountLogin.vue'
 import EmailLogin from '@/components/auth/EmailLogin.vue'
+import PhoneLogin from '@/components/auth/PhoneLogin.vue'
 import GoogleLogin from '@/components/auth/GoogleLogin.vue'
 import WeixinLogin from '@/components/auth/WeixinLogin.vue'
 import AccountRegister from '@/components/auth/AccountRegister.vue'
 import EmailRegister from '@/components/auth/EmailRegister.vue'
-import PhoneLogin from '@/components/auth/PhoneLogin.vue'
 import PhoneRegister from '@/components/auth/PhoneRegister.vue'
 
 interface FormErrors {
@@ -169,6 +170,7 @@ interface FormErrors {
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { t } = useI18n()
 const activeTab = ref<'login' | 'register'>('login')
 const loginType = ref<'account' | 'email' | 'phone'>('account')
 const registerType = ref<'account' | 'email' | 'phone'>('account')

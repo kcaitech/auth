@@ -6,7 +6,7 @@
         <input 
           v-model="formData.email" 
           type="email" 
-          placeholder="邮箱"
+          :placeholder="$t('common.email')"
           :class="{ 'error': formErrors.email }"
         >
         <span v-if="formErrors.email" class="error-text">{{ formErrors.email }}</span>
@@ -16,14 +16,14 @@
         <input 
           v-model="formData.password" 
           type="password" 
-          placeholder="密码"
+          :placeholder="$t('common.password')"
           :class="{ 'error': formErrors.password }"
         >
         <span v-if="formErrors.password" class="error-text">{{ formErrors.password }}</span>
       </div>
 
       <button type="submit" :disabled="isLoading" class="submit-btn">
-        {{ isLoading ? '登录中...' : '邮箱登录' }}
+        {{ isLoading ? $t('common.loading') : $t('auth.emailLogin') }}
       </button>
     </form>
   </div>
@@ -33,6 +33,7 @@
 import { reactive, ref, defineEmits } from 'vue'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 
 const emit = defineEmits<{
   (e: 'login-success'): void
@@ -50,6 +51,7 @@ interface FormErrors {
 }
 
 const router = useRouter()
+const { t } = useI18n()
 const isLoading = ref(false)
 const formData = reactive<FormData>({
   email: '',
@@ -64,15 +66,15 @@ const validateForm = () => {
   Object.keys(formErrors).forEach(key => delete formErrors[key as keyof FormErrors])
   
   if (!formData.email) {
-    formErrors.email = '请输入邮箱'
+    formErrors.email = t('validation.required', { field: t('common.email') })
     isValid = false
   } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-    formErrors.email = '请输入有效的邮箱地址'
+    formErrors.email = t('validation.invalidEmail')
     isValid = false
   }
   
   if (!formData.password) {
-    formErrors.password = '请输入密码'
+    formErrors.password = t('validation.required', { field: t('common.password') })
     isValid = false
   }
   
@@ -99,7 +101,7 @@ const handleEmailLogin = async () => {
     router.push('/dashboard')
   } catch (error: any) {
     // 登录失败，通知父组件
-    emit('login-error', error.response?.data?.message || '邮箱登录失败，请重试')
+    emit('login-error', error.response?.data?.message || t('errors.emailLoginFailed'))
   } finally {
     isLoading.value = false
   }

@@ -1,8 +1,22 @@
 <template>
   <div class="app-container">
-    <router-view />
+    <header class="site-header">
+      <div class="header-left">
+        <h1 class="site-title">KCAuth</h1>
+      </div>
+      <div class="header-right">
+        <LanguageSwitcher />
+      </div>
+    </header>
+    <main class="main-content">
+      <router-view />
+    </main>
   </div>
 </template>
+
+<script lang="ts" setup>
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
+</script>
 
 <style>
 * {
@@ -47,6 +61,41 @@ body {
 .app-container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 0;
+}
+
+.site-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  background-color: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+
+.site-title {
+  font-size: 1.5rem;
+  color: #1890ff;
+  margin: 0;
+}
+
+.header-left, .header-right {
+  display: flex;
+  align-items: center;
+}
+
+.main-content {
+  padding: 0 20px 20px;
+}
+
+@media (max-width: 768px) {
+  .site-header {
+    padding: 10px;
+  }
+  
+  .site-title {
+    font-size: 1.2rem;
+  }
 }
 </style> 

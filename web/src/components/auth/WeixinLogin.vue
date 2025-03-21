@@ -2,7 +2,7 @@
   <div class="weixin-login-container">
     <button @click="handleWechatLogin" :disabled="isLoading" class="social-btn wechat-btn">
       <img src="@/assets/wechat-icon.svg" alt="WeChat" />
-      使用微信账号
+      {{ $t('auth.loginWithWechat') }}
     </button>
   </div>
 </template>
@@ -10,11 +10,13 @@
 <script lang="ts" setup>
 import { ref, defineEmits } from 'vue'
 import axios from 'axios'
+import { useI18n } from 'vue-i18n'
 
 const emit = defineEmits<{
   (e: 'login-error', message: string): void
 }>()
 
+const { t } = useI18n()
 const isLoading = ref(false)
 
 const handleWechatLogin = async () => {
@@ -29,7 +31,7 @@ const handleWechatLogin = async () => {
     window.location.href = url
   } catch (error: any) {
     isLoading.value = false
-    emit('login-error', error.response?.data?.message || '微信登录初始化失败，请重试')
+    emit('login-error', error.response?.data?.message || t('errors.wechatLoginFailed'))
   }
 }
 </script>

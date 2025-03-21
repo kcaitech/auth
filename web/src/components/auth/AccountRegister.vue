@@ -6,7 +6,7 @@
         <input 
           v-model="formData.username" 
           type="text" 
-          placeholder="用户名"
+          :placeholder="$t('common.username')"
           :class="{ 'error': formErrors.username }"
         >
         <span v-if="formErrors.username" class="error-text">{{ formErrors.username }}</span>
@@ -16,7 +16,7 @@
         <input 
           v-model="formData.password" 
           type="password" 
-          placeholder="密码"
+          :placeholder="$t('common.password')"
           :class="{ 'error': formErrors.password }"
         >
         <span v-if="formErrors.password" class="error-text">{{ formErrors.password }}</span>
@@ -26,14 +26,14 @@
         <input 
           v-model="formData.confirmPassword" 
           type="password" 
-          placeholder="确认密码"
+          :placeholder="$t('common.confirmPassword')"
           :class="{ 'error': formErrors.confirmPassword }"
         >
         <span v-if="formErrors.confirmPassword" class="error-text">{{ formErrors.confirmPassword }}</span>
       </div>
 
       <button type="submit" :disabled="isLoading" class="submit-btn">
-        {{ isLoading ? '注册中...' : '账号注册' }}
+        {{ isLoading ? $t('common.registering') : $t('auth.accountRegister') }}
       </button>
     </form>
   </div>
@@ -42,6 +42,7 @@
 <script lang="ts" setup>
 import { reactive, ref, defineEmits } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { useI18n } from 'vue-i18n'
 
 const emit = defineEmits<{
   (e: 'register-success'): void
@@ -61,6 +62,7 @@ interface FormErrors {
 }
 
 const authStore = useAuthStore()
+const { t } = useI18n()
 const isLoading = ref(false)
 const formData = reactive<FormData>({
   username: '',
@@ -76,23 +78,23 @@ const validateForm = () => {
   Object.keys(formErrors).forEach(key => delete formErrors[key as keyof FormErrors])
   
   if (!formData.username) {
-    formErrors.username = '请输入用户名'
+    formErrors.username = t('validation.required', { field: t('common.username') })
     isValid = false
   }
   
   if (!formData.password) {
-    formErrors.password = '请输入密码'
+    formErrors.password = t('validation.required', { field: t('common.password') })
     isValid = false
   } else if (formData.password.length < 6) {
-    formErrors.password = '密码长度至少6位'
+    formErrors.password = t('validation.passwordLength', { min: 6 })
     isValid = false
   }
   
   if (!formData.confirmPassword) {
-    formErrors.confirmPassword = '请确认密码'
+    formErrors.confirmPassword = t('validation.required', { field: t('common.confirmPassword') })
     isValid = false
   } else if (formData.password !== formData.confirmPassword) {
-    formErrors.confirmPassword = '两次输入的密码不一致'
+    formErrors.confirmPassword = t('validation.passwordMismatch')
     isValid = false
   }
   
@@ -117,7 +119,7 @@ const handleRegister = async () => {
     emit('register-success')
   } catch (error: any) {
     // 注册失败，通知父组件
-    emit('register-error', error.message || '注册失败，请重试')
+    emit('register-error', error.message || t('errors.registerFailed'))
   } finally {
     isLoading.value = false
   }

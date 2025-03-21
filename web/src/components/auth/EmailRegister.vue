@@ -3,29 +3,29 @@
     <!-- 当注册成功并发送验证邮件后显示 -->
     <div v-if="registrationStage === 'emailSent'" class="email-verification-info">
       <div class="success-icon">✓</div>
-      <h2>验证邮件已发送</h2>
-      <p>我们已向 <strong>{{ formData.email }}</strong> 发送了一封验证邮件。</p>
-      <p>请查收邮件并点击验证链接完成注册。</p>
+      <h2>{{ $t('auth.verificationEmailSent') }}</h2>
+      <p>{{ $t('auth.verificationEmailSentTo', { email: formData.email }) }}</p>
+      <p>{{ $t('auth.pleaseCheckEmail') }}</p>
       
       <div class="tips">
-        <p>没有收到邮件？</p>
+        <p>{{ $t('auth.notReceivedEmail') }}</p>
         <ul>
-          <li>请检查垃圾邮件或促销邮件文件夹</li>
-          <li>确认您输入的邮箱地址正确</li>
-          <li>等待几分钟后再次检查</li>
+          <li>{{ $t('auth.checkSpamFolder') }}</li>
+          <li>{{ $t('auth.confirmEmailCorrect') }}</li>
+          <li>{{ $t('auth.waitAndCheckAgain') }}</li>
         </ul>
       </div>
       
       <div class="actions">
         <button @click="resendVerification" :disabled="resending" class="resend-btn">
-          {{ resending ? '发送中...' : '重新发送验证邮件' }}
+          {{ resending ? $t('common.sending') : $t('auth.resendVerificationEmail') }}
         </button>
-        <button @click="resetForm" class="reset-btn">使用其他邮箱</button>
+        <button @click="resetForm" class="reset-btn">{{ $t('auth.useAnotherEmail') }}</button>
       </div>
       
       <div v-if="resendSuccess" class="resend-success">
         <div class="success-icon-small">✓</div>
-        验证邮件已重新发送，请查收
+        {{ $t('auth.verificationEmailResent') }}
       </div>
       
       <div v-if="resendError" class="resend-error">
@@ -40,7 +40,7 @@
         <input 
           v-model="formData.nickname" 
           type="text" 
-          placeholder="昵称"
+          :placeholder="$t('common.nickname')"
           :class="{ 'error': formErrors.nickname }"
         >
         <span v-if="formErrors.nickname" class="error-text">{{ formErrors.nickname }}</span>
@@ -50,7 +50,7 @@
         <input 
           v-model="formData.email" 
           type="email" 
-          placeholder="邮箱"
+          :placeholder="$t('common.email')"
           :class="{ 'error': formErrors.email }"
         >
         <span v-if="formErrors.email" class="error-text">{{ formErrors.email }}</span>
@@ -60,7 +60,7 @@
         <input 
           v-model="formData.password" 
           type="password" 
-          placeholder="密码"
+          :placeholder="$t('common.password')"
           :class="{ 'error': formErrors.password }"
         >
         <span v-if="formErrors.password" class="error-text">{{ formErrors.password }}</span>
@@ -70,14 +70,14 @@
         <input 
           v-model="formData.confirmPassword" 
           type="password" 
-          placeholder="确认密码"
+          :placeholder="$t('common.confirmPassword')"
           :class="{ 'error': formErrors.confirmPassword }"
         >
         <span v-if="formErrors.confirmPassword" class="error-text">{{ formErrors.confirmPassword }}</span>
       </div>
 
       <button type="submit" :disabled="isLoading" class="submit-btn">
-        {{ isLoading ? '注册中...' : '邮箱注册' }}
+        {{ isLoading ? $t('common.registering') : $t('auth.emailRegister') }}
       </button>
     </form>
   </div>
@@ -86,6 +86,7 @@
 <script lang="ts" setup>
 import { reactive, ref, defineEmits } from 'vue'
 import axios from 'axios'
+import { useI18n } from 'vue-i18n'
 
 const emit = defineEmits<{
   (e: 'register-send-email'): void
@@ -93,13 +94,15 @@ const emit = defineEmits<{
   (e: 'register-error', message: string): void
 }>()
 
+const { t } = useI18n()
+
 // 注册阶段状态: 'form' = 显示表单, 'emailSent' = 验证邮件已发送
 const registrationStage = ref<'form' | 'emailSent'>('form')
 const resending = ref(false) // 是否正在重发验证邮件
 const resendSuccess = ref(false) // 是否成功重发验证邮件
 const resendError = ref('') // 重发验证邮件失败信息
 
-  // 邮件模板
+// 邮件模板
 import { verificationEmailTpl } from './emailtpl'
 
 interface FormData {
@@ -132,31 +135,31 @@ const validateForm = () => {
   Object.keys(formErrors).forEach(key => delete formErrors[key as keyof FormErrors])
   
   if (!formData.nickname) {
-    formErrors.nickname = '请输入昵称'
+    formErrors.nickname = t('validation.required', { field: t('common.nickname') })
     isValid = false
   }
   
   if (!formData.email) {
-    formErrors.email = '请输入邮箱'
+    formErrors.email = t('validation.required', { field: t('common.email') })
     isValid = false
   } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-    formErrors.email = '请输入有效的邮箱地址'
+    formErrors.email = t('validation.invalidEmail')
     isValid = false
   }
   
   if (!formData.password) {
-    formErrors.password = '请输入密码'
+    formErrors.password = t('validation.required', { field: t('common.password') })
     isValid = false
   } else if (formData.password.length < 6) {
-    formErrors.password = '密码长度至少6位'
+    formErrors.password = t('validation.passwordLength', { min: 6 })
     isValid = false
   }
   
   if (!formData.confirmPassword) {
-    formErrors.confirmPassword = '请确认密码'
+    formErrors.confirmPassword = t('validation.required', { field: t('common.confirmPassword') })
     isValid = false
   } else if (formData.password !== formData.confirmPassword) {
-    formErrors.confirmPassword = '两次输入的密码不一致'
+    formErrors.confirmPassword = t('validation.passwordMismatch')
     isValid = false
   }
   
@@ -176,7 +179,7 @@ const resendVerification = async () => {
     
     await axios.post('/auth/email/resend-verification', {
       email: formData.email,
-      title: '邮箱验证',
+      title: t('email.verificationTitle'),
       content: verificationEmailTpl
     })
     
@@ -189,7 +192,7 @@ const resendVerification = async () => {
     }, 5000)
   } catch (error: any) {
     // 显示内联错误提示，而不是使用alert
-    resendError.value = error.response?.data?.message || '重新发送验证邮件失败，请重试'
+    resendError.value = error.response?.data?.message || t('errors.resendVerificationFailed')
     
     // 5秒后自动隐藏错误提示
     setTimeout(() => {
@@ -221,7 +224,7 @@ const handleEmailRegister = async () => {
       nickname: formData.nickname,
       email: formData.email,
       password: formData.password,
-      title: 'regist vextro.io',
+      title: t('email.registrationTitle'),
       content: verificationEmailTpl
     })
     
@@ -232,7 +235,7 @@ const handleEmailRegister = async () => {
     emit('register-send-email')
   } catch (error: any) {
     // 注册失败，通知父组件
-    emit('register-error', error.response?.data?.message || '邮箱注册失败，请重试')
+    emit('register-error', error.response?.data?.message || t('errors.emailRegisterFailed'))
   } finally {
     isLoading.value = false
   }

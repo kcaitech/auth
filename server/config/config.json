@@ -5,7 +5,7 @@
         "write_timeout": "15s"
     },
     "auth": {
-        "enabled_providers": ["email", "google"],
+        "enabled_providers": ["account", "email", "weixin", "google", "phone"],
         "google": {
             "client_id": "your-google-client-id",
             "client_secret": "your-google-client-secret",
