@@ -2,41 +2,41 @@
   <div class="user-detail">
     <el-tabs v-model="activeTab">
       <!-- 基本信息选项卡 -->
-      <el-tab-pane label="基本信息" name="basic">
-        <el-descriptions title="用户信息" :column="2" border>
-          <el-descriptions-item label="用户ID">{{ getUserId(user) }}</el-descriptions-item>
-          <el-descriptions-item label="用户名">{{ getUserName(user) }}</el-descriptions-item>
-          <el-descriptions-item label="电子邮箱">{{ user.email || '无' }}</el-descriptions-item>
-          <el-descriptions-item label="状态">
+      <el-tab-pane :label="$t('userDetail.basic_info')" name="basic">
+        <el-descriptions :title="$t('userDetail.user_info')" :column="2" border>
+          <el-descriptions-item :label="$t('userDetail.user_id')">{{ getUserId(user) }}</el-descriptions-item>
+          <el-descriptions-item :label="$t('userDetail.username')">{{ getUserName(user) }}</el-descriptions-item>
+          <el-descriptions-item :label="$t('userDetail.email')">{{ user.email || $t('userDetail.none') }}</el-descriptions-item>
+          <el-descriptions-item :label="$t('userDetail.status')">
             <el-tag :type="getStatusType(getStatus(user))">{{ getStatusText(getStatus(user)) }}</el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="提供商">
+          <el-descriptions-item :label="$t('userDetail.provider')">
             <el-tag type="info">{{ getProviderText(getProvider(user)) }}</el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="验证状态">
+          <el-descriptions-item :label="$t('userDetail.verification_status')">
             <el-tag :type="isVerified(user) ? 'success' : 'danger'">
-              {{ isVerified(user) ? '已验证' : '未验证' }}
+              {{ isVerified(user) ? $t('userDetail.verified') : $t('userDetail.not_verified') }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="双因素认证">
+          <el-descriptions-item :label="$t('userDetail.two_factor_auth')">
             <el-tag :type="user.two_factor_enabled ? 'success' : 'info'">
-              {{ user.two_factor_enabled ? '已启用' : '未启用' }}
+              {{ user.two_factor_enabled ? $t('userDetail.enabled') : $t('userDetail.disabled') }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="注册时间">
+          <el-descriptions-item :label="$t('userDetail.registration_time')">
             {{ formatDateTime(getCreatedAt(user)) }}
           </el-descriptions-item>
-          <el-descriptions-item label="最后登录">
-            {{ getLastLogin(user) ? formatDateTime(getLastLogin(user)) : '从未登录' }}
+          <el-descriptions-item :label="$t('userDetail.last_login')">
+            {{ getLastLogin(user) ? formatDateTime(getLastLogin(user)) : $t('userDetail.never_logged_in') }}
           </el-descriptions-item>
-          <el-descriptions-item label="登录尝试次数">{{ user.login_attempts || 0 }}</el-descriptions-item>
-          <el-descriptions-item label="最后尝试时间">
-            {{ user.last_attempt ? formatDateTime(user.last_attempt) : '无' }}
+          <el-descriptions-item :label="$t('userDetail.login_attempts')">{{ user.login_attempts || 0 }}</el-descriptions-item>
+          <el-descriptions-item :label="$t('userDetail.last_attempt_time')">
+            {{ user.last_attempt ? formatDateTime(user.last_attempt) : $t('userDetail.none') }}
           </el-descriptions-item>
         </el-descriptions>
 
         <div class="action-buttons">
-          <el-button type="primary" @click="handleEditUser">编辑用户</el-button>
+          <el-button type="primary" @click="handleEditUser">{{ $t('userDetail.edit_user') }}</el-button>
           <el-button :type="getActionButtonType(getStatus(user))" @click="handleToggleStatus">
             {{ getActionButtonText(getStatus(user)) }}
           </el-button>
@@ -44,19 +44,19 @@
             :type="isVerified(user) ? 'warning' : 'success'" 
             @click="handleToggleVerified"
           >
-            {{ isVerified(user) ? '取消验证' : '标记为已验证' }}
+            {{ isVerified(user) ? $t('userDetail.cancel_verification') : $t('userDetail.mark_as_verified') }}
           </el-button>
         </div>
       </el-tab-pane>
 
       <!-- 会话信息选项卡 -->
-      <el-tab-pane label="登录信息" name="sessions">
+      <el-tab-pane :label="$t('userDetail.login_info')" name="sessions">
         <div class="action-buttons mb-4">
           <el-button type="danger" @click="handleTerminateAll" :loading="terminatingAll">
-            强制退出所有会话
+            {{ $t('userDetail.terminate_all_sessions') }}
           </el-button>
           <el-button @click="refreshSessions" :loading="loadingSessions">
-            刷新会话信息
+            {{ $t('userDetail.refresh_sessions') }}
           </el-button>
         </div>
 
@@ -71,14 +71,14 @@
 
         <el-alert
           v-if="!sessions.length && !jwtSessions.length && !loadingSessions && !loadingError"
-          title="该用户目前没有活跃会话"
+          :title="$t('userDetail.no_active_sessions')"
           type="info"
           :closable="false"
         />
 
         <!-- 标准会话表格 -->
         <template v-if="sessions.length">
-          <h3 class="my-3">标准会话</h3>
+          <h3 class="my-3">{{ $t('userDetail.standard_sessions') }}</h3>
           <el-table
             :data="sessions"
             style="width: 100%"
@@ -86,24 +86,24 @@
             stripe
             v-loading="loadingSessions"
           >
-            <el-table-column prop="id" label="会话ID" width="280" />
-            <el-table-column prop="ip" label="IP地址" width="150" />
-            <el-table-column label="用户代理" min-width="200">
+            <el-table-column prop="id" :label="$t('userDetail.session_id')" width="280" />
+            <el-table-column prop="ip" :label="$t('userDetail.ip_address')" width="150" />
+            <el-table-column :label="$t('userDetail.user_agent')" min-width="200">
               <template #default="scope">
                 <div class="user-agent-cell">{{ scope.row.user_agent }}</div>
               </template>
             </el-table-column>
-            <el-table-column label="创建时间" width="180">
+            <el-table-column :label="$t('userDetail.creation_time')" width="180">
               <template #default="scope">
                 {{ formatDateTime(scope.row.created_at) }}
               </template>
             </el-table-column>
-            <el-table-column label="过期时间" width="180">
+            <el-table-column :label="$t('userDetail.expiry_time')" width="180">
               <template #default="scope">
                 {{ formatDateTime(scope.row.expires_at) }}
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="120" fixed="right">
+            <el-table-column :label="$t('userDetail.actions')" width="120" fixed="right">
               <template #default="scope">
                 <el-button 
                   size="small" 
@@ -111,7 +111,7 @@
                   @click="handleTerminateSession(scope.row.id, false)"
                   :loading="terminatingSessionId === scope.row.id"
                 >
-                  强制退出
+                  {{ $t('userDetail.force_logout') }}
                 </el-button>
               </template>
             </el-table-column>
@@ -120,7 +120,7 @@
 
         <!-- JWT会话表格 -->
         <template v-if="jwtSessions.length">
-          <h3 class="my-3">JWT会话</h3>
+          <h3 class="my-3">{{ $t('userDetail.jwt_sessions') }}</h3>
           <el-table
             :data="jwtSessions"
             style="width: 100%"
@@ -128,31 +128,31 @@
             stripe
             v-loading="loadingSessions"
           >
-            <el-table-column prop="key_id" label="密钥ID" width="280" />
-            <el-table-column prop="token_type" label="令牌类型" width="120">
+            <el-table-column prop="key_id" :label="$t('userDetail.key_id')" width="280" />
+            <el-table-column prop="token_type" :label="$t('userDetail.token_type')" width="120">
               <template #default="scope">
                 <el-tag :type="scope.row.token_type === 'access' ? 'success' : 'warning'">
-                  {{ scope.row.token_type === 'access' ? '访问令牌' : '刷新令牌' }}
+                  {{ scope.row.token_type === 'access' ? $t('userDetail.access_token') : $t('userDetail.refresh_token') }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="ip" label="IP地址" width="150" />
-            <el-table-column label="用户代理" min-width="200">
+            <el-table-column prop="ip" :label="$t('userDetail.ip_address')" width="150" />
+            <el-table-column :label="$t('userDetail.user_agent')" min-width="200">
               <template #default="scope">
-                <div class="user-agent-cell">{{ scope.row.user_agent || '未知' }}</div>
+                <div class="user-agent-cell">{{ scope.row.user_agent || $t('userDetail.unknown') }}</div>
               </template>
             </el-table-column>
-            <el-table-column label="发行时间" width="180">
+            <el-table-column :label="$t('userDetail.issue_time')" width="180">
               <template #default="scope">
                 {{ formatDateTime(scope.row.issued_at) }}
               </template>
             </el-table-column>
-            <el-table-column label="过期时间" width="180">
+            <el-table-column :label="$t('userDetail.expiry_time')" width="180">
               <template #default="scope">
                 {{ formatDateTime(scope.row.expires_at) }}
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="120" fixed="right">
+            <el-table-column :label="$t('userDetail.actions')" width="120" fixed="right">
               <template #default="scope">
                 <el-button 
                   size="small" 
@@ -160,7 +160,7 @@
                   @click="handleTerminateSession('jwt:' + scope.row.key_id, true)"
                   :loading="terminatingSessionId === 'jwt:' + scope.row.key_id"
                 >
-                  强制退出
+                  {{ $t('userDetail.force_logout') }}
                 </el-button>
               </template>
             </el-table-column>
@@ -176,6 +176,7 @@ import { defineComponent, ref, PropType, computed, onMounted, watch } from 'vue'
 import { User, SessionData, JWTSessionData } from '@/api'
 import api from '@/api'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useI18n } from 'vue-i18n'
 
 export default defineComponent({
   name: 'UserDetail',
@@ -192,6 +193,7 @@ export default defineComponent({
   },
   emits: ['update:user', 'close'],
   setup(props, { emit }) {
+    const { t } = useI18n()
     const activeTab = ref(props.initialTab)
     
     // 监听 initialTab 变化
@@ -222,21 +224,21 @@ export default defineComponent({
         
         // 如果获取会话成功但会话列表为空，显示友好提示
         if (sessions.value.length === 0 && jwtSessions.value.length === 0) {
-          console.log('用户没有活跃会话')
+          console.log(t('userDetail.no_active_sessions'))
         }
       } catch (error: any) {
-        console.error('获取用户会话失败:', error)
+        console.error(t('userDetail.fetch_sessions_error'), error)
         // 提取详细错误信息
         const errorResponse = error.response?.data
         const errorMsg = 
           errorResponse?.error || 
           error.message || 
-          '服务器连接失败，请检查网络连接'
+          t('userDetail.server_connection_error')
         
-        loadingError.value = `获取用户会话信息失败：${errorMsg}`
+        loadingError.value = `${t('userDetail.fetch_sessions_failed')}: ${errorMsg}`
         
         if (errorMsg.includes('Redis连接未初始化')) {
-          loadingError.value = '系统配置错误：Redis连接未初始化，JWT会话功能不可用。请联系系统管理员。'
+          loadingError.value = t('userDetail.redis_not_initialized')
         }
         
         ElMessage.error(loadingError.value)
@@ -251,18 +253,18 @@ export default defineComponent({
         terminatingSessionId.value = sessionId
         
         await ElMessageBox.confirm(
-          '确定要强制终止该会话吗？这将使用户立即退出登录。',
-          '确认操作',
+          t('userDetail.terminate_session_confirm'),
+          t('userDetail.confirm_operation'),
           {
-            confirmButtonText: '确定终止',
-            cancelButtonText: '取消',
+            confirmButtonText: t('userDetail.confirm_terminate'),
+            cancelButtonText: t('common.cancel'),
             type: 'warning'
           }
         )
         
         const userId = (getUserId(props.user))
         await api.terminateUserSession(userId, sessionId)
-        ElMessage.success('会话已成功终止')
+        ElMessage.success(t('userDetail.session_terminated_success'))
         
         // 从列表中移除终止的会话
         if (isJwt) {
@@ -273,16 +275,16 @@ export default defineComponent({
         }
       } catch (error: any) {
         if (error !== 'cancel') {
-          console.error('终止会话失败:', error)
+          console.error(t('userDetail.terminate_session_error'), error)
           
           // 提取详细错误信息
           const errorResponse = error.response?.data
           const errorMsg = 
             errorResponse?.error || 
             error.message || 
-            '未知错误'
+            t('userDetail.unknown_error')
           
-          ElMessage.error(`终止会话失败：${errorMsg}`)
+          ElMessage.error(`${t('userDetail.terminate_session_failed')}: ${errorMsg}`)
         }
       } finally {
         terminatingSessionId.value = ''
@@ -295,26 +297,26 @@ export default defineComponent({
         terminatingAll.value = true
         
         await ElMessageBox.confirm(
-          '确定要强制终止该用户的所有会话吗？这将使用户在所有设备上立即退出登录。',
-          '确认操作',
+          t('userDetail.terminate_all_sessions_confirm'),
+          t('userDetail.confirm_operation'),
           {
-            confirmButtonText: '确定终止所有',
-            cancelButtonText: '取消',
+            confirmButtonText: t('userDetail.confirm_terminate_all'),
+            cancelButtonText: t('common.cancel'),
             type: 'warning'
           }
         )
         
         const userId = (getUserId(props.user))
         await api.terminateAllUserSessions(userId)
-        ElMessage.success('所有会话已成功终止')
+        ElMessage.success(t('userDetail.all_sessions_terminated'))
         
         // 清空会话列表
         sessions.value = []
         jwtSessions.value = []
       } catch (error: any) {
         if (error !== 'cancel') {
-          console.error('终止所有会话失败:', error)
-          ElMessage.error('终止所有会话失败，请重试')
+          console.error(t('userDetail.terminate_all_sessions_error'), error)
+          ElMessage.error(t('userDetail.terminate_all_sessions_failed'))
         }
       } finally {
         terminatingAll.value = false
@@ -328,27 +330,27 @@ export default defineComponent({
 
     // 编辑用户
     const handleEditUser = () => {
-      ElMessage.info('编辑用户功能暂未实现')
+      ElMessage.info(t('userDetail.edit_user_not_implemented'))
     }
 
     // 切换用户状态
     const handleToggleStatus = () => {
-      ElMessage.info('切换用户状态功能暂未实现')
+      ElMessage.info(t('userDetail.toggle_status_not_implemented'))
     }
 
     // 切换验证状态
     const handleToggleVerified = () => {
-      ElMessage.info('切换验证状态功能暂未实现')
+      ElMessage.info(t('userDetail.toggle_verification_not_implemented'))
     }
 
     // 辅助函数：获取用户ID
     const getUserId = (user: User): string => {
-      return String(user.user_id || '未知ID')
+      return String(user.user_id || t('userDetail.unknown_id'))
     }
     
     // 辅助函数：获取用户名
     const getUserName = (user: User): string => {
-      return user.profile.nickname || '未知用户名'
+      return user.profile.nickname || t('userDetail.unknown_username')
     }
     
     // 辅助函数：获取状态
@@ -378,7 +380,7 @@ export default defineComponent({
 
     // 格式化日期时间
     const formatDateTime = (dateStr: string | null) => {
-      if (!dateStr) return '无'
+      if (!dateStr) return t('userDetail.none')
       return new Date(dateStr).toLocaleString('zh-CN', {
         year: 'numeric',
         month: '2-digit',
@@ -403,10 +405,10 @@ export default defineComponent({
     // 获取状态文本
     const getStatusText = (status: string) => {
       const map: Record<string, string> = {
-        active: '活跃',
-        inactive: '未激活',
-        locked: '锁定',
-        banned: '封禁'
+        active: t('userDetail.status_active'),
+        inactive: t('userDetail.status_inactive'),
+        locked: t('userDetail.status_locked'),
+        banned: t('userDetail.status_banned')
       }
       return map[status] || status
     }
@@ -414,9 +416,9 @@ export default defineComponent({
     // 获取提供商文本
     const getProviderText = (provider: string) => {
       const map: Record<string, string> = {
-        local: '本地账号',
+        local: t('userDetail.provider_local'),
         google: 'Google',
-        weixin: '微信'
+        weixin: t('userDetail.provider_weixin')
       }
       return map[provider] || provider
     }
@@ -431,11 +433,11 @@ export default defineComponent({
 
     // 获取操作按钮文本
     const getActionButtonText = (status: string) => {
-      if (status === 'active') return '锁定账号'
-      if (status === 'inactive') return '激活账号'
-      if (status === 'locked') return '解锁账号'
-      if (status === 'banned') return '解封账号'
-      return '更改状态'
+      if (status === 'active') return t('userDetail.lock_account')
+      if (status === 'inactive') return t('userDetail.activate_account')
+      if (status === 'locked') return t('userDetail.unlock_account')
+      if (status === 'banned') return t('userDetail.unban_account')
+      return t('userDetail.change_status')
     }
 
     onMounted(() => {

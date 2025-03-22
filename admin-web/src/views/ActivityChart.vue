@@ -8,6 +8,7 @@
 import { defineComponent, PropType, onMounted, ref, watch } from 'vue'
 import { Chart, registerables } from 'chart.js'
 import { ActivityData } from '@/api'
+import { useI18n } from 'vue-i18n'
 
 // 注册所有Chart.js组件
 Chart.register(...registerables)
@@ -21,6 +22,7 @@ export default defineComponent({
     }
   },
   setup(props) {
+    const { t } = useI18n()
     const chartCanvas = ref<HTMLCanvasElement | null>(null)
     let chart: Chart | null = null
 
@@ -47,7 +49,7 @@ export default defineComponent({
           labels: dates,
           datasets: [
             {
-              label: '新用户',
+              label: t('activity.chart.new_users'),
               data: newUsers,
               backgroundColor: 'rgba(103, 194, 58, 0.1)',
               borderColor: '#67C23A',
@@ -56,7 +58,7 @@ export default defineComponent({
               tension: 0.4
             },
             {
-              label: '活跃用户',
+              label: t('activity.chart.active_users'),
               data: activeUsers,
               backgroundColor: 'rgba(64, 158, 255, 0.1)',
               borderColor: '#409EFF',
@@ -65,7 +67,7 @@ export default defineComponent({
               tension: 0.4
             },
             {
-              label: '登录尝试',
+              label: t('activity.chart.login_attempts'),
               data: loginAttempts,
               backgroundColor: 'rgba(230, 162, 60, 0.1)',
               borderColor: '#E6A23C',
@@ -84,7 +86,7 @@ export default defineComponent({
             },
             title: {
               display: true,
-              text: '用户活跃趋势'
+              text: t('activity.chart.title')
             },
             tooltip: {
               mode: 'index',
@@ -95,14 +97,14 @@ export default defineComponent({
             x: {
               title: {
                 display: true,
-                text: '日期'
+                text: t('activity.chart.date')
               }
             },
             y: {
               beginAtZero: true,
               title: {
                 display: true,
-                text: '数量'
+                text: t('activity.chart.count')
               }
             }
           }

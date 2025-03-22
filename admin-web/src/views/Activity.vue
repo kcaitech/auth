@@ -3,15 +3,15 @@
     <el-card class="activity-card">
       <template #header>
         <div class="card-header">
-          <h2>用户活跃情况</h2>
+          <h2>{{ $t('activity.title') }}</h2>
           <div class="filter-actions">
-            <el-select v-model="daysFilter" placeholder="时间范围" size="small">
-              <el-option label="最近7天" :value="7" />
-              <el-option label="最近30天" :value="30" />
-              <el-option label="最近90天" :value="90" />
+            <el-select v-model="daysFilter" :placeholder="$t('activity.time_range')" size="small">
+              <el-option :label="$t('activity.last_7_days')" :value="7" />
+              <el-option :label="$t('activity.last_30_days')" :value="30" />
+              <el-option :label="$t('activity.last_90_days')" :value="90" />
             </el-select>
             <el-button type="primary" size="small" @click="fetchActivity">
-              加载数据
+              {{ $t('activity.load_data') }}
             </el-button>
           </div>
         </div>
@@ -43,33 +43,33 @@
             stripe
             size="small"
           >
-            <el-table-column prop="date" label="日期" width="120" fixed />
-            <el-table-column prop="new_users" label="新用户" width="100">
+            <el-table-column prop="date" :label="$t('activity.date')" width="120" fixed />
+            <el-table-column prop="new_users" :label="$t('activity.new_users')" width="100">
               <template #default="scope">
                 <span class="highlight-value">{{ scope.row.new_users }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="active_users" label="活跃用户" width="100">
+            <el-table-column prop="active_users" :label="$t('activity.active_users')" width="100">
               <template #default="scope">
                 <span class="highlight-value primary">{{ scope.row.active_users }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="login_attempts" label="登录尝试" width="100">
+            <el-table-column prop="login_attempts" :label="$t('activity.login_attempts')" width="100">
               <template #default="scope">
                 <span class="highlight-value info">{{ scope.row.login_attempts }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="successful_auth" label="成功认证" width="100">
+            <el-table-column prop="successful_auth" :label="$t('activity.successful_auth')" width="100">
               <template #default="scope">
                 <span class="highlight-value success">{{ scope.row.successful_auth }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="failed_auth" label="失败认证" width="100">
+            <el-table-column prop="failed_auth" :label="$t('activity.failed_auth')" width="100">
               <template #default="scope">
                 <span class="highlight-value danger">{{ scope.row.failed_auth }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="成功率" width="100">
+            <el-table-column :label="$t('activity.success_rate')" width="100">
               <template #default="scope">
                 <span>{{ calculateSuccessRate(scope.row) }}%</span>
               </template>
@@ -86,6 +86,7 @@ import { defineComponent, ref, computed, onMounted } from 'vue'
 import api, { ActivityData } from '@/api'
 import { ElMessage } from 'element-plus'
 import ActivityChart from './ActivityChart.vue'
+import { useI18n } from 'vue-i18n'
 
 export default defineComponent({
   name: 'ActivityView',
@@ -93,6 +94,7 @@ export default defineComponent({
     ActivityChart
   },
   setup() {
+    const { t } = useI18n()
     const loading = ref(true)
     const error = ref('')
     const activityData = ref<ActivityData[]>([])
@@ -107,9 +109,9 @@ export default defineComponent({
         const data = await api.getActivity(daysFilter.value)
         activityData.value = data
       } catch (e: any) {
-        error.value = e.response?.data?.error || '加载活跃数据失败'
+        error.value = e.response?.data?.error || t('activity.load_failed')
         ElMessage.error(error.value)
-        console.error('获取活跃数据失败', e)
+        console.error(t('activity.get_activity_failed'), e)
       } finally {
         loading.value = false
       }

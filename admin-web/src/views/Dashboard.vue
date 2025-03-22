@@ -3,9 +3,9 @@
     <el-card class="dashboard-card">
       <template #header>
         <div class="card-header">
-          <h2>用户统计概览</h2>
+          <h2>{{ $t('dashboard.title') }}</h2>
           <el-button type="primary" size="small" @click="fetchStats">
-            <i class="el-icon-refresh"></i> 刷新
+            <i class="el-icon-refresh"></i> {{ $t('dashboard.refresh') }}
           </el-button>
         </div>
       </template>
@@ -27,25 +27,25 @@
           <el-card shadow="hover" class="stat-card">
             <template #header>
               <div class="stat-header">
-                <i class="el-icon-user"></i> 用户总览
+                <i class="el-icon-user"></i> {{ $t('dashboard.user_overview') }}
               </div>
             </template>
             <div class="stat-content">
               <div class="stat-item">
                 <div class="stat-value primary">{{ stats.total_users }}</div>
-                <div class="stat-label">总用户数</div>
+                <div class="stat-label">{{ $t('dashboard.total_users') }}</div>
               </div>
               <div class="stat-item">
                 <div class="stat-value success">{{ stats.active_users }}</div>
-                <div class="stat-label">活跃用户</div>
+                <div class="stat-label">{{ $t('dashboard.active_users') }}</div>
               </div>
               <div class="stat-item">
                 <div class="stat-value warning">{{ stats.inactive_users }}</div>
-                <div class="stat-label">未激活</div>
+                <div class="stat-label">{{ $t('dashboard.inactive_users') }}</div>
               </div>
               <div class="stat-item">
                 <div class="stat-value danger">{{ stats.banned_users }}</div>
-                <div class="stat-label">已封禁</div>
+                <div class="stat-label">{{ $t('dashboard.banned_users') }}</div>
               </div>
             </div>
           </el-card>
@@ -54,21 +54,21 @@
           <el-card shadow="hover" class="stat-card">
             <template #header>
               <div class="stat-header">
-                <i class="el-icon-plus"></i> 新增用户
+                <i class="el-icon-plus"></i> {{ $t('dashboard.new_users') }}
               </div>
             </template>
             <div class="stat-content">
               <div class="stat-item">
                 <div class="stat-value success">{{ stats.new_today }}</div>
-                <div class="stat-label">今日新增</div>
+                <div class="stat-label">{{ $t('dashboard.new_today') }}</div>
               </div>
               <div class="stat-item">
                 <div class="stat-value primary">{{ stats.new_this_week }}</div>
-                <div class="stat-label">本周新增</div>
+                <div class="stat-label">{{ $t('dashboard.new_this_week') }}</div>
               </div>
               <div class="stat-item">
                 <div class="stat-value info">{{ stats.new_this_month }}</div>
-                <div class="stat-label">本月新增</div>
+                <div class="stat-label">{{ $t('dashboard.new_this_month') }}</div>
               </div>
             </div>
           </el-card>
@@ -77,21 +77,21 @@
           <el-card shadow="hover" class="stat-card">
             <template #header>
               <div class="stat-header">
-                <i class="el-icon-key"></i> 登录情况
+                <i class="el-icon-key"></i> {{ $t('dashboard.login_stats') }}
               </div>
             </template>
             <div class="stat-content">
               <div class="stat-item">
                 <div class="stat-value success">{{ stats.login_today }}</div>
-                <div class="stat-label">今日登录</div>
+                <div class="stat-label">{{ $t('dashboard.login_today') }}</div>
               </div>
               <div class="stat-item">
                 <div class="stat-value primary">{{ stats.login_this_week }}</div>
-                <div class="stat-label">本周登录</div>
+                <div class="stat-label">{{ $t('dashboard.login_this_week') }}</div>
               </div>
               <div class="stat-item">
                 <div class="stat-value info">{{ stats.login_this_month }}</div>
-                <div class="stat-label">本月登录</div>
+                <div class="stat-label">{{ $t('dashboard.login_this_month') }}</div>
               </div>
             </div>
           </el-card>
@@ -100,25 +100,25 @@
           <el-card shadow="hover" class="stat-card">
             <template #header>
               <div class="stat-header">
-                <i class="el-icon-connection"></i> 认证统计
+                <i class="el-icon-connection"></i> {{ $t('dashboard.auth_stats') }}
               </div>
             </template>
             <div class="stat-content">
               <div class="stat-item">
                 <div class="stat-value info">{{ stats.verified_users }}</div>
-                <div class="stat-label">已验证</div>
+                <div class="stat-label">{{ $t('dashboard.verified_users') }}</div>
               </div>
               <div class="stat-item">
                 <div class="stat-value warning">{{ stats.unverified_users }}</div>
-                <div class="stat-label">未验证</div>
+                <div class="stat-label">{{ $t('dashboard.unverified_users') }}</div>
               </div>
               <div class="stat-item">
                 <div class="stat-value success">{{ stats.two_factor_enabled }}</div>
-                <div class="stat-label">双因素认证</div>
+                <div class="stat-label">{{ $t('dashboard.two_factor_enabled') }}</div>
               </div>
               <div class="stat-item">
                 <div class="stat-value primary">{{ stats.social_users }}</div>
-                <div class="stat-label">社交登录</div>
+                <div class="stat-label">{{ $t('dashboard.social_users') }}</div>
               </div>
             </div>
           </el-card>
@@ -131,10 +131,12 @@
 <script lang="ts">
 import { defineComponent, onMounted, reactive, ref } from 'vue'
 import api, { StatsData } from '@/api'
+import { useI18n } from 'vue-i18n'
 
 export default defineComponent({
   name: 'DashboardView',
   setup() {
+    const { t } = useI18n()
     const loading = ref(true)
     const error = ref('')
     
@@ -169,8 +171,8 @@ export default defineComponent({
         // 更新统计数据
         Object.assign(stats, data)
       } catch (e: any) {
-        error.value = e.response?.data?.error || '加载统计数据失败'
-        console.error('获取统计数据失败', e)
+        error.value = e.response?.data?.error || t('dashboard.load_failed')
+        console.error(t('dashboard.get_stats_failed'), e)
       } finally {
         loading.value = false
       }

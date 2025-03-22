@@ -3,12 +3,12 @@
     <el-card class="settings-card">
       <template #header>
         <div class="card-header">
-          <h2>系统设置</h2>
+          <h2>{{ $t('settings.title') }}</h2>
         </div>
       </template>
       
       <el-empty 
-        description="该功能暂未实现，敬请期待" 
+        :description="$t('settings.not_implemented')" 
         :image-size="200"
       >
         <template #image>
@@ -22,11 +22,16 @@
 <script lang="ts">
 import { defineComponent } from 'vue'
 import { Setting } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 
 export default defineComponent({
   name: 'SettingsView',
   components: {
     Setting
+  },
+  setup() {
+    const { t } = useI18n()
+    return { t }
   }
 })
 </script>

@@ -3,7 +3,7 @@
     <el-card class="login-card">
       <template #header>
         <div class="login-header">
-          <h2>KC认证系统管理控制台</h2>
+          <h2>{{ $t('auth.welcome') }}</h2>
         </div>
       </template>
       
@@ -14,20 +14,20 @@
         label-position="top"
         @keyup.enter="handleLogin"
       >
-        <el-form-item label="用户名" prop="username">
+        <el-form-item :label="$t('auth.username')" prop="username">
           <el-input
             v-model="loginForm.username"
             prefix-icon="el-icon-user"
-            placeholder="请输入管理员用户名"
+            :placeholder="$t('auth.login_placeholder')"
           />
         </el-form-item>
         
-        <el-form-item label="密码" prop="password">
+        <el-form-item :label="$t('auth.password')" prop="password">
           <el-input
             v-model="loginForm.password"
             type="password"
             prefix-icon="el-icon-lock"
-            placeholder="请输入密码"
+            :placeholder="$t('auth.password_placeholder')"
             show-password
           />
         </el-form-item>
@@ -48,7 +48,7 @@
             @click="handleLogin"
             style="width: 100%"
           >
-            {{ authStore.loading ? '登录中...' : '登录' }}
+            {{ authStore.loading ? $t('auth.login_loading') : $t('auth.login') }}
           </el-button>
         </el-form-item>
       </el-form>
@@ -60,6 +60,7 @@
 import { defineComponent, reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/store/auth'
+import { useI18n } from 'vue-i18n'
 import type { FormInstance, FormRules } from 'element-plus'
 
 export default defineComponent({
@@ -68,6 +69,7 @@ export default defineComponent({
     const router = useRouter()
     const authStore = useAuthStore()
     const formRef = ref<FormInstance>()
+    const { t } = useI18n()
     
     // 表单数据
     const loginForm = reactive({
@@ -78,10 +80,10 @@ export default defineComponent({
     // 表单验证规则
     const rules = reactive<FormRules>({
       username: [
-        { required: true, message: '请输入用户名', trigger: 'blur' }
+        { required: true, message: t('auth.error_username_required'), trigger: 'blur' }
       ],
       password: [
-        { required: true, message: '请输入密码', trigger: 'blur' }
+        { required: true, message: t('auth.error_password_required'), trigger: 'blur' }
       ]
     })
     

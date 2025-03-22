@@ -4,16 +4,17 @@
       <!-- 顶部导航 -->
       <el-header height="60px" class="header">
         <div class="logo">
-          <h1>KC认证系统管理控制台</h1>
+          <h1>{{ $t('auth.welcome') }}</h1>
         </div>
         <div class="user-info">
+          <language-switcher class="language-switcher" />
           <span>{{ authStore.username }}</span>
           <el-dropdown trigger="click" @command="handleCommand">
             <el-avatar size="small" icon="el-icon-user" />
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="sessions">我的会话</el-dropdown-item>
-                <el-dropdown-item command="logout">退出登录</el-dropdown-item>
+                <el-dropdown-item command="sessions">{{ $t('common.mySessions') }}</el-dropdown-item>
+                <el-dropdown-item command="logout">{{ $t('common.logout') }}</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -33,19 +34,19 @@
           >
             <el-menu-item index="/">
               <i class="el-icon-s-home"></i>
-              <span>仪表盘</span>
+              <span>{{ $t('layout.menu.dashboard') }}</span>
             </el-menu-item>
             <el-menu-item index="/users">
               <i class="el-icon-user"></i>
-              <span>用户管理</span>
+              <span>{{ $t('layout.menu.users') }}</span>
             </el-menu-item>
             <el-menu-item index="/activity">
               <i class="el-icon-data-line"></i>
-              <span>活跃情况</span>
+              <span>{{ $t('layout.menu.activity') }}</span>
             </el-menu-item>
             <el-menu-item index="/settings">
               <i class="el-icon-setting"></i>
-              <span>系统设置</span>
+              <span>{{ $t('layout.menu.settings') }}</span>
             </el-menu-item>
           </el-menu>
         </el-aside>
@@ -73,9 +74,13 @@ import { defineComponent, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/store/auth'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 
 export default defineComponent({
   name: 'LayoutView',
+  components: {
+    LanguageSwitcher
+  },
   setup() {
     const route = useRoute()
     const router = useRouter()
@@ -151,9 +156,15 @@ export default defineComponent({
     .user-info {
       display: flex;
       align-items: center;
+      gap: 15px;
+      
+      .language-switcher {
+        margin-right: 10px;
+      }
       
       span {
         margin-right: 10px;
+        color: #fff;
       }
     }
   }

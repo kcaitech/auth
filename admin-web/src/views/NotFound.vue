@@ -1,46 +1,48 @@
 <template>
   <div class="not-found-container">
-    <el-result
-      icon="error"
-      title="404"
-      sub-title="抱歉，您访问的页面不存在"
-    >
-      <template #extra>
-        <el-button type="primary" @click="goHome">返回首页</el-button>
-      </template>
-    </el-result>
+    <div class="not-found-content">
+      <h1>404</h1>
+      <h2>{{ $t('notFound.title') }}</h2>
+      <p>{{ $t('notFound.description') }}</p>
+      <el-button type="primary" @click="$router.push('/')">{{ $t('notFound.back_to_home') }}</el-button>
+    </div>
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue'
-import { useRouter } from 'vue-router'
+<script lang="ts" setup>
+import { useI18n } from 'vue-i18n'
 
-export default defineComponent({
-  name: 'NotFoundView',
-  setup() {
-    const router = useRouter()
-    
-    const goHome = () => {
-      router.push('/')
-    }
-    
-    return {
-      goHome
-    }
-  }
-})
+const $t = useI18n().t
 </script>
 
-<style lang="scss" scoped>
+<style scoped>
 .not-found-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100%;
-  
-  .el-result {
-    padding: 40px 0;
-  }
+  height: 100vh;
+  background-color: #f5f7fa;
+}
+
+.not-found-content {
+  text-align: center;
+  padding: 2rem;
+}
+
+h1 {
+  font-size: 6rem;
+  margin: 0;
+  color: #409EFF;
+}
+
+h2 {
+  margin-top: 0;
+  font-size: 2rem;
+  color: #303133;
+}
+
+p {
+  margin-bottom: 2rem;
+  color: #606266;
 }
 </style> 
