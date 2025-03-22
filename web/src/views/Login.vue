@@ -199,8 +199,8 @@ onMounted(async () => {
       registerType.value = 'phone'
     }
   } catch (error) {
-    console.error('初始化登录页面失败', error)
-    errorMessage.value = '加载登录选项失败，请刷新页面重试'
+    console.error(t('errors.initLoginPageFailed'), error)
+    errorMessage.value = t('errors.loadLoginOptionsFailed')
   } finally {
     initialLoading.value = false
   }
@@ -218,7 +218,7 @@ const handleLoginError = (message: string) => {
 
 // 注册成功处理
 const handleRegisterSuccess = () => {
-  errorMessage.value = '注册成功，请登录您的账号'
+  errorMessage.value = t('auth.registerSuccess')
   activeTab.value = 'login'
   if (registerType.value === 'account') {
     loginType.value = 'account'

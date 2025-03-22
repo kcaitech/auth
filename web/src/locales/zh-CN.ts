@@ -27,6 +27,7 @@ export default {
     nickname: '昵称',
     username: '用户名',
     code: '验证码',
+    user: '用户',
   },
   auth: {
     login: '登录',
@@ -124,15 +125,64 @@ export default {
     codeExpired: '验证码已过期',
     codeSendFailed: '验证码发送失败',
     passwordResetFailed: '密码重置失败',
+    fetchProvidersFailed: '获取支持的登录方式失败',
+    initLoginPageFailed: '初始化登录页面失败',
+    loadLoginOptionsFailed: '加载登录选项失败，请刷新页面重试',
+    googleClientIdMissing: '未配置谷歌客户端ID',
+    googleSdkLoadFailed: '加载谷歌登录SDK失败',
+    wechatUrlFetchFailed: '获取微信登录链接失败',
+    phoneLoginFailed: '手机号登录失败，请重试',
+    phoneCodeLoginFailed: '验证码登录失败，请重试',
+    passwordResetInitFailed: '发起密码重置失败，请重试',
+    googleConfigIncomplete: '谷歌登录配置不完整',
+    googleCredentialMissing: '谷歌登录失败：未获取到凭证',
+    googleLoginProcessFailed: '谷歌登录处理失败',
+    renderGoogleButtonFailed: '渲染谷歌登录按钮失败',
+    googleServiceLoadFailed: '加载谷歌登录服务失败',
   },
   email: {
     verificationTitle: '邮箱验证',
     registrationTitle: '注册 KCAuth',
+    verificationEmailTpl: `
+  <h2>邮箱验证</h2>
+  <p>您好，请点击以下链接验证您的邮箱：</p>
+  <p><a href="{{.BaseURL}}/auth/verify-email?token={{.Token}}">验证邮箱</a></p>
+  <p>如果链接无法点击，请复制以下地址到浏览器打开：</p>
+  <p>{{.BaseURL}}/auth/verify-email?token={{.Token}}</p>
+  <p>此链接将在24小时后过期。</p>
+  `,
+  passwordResetEmailTpl: `
+  <h2>密码重置</h2>
+  <p>您好，请点击以下链接重置您的密码：</p>
+  <p><a href="{{.BaseURL}}/auth/reset-password?token={{.Token}}">重置密码</a></p>
+  <p>如果链接无法点击，请复制以下地址到浏览器打开：</p>
+  <p>{{.BaseURL}}/auth/reset-password?token={{.Token}}</p>
+  <p>此链接将在24小时后过期。如果您没有请求重置密码，请忽略此邮件。</p>
+  `,
+  loginNotificationEmailTpl: `
+  <h2>登录通知</h2>
+  <p>您好，您的账号刚刚在新设备上登录：</p>
+  <p>IP地址：{{.Ip}}</p>
+  <p>时间：{{.Time}}</p>
+  <p>如果这不是您本人的操作，请立即修改密码。</p>
+  `,
   },
   logs: {
     googleInit: '开始初始化谷歌登录...',
     googleClientIdMissing: '未配置谷歌客户端ID，请在.env文件中设置VITE_GOOGLE_CLIENT_ID',
     googleInitComplete: '谷歌登录按钮初始化完成',
     googleInitFailed: '初始化谷歌登录失败:',
-  }
+    googleButtonRendered: '谷歌登录按钮已渲染',
+  },
+  dashboard: {
+    welcomeBack: '欢迎回来，{nickname}',
+    title: '仪表盘',
+    description: '这是您的个人仪表盘页面。',
+    loginSuccess: '您已成功登录系统。',
+  },
+  notFound: {
+    title: '页面未找到',
+    description: '抱歉，您访问的页面不存在。',
+    backToHome: '返回首页',
+  },
 } 

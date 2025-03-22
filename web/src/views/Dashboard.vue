@@ -1,15 +1,15 @@
 <template>
   <div class="dashboard-container">
     <header class="dashboard-header">
-      <h1>欢迎回来，{{ user?.nickname || '用户' }}</h1>
-      <button @click="logout" class="logout-btn">退出登录</button>
+      <h1>{{ $t('dashboard.welcomeBack', { nickname: user?.nickname || $t('common.user') }) }}</h1>
+      <button @click="logout" class="logout-btn">{{ $t('common.logout') }}</button>
     </header>
     
     <div class="dashboard-content">
       <div class="dashboard-card">
-        <h2>仪表盘</h2>
-        <p>这是您的个人仪表盘页面。</p>
-        <p>您已成功登录系统。</p>
+        <h2>{{ $t('dashboard.title') }}</h2>
+        <p>{{ $t('dashboard.description') }}</p>
+        <p>{{ $t('dashboard.loginSuccess') }}</p>
       </div>
     </div>
   </div>
@@ -19,9 +19,11 @@
 import { onMounted, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 
 const authStore = useAuthStore()
 const router = useRouter()
+const { t } = useI18n()
 const user = ref(authStore.currentUser)
 
 onMounted(async () => {

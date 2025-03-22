@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
-import { getPreferredLanguage } from '@/locales';
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 // 扩展Window接口以包含谷歌API
 declare global {
@@ -89,7 +91,7 @@ export const useAuthStore = defineStore('auth', {
         this.supportedProviders = response.data.providers || []
         return this.supportedProviders
       } catch (error: any) {
-        console.error('获取支持的登录方式失败', error)
+        console.error(t('errors.fetchProvidersFailed'), error)
         return []
       } finally {
         this.loading = false
@@ -103,7 +105,7 @@ export const useAuthStore = defineStore('auth', {
         
         // 这里应该调用实际的 API 端点
         const response = await axios.post('/auth/account/login', {
-          username: usernameOrEmail, // 为了保持API兼容性，仍然使用username作为参数名称
+          username: usernameOrEmail,
           password
         })
         
@@ -120,8 +122,8 @@ export const useAuthStore = defineStore('auth', {
         
         return user
       } catch (error: any) {
-        this.error = error.response?.data?.message || '登录失败，请重试'
-        throw new Error(this.error || '登录失败，请重试')
+        this.error = error.response?.data?.message || t('errors.loginFailed')
+        throw new Error(this.error || t('errors.loginFailed'))
       } finally {
         this.loading = false
       }
@@ -152,7 +154,6 @@ export const useAuthStore = defineStore('auth', {
         // 使用账号注册API
         const response = await axios.post('/auth/account/register', {
           ...registerData,
-          // email: '' // 传递空邮箱
         })
         
         const { user, token } = response.data
@@ -166,8 +167,8 @@ export const useAuthStore = defineStore('auth', {
         // 设置 axios 默认 headers
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
       } catch (error: any) {
-        this.error = error.response?.data?.message || '账号注册失败，请重试'
-        throw new Error(this.error || '账号注册失败，请重试')
+        this.error = error.response?.data?.message || t('errors.registerFailed')
+        throw new Error(this.error || t('errors.registerFailed'))
       } finally {
         this.loading = false
       }
@@ -178,9 +179,8 @@ export const useAuthStore = defineStore('auth', {
         // 可选：调用登出 API
         await axios.post('/auth/logout')
       } catch (error) {
-        console.error('登出时发生错误', error)
+        console.error(t('errors.logoutFailed'), error)
       } finally {
-        // 无论 API 调用是否成功，都清除本地状态
         this.user = null
         this.token = ''
         localStorage.removeItem('token')
@@ -210,50 +210,48 @@ export const useAuthStore = defineStore('auth', {
         try {
           // 检查是否配置了谷歌客户端ID
           if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
-            reject(new Error('未配置谷歌客户端ID'));
-            return;
+            reject(new Error(t('errors.googleClientIdMissing')))
+            return
           }
           
           // 如果已经加载了谷歌API，直接解析
           if (window.google && window.google.accounts) {
-            resolve();
-            return;
+            resolve()
+            return
           }
           
           // 创建一个回调函数，当谷歌库加载完成时调用
           window.onGoogleLibraryLoad = () => {
-            resolve();
-          };
+            resolve()
+          }
           
           // 检查是否已经存在脚本
           const existingScript = document.querySelector('script[src*="accounts.google.com/gsi/client"]');
           if (existingScript) {
             // 脚本已存在但可能未加载完成，等待onload
             if (window.google && window.google.accounts) {
-              resolve();
+              resolve()
             }
-            return;
+            return
           }
           
-          // 加载谷歌库
-          const script = document.createElement('script');
-          script.src = 'https://accounts.google.com/gsi/client';
-          script.async = true;
-          script.defer = true;
+          const script = document.createElement('script')
+          script.src = 'https://accounts.google.com/gsi/client'
+          script.async = true
+          script.defer = true
           script.onload = () => {
-            // 谷歌库加载完成时通过全局回调函数调用
             if (window.google && window.google.accounts) {
-              resolve();
+              resolve()
             }
-          };
+          }
           script.onerror = () => {
-            reject(new Error('加载谷歌登录SDK失败'));
-          };
-          document.head.appendChild(script);
+            reject(new Error(t('errors.googleSdkLoadFailed')))
+          }
+          document.head.appendChild(script)
         } catch (error) {
-          reject(error);
+          reject(error)
         }
-      });
+      })
     },
     
     // async handleGoogleLogin() {
@@ -342,8 +340,8 @@ export const useAuthStore = defineStore('auth', {
     renderGoogleButton(elementId: string) {
       // 检查是否配置了谷歌客户端ID
       if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
-        console.error('未配置谷歌客户端ID');
-        this.error = '谷歌登录配置不完整';
+        console.error(t('logs.googleClientIdMissing'));
+        this.error = t('errors.googleConfigIncomplete');
         return;
       }
       
@@ -356,7 +354,7 @@ export const useAuthStore = defineStore('auth', {
             callback: async (response: any) => {
               try {
                 if (!response || !response.credential) {
-                  this.error = '谷歌登录失败：未获取到凭证';
+                  this.error = t('errors.googleCredentialMissing');
                   return;
                 }
                 
@@ -373,8 +371,8 @@ export const useAuthStore = defineStore('auth', {
                 localStorage.setItem('token', token);
                 axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
               } catch (error: any) {
-                this.error = error.response?.data?.message || '谷歌登录处理失败';
-                console.error('谷歌登录处理失败', error);
+                this.error = error.response?.data?.message || t('errors.googleLoginProcessFailed');
+                console.error(t('errors.googleLoginProcessFailed'), error);
               }
             },
             auto_select: false,
@@ -392,11 +390,11 @@ export const useAuthStore = defineStore('auth', {
             // locale: getPreferredLanguage()
           });
           
-          console.log('谷歌登录按钮已渲染');
+          console.log(t('logs.googleButtonRendered'));
         }
       }).catch(error => {
-        console.error('渲染谷歌登录按钮失败', error);
-        this.error = '加载谷歌登录服务失败';
+        console.error(t('errors.renderGoogleButtonFailed'), error);
+        this.error = t('errors.googleServiceLoadFailed');
       });
     },
     
@@ -406,8 +404,8 @@ export const useAuthStore = defineStore('auth', {
         const response = await axios.get('/auth/weixin/url')
         return response.data.url
       } catch (error: any) {
-        this.error = error.response?.data?.message || '获取微信登录链接失败'
-        throw new Error(this.error || '获取微信登录链接失败')
+        this.error = error.response?.data?.message || t('errors.wechatUrlFetchFailed')
+        throw new Error(this.error || t('errors.wechatUrlFetchFailed'))
       }
     },
     
@@ -427,8 +425,8 @@ export const useAuthStore = defineStore('auth', {
         
         return user
       } catch (error: any) {
-        this.error = error.response?.data?.message || '微信登录失败'
-        throw new Error(this.error || '微信登录失败')
+        this.error = error.response?.data?.message || t('errors.wechatLoginFailed')
+        throw new Error(this.error || t('errors.wechatLoginFailed'))
       } finally {
         this.loading = false
       }
@@ -443,7 +441,7 @@ export const useAuthStore = defineStore('auth', {
         const response = await axios.post('/auth/phone/send-code', { phone })
         return response.data
       } catch (error: any) {
-        this.error = error.response?.data?.error || '发送验证码失败，请重试'
+        this.error = error.response?.data?.error || t('errors.codeSendFailed')
         throw new Error(this.error)
       } finally {
         this.loading = false
@@ -474,7 +472,7 @@ export const useAuthStore = defineStore('auth', {
         
         return user
       } catch (error: any) {
-        this.error = error.response?.data?.error || '手机号登录失败，请重试'
+        this.error = error.response?.data?.error || t('errors.phoneLoginFailed')
         throw new Error(this.error)
       } finally {
         this.loading = false
@@ -505,7 +503,7 @@ export const useAuthStore = defineStore('auth', {
         
         return user
       } catch (error: any) {
-        this.error = error.response?.data?.error || '验证码登录失败，请重试'
+        this.error = error.response?.data?.error || t('errors.phoneCodeLoginFailed')
         throw new Error(this.error)
       } finally {
         this.loading = false
@@ -522,7 +520,7 @@ export const useAuthStore = defineStore('auth', {
         
         return response.data
       } catch (error: any) {
-        this.error = error.response?.data?.error || '手机号注册失败，请重试'
+        this.error = error.response?.data?.error || t('errors.phoneRegisterFailed')
         throw new Error(this.error)
       } finally {
         this.loading = false
@@ -539,7 +537,7 @@ export const useAuthStore = defineStore('auth', {
         
         return response.data
       } catch (error: any) {
-        this.error = error.response?.data?.error || '手机号验证失败，请重试'
+        this.error = error.response?.data?.error || t('errors.phoneVerificationFailed')
         throw new Error(this.error)
       } finally {
         this.loading = false
@@ -556,7 +554,7 @@ export const useAuthStore = defineStore('auth', {
         
         return response.data
       } catch (error: any) {
-        this.error = error.response?.data?.error || '发起密码重置失败，请重试'
+        this.error = error.response?.data?.error || t('errors.passwordResetInitFailed')
         throw new Error(this.error)
       } finally {
         this.loading = false
@@ -577,7 +575,7 @@ export const useAuthStore = defineStore('auth', {
         
         return response.data
       } catch (error: any) {
-        this.error = error.response?.data?.error || '重置密码失败，请重试'
+        this.error = error.response?.data?.error || t('errors.passwordResetFailed')
         throw new Error(this.error)
       } finally {
         this.loading = false

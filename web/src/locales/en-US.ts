@@ -27,6 +27,7 @@ export default {
     nickname: 'Nickname',
     username: 'Username',
     code: 'Verification Code',
+    user: 'User',
   },
   auth: {
     login: 'Login',
@@ -124,15 +125,64 @@ export default {
     codeExpired: 'Verification code expired',
     codeSendFailed: 'Failed to send verification code',
     passwordResetFailed: 'Password reset failed',
+    fetchProvidersFailed: 'Failed to fetch supported login methods',
+    initLoginPageFailed: 'Failed to initialize login page',
+    loadLoginOptionsFailed: 'Failed to load login options, please refresh the page',
+    googleClientIdMissing: 'Google client ID is not configured',
+    googleSdkLoadFailed: 'Failed to load Google login SDK',
+    wechatUrlFetchFailed: 'Failed to fetch WeChat login URL',
+    phoneLoginFailed: 'Phone login failed, please try again',
+    phoneCodeLoginFailed: 'Verification code login failed, please try again',
+    passwordResetInitFailed: 'Failed to initiate password reset, please try again',
+    googleConfigIncomplete: 'Google login configuration is incomplete',
+    googleCredentialMissing: 'Google login failed: no credential received',
+    googleLoginProcessFailed: 'Google login process failed',
+    renderGoogleButtonFailed: 'Failed to render Google login button',
+    googleServiceLoadFailed: 'Failed to load Google login service',
   },
   email: {
     verificationTitle: 'Email Verification',
     registrationTitle: 'Register to KCAuth',
+    verificationEmailTpl: `
+  <h2>Email Verification</h2>
+  <p>Hello, please click the link below to verify your email:</p>
+  <p><a href="{{.BaseURL}}/auth/verify-email?token={{.Token}}">Verify Email</a></p>
+  <p>If the link cannot be clicked, please copy the following address to your browser:</p>
+  <p>{{.BaseURL}}/auth/verify-email?token={{.Token}}</p>
+  <p>This link will expire in 24 hours.</p>
+  `,
+    passwordResetEmailTpl: `
+  <h2>Password Reset</h2>
+  <p>Hello, please click the link below to reset your password:</p>
+  <p><a href="{{.BaseURL}}/auth/reset-password?token={{.Token}}">Reset Password</a></p>
+  <p>If the link cannot be clicked, please copy the following address to your browser:</p>
+  <p>{{.BaseURL}}/auth/reset-password?token={{.Token}}</p>
+  <p>This link will expire in 24 hours. If you did not request a password reset, please ignore this email.</p>
+  `,
+    loginNotificationEmailTpl: `
+  <h2>Login Notification</h2>
+  <p>Hello, your account was just logged in on a new device:</p>
+  <p>IP Address: {{.Ip}}</p>
+  <p>Time: {{.Time}}</p>
+  <p>If this was not you, please change your password immediately.</p>
+  `,
   },
   logs: {
     googleInit: 'Initializing Google login...',
     googleClientIdMissing: 'Google client ID is not configured, please set VITE_GOOGLE_CLIENT_ID in .env file',
     googleInitComplete: 'Google login button initialization complete',
     googleInitFailed: 'Google login initialization failed:',
-  }
+    googleButtonRendered: 'Google login button has been rendered',
+  },
+  dashboard: {
+    welcomeBack: 'Welcome back, {nickname}',
+    title: 'Dashboard',
+    description: 'This is your personal dashboard page.',
+    loginSuccess: 'You have successfully logged in to the system.',
+  },
+  notFound: {
+    title: 'Page Not Found',
+    description: 'Sorry, the page you visited does not exist.',
+    backToHome: 'Back to Home',
+  },
 } 
