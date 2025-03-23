@@ -6,7 +6,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"kcaitech.com/kcauth/server/auth"
-	"kcaitech.com/kcauth/server/middleware"
 )
 
 // AuthHandler Authentication handler
@@ -56,80 +55,80 @@ func NewAuthHandler(
 }
 
 // RegisterRoutes Register routes
-func (h *AuthHandler) RegisterRoutes(r *gin.Engine) {
+func (h *AuthHandler) RegisterRoutes(authGroup *gin.RouterGroup) {
 	// Add error handling middleware
-	r.Use(auth.ErrorHandler())
+	// r.Use(auth.ErrorHandler())
 
-	// Add monitoring middleware
-	r.Use(middleware.MetricsMiddleware())
+	// // Add monitoring middleware
+	// r.Use(middleware.MetricsMiddleware())
 
-	// Add rate limiting middleware
-	rateLimiter := middleware.RateLimiter{}
-	r.Use(rateLimiter.RateLimitMiddleware())
-	// Authentication related route group
-	authGroup := r.Group("/auth")
-	{
-		// Get supported login methods
-		authGroup.GET("/providers", h.GetSupportedProviders)
+	// // Add rate limiting middleware
+	// rateLimiter := middleware.RateLimiter{}
+	// r.Use(rateLimiter.RateLimitMiddleware())
+	// // Authentication related route group
+	// authGroup := r.Group("/auth")
+	// {
+	// Get supported login methods
+	authGroup.GET("/providers", h.GetSupportedProviders)
 
-		// Account login related routes
-		if h.useAccountAuth {
-			authGroup.POST("/account/register", h.Register)
-			authGroup.POST("/account/login", h.Login)
-			authGroup.POST("/account/password/reset", h.AuthRequired(), h.ResetPassword)
-		}
-		authGroup.POST("/logout", h.AuthRequired(), h.Logout)
-		authGroup.POST("/token/refresh", h.RefreshToken)
-		authGroup.POST("/token/validate", h.ValidateToken)
-
-		// Email login related routes
-		if h.emailAuth != nil {
-			authGroup.POST("/email/login", h.EmailLogin)
-			authGroup.POST("/email/register", h.EmailRegister)
-			authGroup.GET("/email/verify", h.EmailVerify)
-			authGroup.POST("/email/resend-verification", h.ResendEmailVerification)
-			authGroup.POST("/email/password/reset", h.EmailPasswordReset)
-			authGroup.POST("/email/password/reset/complete", h.CompleteEmailPasswordReset)
-		}
-
-		// Google OAuth related routes
-		if h.googleOAuth != nil {
-			authGroup.GET("/google/login", h.GoogleLogin)
-			authGroup.GET("/google/callback", h.GoogleCallback)
-			authGroup.POST("/google", h.GoogleLoginPost)
-		}
-
-		// WeChat login related routes
-		if h.weixinLogin != nil {
-			authGroup.GET("/weixin/url", h.WeixinLoginURL)
-			authGroup.GET("/weixin/login", h.WeixinLoginHandler)
-			authGroup.GET("/weixin/callback", h.WeixinCallback)
-		}
-
-		// Phone login related routes
-		if h.phoneAuth != nil {
-			// Create phone handler
-			phoneHandler := NewPhoneHandler(h.phoneAuth, h.sessionMgr, h.jwtService)
-			// Register phone authentication routes
-			phoneHandler.RegisterRoutes(authGroup)
-		}
-
-		// Two-factor authentication related routes
-		if h.twoFactor != nil {
-			authGroup.POST("/2fa/enable", h.AuthRequired(), h.Enable2FA)
-			authGroup.POST("/2fa/disable", h.AuthRequired(), h.Disable2FA)
-			authGroup.POST("/2fa/verify", h.Verify2FA)
-			authGroup.POST("/2fa/recovery", h.AuthRequired(), h.GenerateRecoveryCodes)
-		}
-
-		// User information related routes
-		authGroup.GET("/user", h.AuthRequired(), h.GetUserInfo)
-		authGroup.PUT("/user", h.AuthRequired(), h.UpdateUserInfo)
-		// User session information
-		authGroup.GET("/sessions", h.AuthRequired(), h.GetUserSessions)
-		authGroup.DELETE("/sessions/:session_id", h.AuthRequired(), h.TerminateUserSession)
-		authGroup.DELETE("/sessions", h.AuthRequired(), h.TerminateAllUserSessions)
+	// Account login related routes
+	if h.useAccountAuth {
+		authGroup.POST("/account/register", h.Register)
+		authGroup.POST("/account/login", h.Login)
+		authGroup.POST("/account/password/reset", h.AuthRequired(), h.ResetPassword)
 	}
+	authGroup.POST("/logout", h.AuthRequired(), h.Logout)
+	authGroup.POST("/token/refresh", h.RefreshToken)
+	authGroup.POST("/token/validate", h.ValidateToken)
+
+	// Email login related routes
+	if h.emailAuth != nil {
+		authGroup.POST("/email/login", h.EmailLogin)
+		authGroup.POST("/email/register", h.EmailRegister)
+		authGroup.GET("/email/verify", h.EmailVerify)
+		authGroup.POST("/email/resend-verification", h.ResendEmailVerification)
+		authGroup.POST("/email/password/reset", h.EmailPasswordReset)
+		authGroup.POST("/email/password/reset/complete", h.CompleteEmailPasswordReset)
+	}
+
+	// Google OAuth related routes
+	if h.googleOAuth != nil {
+		authGroup.GET("/google/login", h.GoogleLogin)
+		authGroup.GET("/google/callback", h.GoogleCallback)
+		authGroup.POST("/google", h.GoogleLoginPost)
+	}
+
+	// WeChat login related routes
+	if h.weixinLogin != nil {
+		authGroup.GET("/weixin/url", h.WeixinLoginURL)
+		authGroup.GET("/weixin/login", h.WeixinLoginHandler)
+		authGroup.GET("/weixin/callback", h.WeixinCallback)
+	}
+
+	// Phone login related routes
+	if h.phoneAuth != nil {
+		// Create phone handler
+		phoneHandler := NewPhoneHandler(h.phoneAuth, h.sessionMgr, h.jwtService)
+		// Register phone authentication routes
+		phoneHandler.RegisterRoutes(authGroup)
+	}
+
+	// Two-factor authentication related routes
+	if h.twoFactor != nil {
+		authGroup.POST("/2fa/enable", h.AuthRequired(), h.Enable2FA)
+		authGroup.POST("/2fa/disable", h.AuthRequired(), h.Disable2FA)
+		authGroup.POST("/2fa/verify", h.Verify2FA)
+		authGroup.POST("/2fa/recovery", h.AuthRequired(), h.GenerateRecoveryCodes)
+	}
+
+	// User information related routes
+	authGroup.GET("/user", h.AuthRequired(), h.GetUserInfo)
+	authGroup.PUT("/user", h.AuthRequired(), h.UpdateUserInfo)
+	// User session information
+	authGroup.GET("/sessions", h.AuthRequired(), h.GetUserSessions)
+	authGroup.DELETE("/sessions/:session_id", h.AuthRequired(), h.TerminateUserSession)
+	authGroup.DELETE("/sessions", h.AuthRequired(), h.TerminateAllUserSessions)
+	// }
 }
 
 // GetSupportedProviders Get supported login methods

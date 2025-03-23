@@ -207,16 +207,19 @@ func (s *AdminServer) registerRoutes(r *gin.Engine) {
 	// Static file routes
 	// r.Static("/assets", "./admin/assets")
 
+	// 添加静态文件服务
+	r.Static("/admin/assets", "./admin-web/dist/assets")
+
 	// All other routes redirect to admin UI entry point
 	r.NoRoute(func(c *gin.Context) {
 		// If it's an API request, return 404 error
-		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
-			c.JSON(http.StatusNotFound, gin.H{"error": "API path does not exist"})
+		if strings.HasPrefix(c.Request.URL.Path, "/auth/") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "auth path does not exist"})
 			return
 		}
 
 		// Otherwise, return admin UI entry point
-		c.File("./admin/index.html")
+		c.File("./admin-web/dist/index.html")
 	})
 }
 

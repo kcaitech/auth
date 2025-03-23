@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -23,6 +24,7 @@ import (
 	"kcaitech.com/kcauth/server/auth"
 	"kcaitech.com/kcauth/server/config"
 	"kcaitech.com/kcauth/server/handlers"
+	"kcaitech.com/kcauth/server/middleware"
 )
 
 // Global variables - reduce multiple passing of DB
@@ -105,7 +107,6 @@ func main() {
 	corsConfig.AllowCredentials = true
 	r.Use(cors.New(corsConfig))
 
-	// todo
 	// Initialize session middleware
 	store, err := redis.NewStore(10, "tcp", cfg.Redis.GetRedisAddr(), cfg.Redis.Password, []byte("secret"))
 	if err != nil {
@@ -113,8 +114,37 @@ func main() {
 	}
 	r.Use(sessions.Sessions("kcauth_session", store))
 
+	r.Use(auth.ErrorHandler())
+
+	// Add monitoring middleware
+	r.Use(middleware.MetricsMiddleware())
+
+	// Add rate limiting middleware
+	rateLimiter := middleware.RateLimiter{}
+	r.Use(rateLimiter.RateLimitMiddleware())
 	// Register routes
-	authHandler.RegisterRoutes(r)
+	authHandler.RegisterRoutes(r.Group("/auth"))
+
+	// 添加静态文件服务
+	// 前端静态文件
+	r.Static("/assets", "./web/dist/assets")
+	// 将前端其他请求重定向到index.html以支持单页应用
+	r.NoRoute(func(c *gin.Context) {
+		// 如果是API请求，返回404
+		if c.Request.URL.Path == "/auth" || strings.HasPrefix(c.Request.URL.Path, "/auth/") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "auth endpoint not found"})
+			return
+		}
+
+		// 如果是admin请求，由admin服务器处理
+		if strings.HasPrefix(c.Request.URL.Path, "/admin") {
+			c.Status(http.StatusNotFound)
+			return
+		}
+
+		// 其他所有请求返回前端index.html
+		c.File("./web/dist/index.html")
+	})
 
 	// Create main HTTP server
 	readTimeout, err := cfg.Server.GetReadTimeout()
