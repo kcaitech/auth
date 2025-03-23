@@ -23,6 +23,17 @@ type JWTClient struct {
 	cacheExpiry   time.Duration    // 缓存过期时间
 }
 
+// 需要与服务端定义的 Claims 结构一致
+// Define JWT Claims structure
+type CustomClaims struct {
+	UserID string `json:"user_id"`
+	// Email     string `json:"email"`
+	SessionID string `json:"session_id"`
+	// KeyID     string `json:"kid"`        // For key rotation
+	// TokenType string `json:"token_type"` // Identifies whether it's an access token or refresh token
+	jwt.RegisteredClaims
+}
+
 // NewJWTClient 创建新的JWT客户端
 func NewJWTClient(authServerURL string) *JWTClient {
 	return &JWTClient{
@@ -36,25 +47,25 @@ func NewJWTClient(authServerURL string) *JWTClient {
 	}
 }
 
-// tokenNotExpired 判断令牌是否过期
-func tokenIsValid(accessToken string) bool {
-	// 将jwt token 解码
-	token, _ := jwt.ParseWithClaims(accessToken, &jwt.RegisteredClaims{}, func(token *jwt.Token) (interface{}, error) {
+func getJWTClaims(accessToken string) (*CustomClaims, error) {
+	token, _ := jwt.ParseWithClaims(accessToken, &CustomClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return nil, nil
 	})
 
-	if claims, ok := token.Claims.(*jwt.RegisteredClaims); ok {
-		// 获取当前时间的NumericDate
+	if claims, ok := token.Claims.(*CustomClaims); ok {
 		now := time.Now()
-		// 检查令牌是否过期
-		return claims.ExpiresAt.Time.Before(now)
+		if claims.ExpiresAt.Time.Before(now) {
+			return claims, nil
+		}
+		// return claims, nil
+		return nil, errors.New("token expired")
 	}
 
-	return false
+	return nil, errors.New("invalid token claims")
 }
 
-// ValidateToken 验证令牌
-func (c *JWTClient) ValidateToken(accessToken string) (bool, error) {
+// remoteValidateToken 验证令牌
+func (c *JWTClient) remoteValidateToken(accessToken string) (bool, error) {
 	// 创建请求
 	req, err := http.NewRequest("GET", c.AuthServerURL, nil)
 	if err != nil {
@@ -110,33 +121,39 @@ func (c *JWTClient) AuthRequired() gin.HandlerFunc {
 
 		tokenString := parts[1]
 
-		// 检查令牌缓存
-		if c.isTokenCached(tokenString) {
-			// 令牌有效，继续处理请求
-			ctx.Next()
-			return
-		}
-
-		// 验证令牌
-		valid, err := c.ValidateToken(tokenString)
+		claims, err := c.validateToken(tokenString)
 		if err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "验证令牌失败: " + err.Error()})
-			ctx.Abort()
-			return
-		}
-
-		if !valid {
 			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "无效的令牌"})
 			ctx.Abort()
 			return
 		}
-
-		// 缓存有效的令牌
-		c.cacheToken(tokenString)
-
-		// 继续处理请求
+		ctx.Set("user_id", claims.UserID)
+		ctx.Set("session_id", claims.SessionID)
+		ctx.Set("authenticated", true)
 		ctx.Next()
 	}
+}
+
+// 验证令牌
+func (c *JWTClient) validateToken(tokenString string) (*CustomClaims, error) {
+
+	claims, err := c.getTokenCached(tokenString)
+	if err == nil {
+		return claims, nil
+	}
+	valid, err := c.remoteValidateToken(tokenString)
+	if err != nil {
+		return nil, err
+	}
+	if !valid {
+		return nil, errors.New("invalid token")
+	}
+	claims, err = getJWTClaims(tokenString)
+	if err != nil {
+		return nil, err
+	}
+	c.cacheToken(tokenString)
+	return claims, nil
 }
 
 // OptionalAuth 可选的JWT验证中间件
@@ -156,43 +173,35 @@ func (c *JWTClient) OptionalAuth() gin.HandlerFunc {
 
 		tokenString := parts[1]
 
-		// 检查令牌缓存
-		if c.isTokenCached(tokenString) {
-			ctx.Set("authenticated", true)
+		claims, err := c.validateToken(tokenString)
+		if err != nil {
 			ctx.Next()
 			return
 		}
-
-		// 验证令牌
-		valid, _ := c.ValidateToken(tokenString)
-		if valid {
-			// 缓存有效的令牌
-			c.cacheToken(tokenString)
-			// 设置认证标志
-			ctx.Set("authenticated", true)
-		}
-
+		ctx.Set("user_id", claims.UserID)
+		ctx.Set("session_id", claims.SessionID)
+		ctx.Set("authenticated", true)
 		ctx.Next()
 	}
 }
 
-// isTokenCached 检查令牌是否在缓存中
-func (c *JWTClient) isTokenCached(token string) bool {
+// getTokenCached 检查令牌是否在缓存中
+func (c *JWTClient) getTokenCached(token string) (*CustomClaims, error) {
 	c.cacheMutex.RLock()
 	defer c.cacheMutex.RUnlock()
 
 	expiry, exists := c.tokenCache[token]
 	if !exists {
-		return false
+		return nil, errors.New("token not cached")
 	}
 
 	// 检查缓存是否过期
-	if time.Now().Unix() > expiry || !tokenIsValid(token) {
+	if time.Now().Unix() > expiry {
 		delete(c.tokenCache, token)
-		return false
+		return nil, errors.New("token expired")
 	}
 
-	return true
+	return getJWTClaims(token)
 }
 
 // cacheToken 缓存令牌
