@@ -34,6 +34,29 @@ type CustomClaims struct {
 	jwt.RegisteredClaims
 }
 
+type UserProfile struct {
+	Nickname string `json:"nickname" gorm:"size:50"`  // Nickname
+	Avatar   string `json:"avatar" gorm:"size:255"`   // Avatar URL
+	Location string `json:"location" gorm:"size:100"` // Location
+	Birthday string `json:"birthday" gorm:"size:10"`  // Birthday
+	Gender   string `json:"gender" gorm:"size:10"`    // Gender
+	Language string `json:"language" gorm:"size:20"`  // Preferred Language
+	Timezone string `json:"timezone" gorm:"size:50"`  // Timezone
+}
+
+// UserInfo 用户信息结构
+type UserInfo struct {
+	UserID string `json:"user_id" gorm:"primarykey"` // Login identifier, for normal accounts this is the login account, for email accounts it's automatically generated
+	// Password      string      `json:"-" gorm:"not null"`
+	Status        string      `json:"status" gorm:"not null;default:'active'"`
+	Profile       UserProfile `json:"profile" gorm:"embedded"`
+	LastLogin     *time.Time  `json:"last_login"`
+	LoginAttempts int         `json:"login_attempts" gorm:"default:0"`
+	LastAttempt   *time.Time  `json:"last_attempt"`
+	CreatedAt     time.Time   `json:"created_at"`
+	UpdatedAt     time.Time   `json:"updated_at"`
+}
+
 // NewJWTClient 创建新的JWT客户端
 func NewJWTClient(authServerURL string) *JWTClient {
 	return &JWTClient{
@@ -67,7 +90,7 @@ func getJWTClaims(accessToken string) (*CustomClaims, error) {
 // remoteValidateToken 验证令牌
 func (c *JWTClient) remoteValidateToken(accessToken string) (bool, error) {
 	// 创建请求
-	req, err := http.NewRequest("GET", c.AuthServerURL, nil)
+	req, err := http.NewRequest("GET", c.AuthServerURL+"/auth/token/validate", nil)
 	if err != nil {
 		return false, err
 	}
@@ -121,7 +144,7 @@ func (c *JWTClient) AuthRequired() gin.HandlerFunc {
 
 		tokenString := parts[1]
 
-		claims, err := c.validateToken(tokenString)
+		claims, err := c.ValidateToken(tokenString)
 		if err != nil {
 			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "无效的令牌"})
 			ctx.Abort()
@@ -130,12 +153,13 @@ func (c *JWTClient) AuthRequired() gin.HandlerFunc {
 		ctx.Set("user_id", claims.UserID)
 		ctx.Set("session_id", claims.SessionID)
 		ctx.Set("authenticated", true)
+		ctx.Set("access_token", tokenString)
 		ctx.Next()
 	}
 }
 
 // 验证令牌
-func (c *JWTClient) validateToken(tokenString string) (*CustomClaims, error) {
+func (c *JWTClient) ValidateToken(tokenString string) (*CustomClaims, error) {
 
 	claims, err := c.getTokenCached(tokenString)
 	if err == nil {
@@ -173,7 +197,7 @@ func (c *JWTClient) OptionalAuth() gin.HandlerFunc {
 
 		tokenString := parts[1]
 
-		claims, err := c.validateToken(tokenString)
+		claims, err := c.ValidateToken(tokenString)
 		if err != nil {
 			ctx.Next()
 			return
@@ -181,6 +205,7 @@ func (c *JWTClient) OptionalAuth() gin.HandlerFunc {
 		ctx.Set("user_id", claims.UserID)
 		ctx.Set("session_id", claims.SessionID)
 		ctx.Set("authenticated", true)
+		ctx.Set("access_token", tokenString)
 		ctx.Next()
 	}
 }
@@ -212,4 +237,43 @@ func (c *JWTClient) cacheToken(token string) {
 	// 设置缓存过期时间
 	expiry := time.Now().Add(c.cacheExpiry).Unix()
 	c.tokenCache[token] = expiry
+}
+
+// GetUserInfo 获取用户信息
+func (c *JWTClient) GetUserInfo(accessToken string) (*UserInfo, error) {
+	// 创建请求
+	req, err := http.NewRequest("GET", c.AuthServerURL+"/auth/user", nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	// 发送请求
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// 检查响应状态
+	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusUnauthorized {
+			return nil, errors.New("invalid token")
+		}
+		var errResp struct {
+			Error string `json:"error"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&errResp); err != nil {
+			return nil, fmt.Errorf("获取用户信息失败: %d", resp.StatusCode)
+		}
+		return nil, errors.New(errResp.Error)
+	}
+
+	// 解析响应
+	var userInfo UserInfo
+	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+		return nil, fmt.Errorf("解析用户信息失败: %v", err)
+	}
+
+	return &userInfo, nil
 }

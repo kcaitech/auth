@@ -359,3 +359,26 @@ func (a *AccountAuth) CheckDuplicateUserID(userID string) error {
 	}
 	return nil
 }
+
+// SetNickname Set nickname
+func (a *AccountAuth) SetNickname(userID string, nickname string) error {
+	user, err := a.GetUserByUserID(userID)
+	if err != nil {
+		return err
+	}
+	// todo 审核
+	user.Profile.Nickname = nickname
+	return a.db.Save(user).Error
+}
+
+// SetAvatar Set avatar
+func (a *AccountAuth) SetAvatar(userID string, avatar string) error {
+	user, err := a.GetUserByUserID(userID)
+	if err != nil {
+		return err
+	}
+	// todo 审核
+	// todo 存oss
+	user.Profile.Avatar = avatar
+	return a.db.Save(user).Error
+}
