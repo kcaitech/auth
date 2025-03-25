@@ -275,7 +275,7 @@ func (w *WeixinLogin) RegisterOrLoginWithWeixin(code string) (*User, *WeixinLogi
 // CreateUserFromWeixin Create system user from WeChat user information
 func (w *WeixinLogin) CreateUserFromWeixin(weixinInfo *WeixinUserInfo) (*User, error) {
 	// Generate random UserID
-	userID, err := GenerateBase62ID()
+	userID, err := GenerateUserID()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate random ID: %v", err)
 	}
@@ -288,7 +288,7 @@ func (w *WeixinLogin) CreateUserFromWeixin(weixinInfo *WeixinUserInfo) (*User, e
 			break
 		}
 		// Generate new UserID
-		userID, err = GenerateBase62ID()
+		userID, err = GenerateUserID()
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate random ID: %v", err)
 		}

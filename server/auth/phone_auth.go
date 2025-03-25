@@ -395,7 +395,7 @@ func (a *PhoneAuth) VerifyPhoneAndRegister(phone, code string) (*User, error) {
 	}()
 
 	// Generate random user ID
-	userID, err := GenerateBase62ID()
+	userID, err := GenerateUserID()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate random ID: %v", err)
 	}
@@ -408,7 +408,7 @@ func (a *PhoneAuth) VerifyPhoneAndRegister(phone, code string) (*User, error) {
 			break
 		}
 		// Generate new UserID
-		userID, err = GenerateBase62ID()
+		userID, err = GenerateUserID()
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate random ID: %v", err)
 		}

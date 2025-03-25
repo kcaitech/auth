@@ -90,6 +90,10 @@ func DecodeBase62ID(id string) ([]byte, error) {
 	return bytes, nil
 }
 
+func GenerateUserID() (string, error) {
+	return GenerateBase62String(10)
+}
+
 func GenerateBase62ID() (string, error) {
 	b := make([]byte, 16) // 16 bytes, the length of a uuid, generates about 22 characters
 	_, err := rand.Read(b)

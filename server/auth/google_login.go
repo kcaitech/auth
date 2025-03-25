@@ -306,7 +306,7 @@ func (g *GoogleOAuth) CreateUserFromGoogle(googleInfo *GoogleUserInfo) (*User, e
 	// if _, err := rand.Read(b); err != nil {
 	// 	return nil, fmt.Errorf("failed to generate random ID: %v", err)
 	// }
-	userID, err := GenerateBase62ID()
+	userID, err := GenerateUserID()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate random ID: %v", err)
 	}
@@ -319,7 +319,7 @@ func (g *GoogleOAuth) CreateUserFromGoogle(googleInfo *GoogleUserInfo) (*User, e
 			break
 		}
 		// Generate a new UserID
-		userID, err = GenerateBase62ID()
+		userID, err = GenerateUserID()
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate random ID: %v", err)
 		}

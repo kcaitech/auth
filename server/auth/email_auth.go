@@ -232,7 +232,7 @@ func (a *EmailAuth) RegisterEmailUser(email, password, nickname string) (*User, 
 	}
 
 	// Generate random UserID
-	userID, err := GenerateBase62ID()
+	userID, err := GenerateUserID()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate random ID: %v", err)
 	}
@@ -245,7 +245,7 @@ func (a *EmailAuth) RegisterEmailUser(email, password, nickname string) (*User, 
 			break
 		}
 		// Generate new UserID
-		userID, err = GenerateBase62ID()
+		userID, err = GenerateUserID()
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate random ID: %v", err)
 		}
