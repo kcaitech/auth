@@ -1,8 +1,8 @@
-import { useI18n } from "vue-i18n"
+import i18n from "@/locales"
 
 const baseURL = location.origin
 
-const t = useI18n().t
+const t = i18n.global.t
 
 export const verificationEmailTpl = t("email.verificationEmailTpl").replace(
   /{{.BaseURL}}/g,

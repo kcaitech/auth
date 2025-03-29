@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
-import { useI18n } from 'vue-i18n'
+import i18n from "@/locales"
 
-const { t } = useI18n()
+
+const t = i18n.global.t
 
 // 扩展Window接口以包含谷歌API
 declare global {
