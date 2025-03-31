@@ -179,7 +179,7 @@ func (s *JWTService) ValidateJWT(tokenString string) (*CustomClaims, error) {
 	if claims, ok := token.Claims.(*CustomClaims); ok {
 		// 判断是否超时
 		now := time.Now()
-		if claims.ExpiresAt.Time.After(now) {
+		if now.After(claims.ExpiresAt.Time) {
 			return nil, fmt.Errorf("token expired")
 		}
 		keyID := s.getKeyID(claims.UserID, claims.SessionID, claims.TokenType)

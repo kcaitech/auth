@@ -221,7 +221,7 @@ const handleLoginSuccess = () => {
     window.location.href = fullUrl
   } else {
     // 否则重定向到仪表盘
-    router.push('/')
+    router.push('/success')
   }
 }
 

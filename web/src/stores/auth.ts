@@ -30,7 +30,7 @@ declare global {
 }
 
 interface User {
-  id: string
+  // id: string
   userID: string
   nickname: string
   email: string
@@ -74,7 +74,7 @@ export const useAuthStore = defineStore('auth', {
     token: localStorage.getItem('token') || '',
     loading: false,
     error: undefined as string | undefined,
-    supportedProviders: [] as AuthProvider[]
+    supportedProviders: [] as AuthProvider[],
   }),
   
   getters: {
@@ -110,9 +110,14 @@ export const useAuthStore = defineStore('auth', {
           password
         })
         
-        const { user, token } = response.data
+        const { user_id, token, profile, expire_time } = response.data
         
-        this.user = user
+        this.user = {
+          // id: user_id,
+          userID: user_id,
+          nickname: profile?.nickname || '',
+          email: profile?.email || ''
+        }
         this.token = token
         
         // 保存 token 到本地存储
@@ -121,7 +126,7 @@ export const useAuthStore = defineStore('auth', {
         // 设置 axios 默认 headers
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
         
-        return user
+        return this.user
       } catch (error: any) {
         this.error = error.response?.data?.message || t('errors.loginFailed')
         throw new Error(this.error || t('errors.loginFailed'))
@@ -157,9 +162,14 @@ export const useAuthStore = defineStore('auth', {
           ...registerData,
         })
         
-        const { user, token } = response.data
+        const { user_id, token, profile, expire_time } = response.data
         
-        this.user = user
+        this.user = {
+          // id: user_id,
+          userID: user_id,
+          nickname: profile?.nickname || '',
+          email: profile?.email || ''
+        }
         this.token = token
         
         // 保存 token 到本地存储
@@ -167,6 +177,7 @@ export const useAuthStore = defineStore('auth', {
         
         // 设置 axios 默认 headers
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+        return this.user
       } catch (error: any) {
         this.error = error.response?.data?.message || t('errors.registerFailed')
         throw new Error(this.error || t('errors.registerFailed'))
@@ -366,8 +377,14 @@ export const useAuthStore = defineStore('auth', {
                 });
                 
                 // 处理登录结果
-                const { user, token } = authResponse.data;
-                this.user = user;
+                const { user_id, token, profile, expire_time } = authResponse.data
+        
+                this.user = {
+                  // id: user_id,
+                  userID: user_id,
+                  nickname: profile?.nickname || '',
+                  email: profile?.email || ''
+                }
                 this.token = token;
                 localStorage.setItem('token', token);
                 axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -417,14 +434,20 @@ export const useAuthStore = defineStore('auth', {
         
         const response = await axios.post('/weixin', { code })
         
-        const { user, token } = response.data
+        const { user_id, token, profile, expire_time } = response.data
         
-        this.user = user
+        this.user = {
+          // id: user_id,
+          userID: user_id,
+          nickname: profile?.nickname || '',
+          email: profile?.email || ''
+        }
+
         this.token = token
         localStorage.setItem('token', token)
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
         
-        return user
+        return this.user
       } catch (error: any) {
         this.error = error.response?.data?.message || t('errors.wechatLoginFailed')
         throw new Error(this.error || t('errors.wechatLoginFailed'))
@@ -460,9 +483,15 @@ export const useAuthStore = defineStore('auth', {
           password
         })
         
-        const { user, token } = response.data
+        const { user_id, token, profile, expire_time } = response.data
         
-        this.user = user
+        this.user = {
+          // id: user_id,
+          userID: user_id,
+          nickname: profile?.nickname || '',
+          email: profile?.email || ''
+        }
+        
         this.token = token
         
         // 保存 token 到本地存储
@@ -471,7 +500,7 @@ export const useAuthStore = defineStore('auth', {
         // 设置 axios 默认 headers
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
         
-        return user
+        return this.user
       } catch (error: any) {
         this.error = error.response?.data?.error || t('errors.phoneLoginFailed')
         throw new Error(this.error)
@@ -491,9 +520,15 @@ export const useAuthStore = defineStore('auth', {
           code
         })
         
-        const { user, token } = response.data
+        const { user_id, token, profile, expire_time } = response.data
         
-        this.user = user
+        this.user = {
+          // id: user_id,
+          userID: user_id,
+          nickname: profile?.nickname || '',
+          email: profile?.email || ''
+        }
+        
         this.token = token
         
         // 保存 token 到本地存储
@@ -502,7 +537,7 @@ export const useAuthStore = defineStore('auth', {
         // 设置 axios 默认 headers
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
         
-        return user
+        return this.user
       } catch (error: any) {
         this.error = error.response?.data?.error || t('errors.phoneCodeLoginFailed')
         throw new Error(this.error)

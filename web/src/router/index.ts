@@ -12,6 +12,12 @@ const routes = [
     component: () => import('../views/Login.vue')
   },
   {
+    path: '/success',
+    name: 'Success',
+    component: () => import('../views/LoginSuccess.vue'),
+    meta: {requiresAuth: true}
+  },
+  {
     path: '/auth/verify-email',
     name: 'EmailVerify',
     component: () => import('../components/auth/EmailVerify.vue')
