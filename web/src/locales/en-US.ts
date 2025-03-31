@@ -174,12 +174,6 @@ export default {
     googleInitFailed: 'Google login initialization failed:',
     googleButtonRendered: 'Google login button has been rendered',
   },
-  dashboard: {
-    welcomeBack: 'Welcome back, {nickname}',
-    title: 'Dashboard',
-    description: 'This is your personal dashboard page.',
-    loginSuccess: 'You have successfully logged in to the system.',
-  },
   notFound: {
     title: 'Page Not Found',
     description: 'Sorry, the page you visited does not exist.',

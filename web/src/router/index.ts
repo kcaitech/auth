@@ -12,12 +12,6 @@ const routes = [
     component: () => import('../views/Login.vue')
   },
   {
-    path: '/dashboard',
-    name: 'Dashboard',
-    component: () => import('../views/Dashboard.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
     path: '/auth/verify-email',
     name: 'EmailVerify',
     component: () => import('../components/auth/EmailVerify.vue')
@@ -56,11 +50,6 @@ router.beforeEach(async (to, from, next) => {
       // 未登录，重定向到登录页
       return next('/login')
     }
-  }
-  
-  // 如果用户已登录且尝试访问登录页，重定向到仪表盘
-  if (authStore.isAuthenticated && to.path === '/login') {
-    return next('/dashboard')
   }
   
   next()

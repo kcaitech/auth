@@ -91,9 +91,7 @@ const handleLogin = async () => {
     
     // 登录成功，通知父组件
     emit('login-success')
-    
-    // 登录成功，导航到Dashboard
-    router.push('/dashboard')
+
   } catch (error: any) {
     // 登录失败，通知父组件
     emit('login-error', error.message || t('errors.loginFailed'))

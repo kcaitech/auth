@@ -148,7 +148,7 @@
 <script lang="ts" setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useAuthStore, type AuthProvider } from '@/stores/auth'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import AccountLogin from '@/components/auth/AccountLogin.vue'
 import EmailLogin from '@/components/auth/EmailLogin.vue'
@@ -169,6 +169,7 @@ interface FormErrors {
 }
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const { t } = useI18n()
 const activeTab = ref<'login' | 'register'>('login')
@@ -209,6 +210,19 @@ onMounted(async () => {
 // 登录成功处理
 const handleLoginSuccess = () => {
   errorMessage.value = ''
+  // 获取回调 URL
+  const redirectUrl = route.query.redirect as string
+  if (redirectUrl) {
+    // 如果有回调 URL，则重定向到回调地址
+    const token = authStore.token
+    const separator = redirectUrl.includes('?') ? '&' : '?'
+    const fullUrl = `${redirectUrl}${separator}token=${token}`
+    // 使用 window.location.href 进行完整的页面跳转
+    window.location.href = fullUrl
+  } else {
+    // 否则重定向到仪表盘
+    router.push('/')
+  }
 }
 
 // 登录错误处理
@@ -227,6 +241,7 @@ const handleRegisterSuccess = () => {
   } else {
     loginType.value = 'phone'
   }
+  handleLoginSuccess()
 }
 
 // 计算是否有多种登录方式

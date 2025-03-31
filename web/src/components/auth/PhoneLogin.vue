@@ -220,7 +220,6 @@ async function handlePasswordLogin() {
     isLoading.value = true
     const user = await authStore.phoneLogin(passwordForm.phone, passwordForm.password)
     emit('login-success')
-    router.push('/dashboard')
   } catch (error: any) {
     emit('login-error', error.message)
   } finally {

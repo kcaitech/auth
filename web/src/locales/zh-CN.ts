@@ -174,12 +174,6 @@ export default {
     googleInitFailed: '初始化谷歌登录失败:',
     googleButtonRendered: '谷歌登录按钮已渲染',
   },
-  dashboard: {
-    welcomeBack: '欢迎回来，{nickname}',
-    title: '仪表盘',
-    description: '这是您的个人仪表盘页面。',
-    loginSuccess: '您已成功登录系统。',
-  },
   notFound: {
     title: '页面未找到',
     description: '抱歉，您访问的页面不存在。',
