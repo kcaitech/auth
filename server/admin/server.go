@@ -180,7 +180,7 @@ func (s *AdminServer) registerRoutes(r *gin.Engine) {
 	})
 
 	// API routes group (requires authentication)
-	admin := r.Group("/admin")
+	admin := r.Group("/authadmin")
 	// Login route
 	admin.POST("/login", s.handleLogin)
 

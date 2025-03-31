@@ -7,7 +7,7 @@ import { useAuthStore } from './stores/auth'
 import i18n, { getPreferredLanguage, setLanguage } from './locales'
 
 // 设置 axios 默认值
-axios.defaults.baseURL = import.meta.env.VITE_API_URL || '/api'
+axios.defaults.baseURL = import.meta.env.VITE_API_URL
 
 // 从本地存储中获取 token 并设置 axios 默认 headers
 const token = localStorage.getItem('token')

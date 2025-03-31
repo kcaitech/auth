@@ -42,7 +42,7 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = ''
 
     try {
-      const response = await axios.post<UserInfo>('/admin/login', credentials)
+      const response = await axios.post<UserInfo>('/authadmin/login', credentials)
       userInfo.value = response.data
       localStorage.setItem('admin_session', JSON.stringify(response.data))
       router.push('/')
@@ -58,7 +58,7 @@ export const useAuthStore = defineStore('auth', () => {
   // 注销方法
   async function logout() {
     try {
-      await axios.post('/admin/logout')
+      await axios.post('/authadmin/logout')
     } catch (e) {
       console.error('注销请求失败', e)
     } finally {
@@ -73,7 +73,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (!userInfo.value) return false
     
     try {
-      await axios.get('/admin/verify')
+      await axios.get('/authadmin/verify')
       return true
     } catch (e) {
       userInfo.value = null

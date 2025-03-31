@@ -88,7 +88,7 @@ export const useAuthStore = defineStore('auth', {
     async fetchSupportedProviders() {
       try {
         this.loading = true
-        const response = await axios.get('/auth/providers')
+        const response = await axios.get('/providers')
         this.supportedProviders = response.data.providers || []
         return this.supportedProviders
       } catch (error: any) {
@@ -105,7 +105,7 @@ export const useAuthStore = defineStore('auth', {
         this.error = undefined
         
         // 这里应该调用实际的 API 端点
-        const response = await axios.post('/auth/account/login', {
+        const response = await axios.post('/account/login', {
           username: usernameOrEmail,
           password
         })
@@ -136,7 +136,7 @@ export const useAuthStore = defineStore('auth', {
     //     this.error = null
         
     //     // 这里应该调用实际的 API 端点
-    //     const response = await axios.post('/auth/register', registerData)
+    //     const response = await axios.post('/register', registerData)
         
     //     return response.data
     //   } catch (error: any) {
@@ -153,7 +153,7 @@ export const useAuthStore = defineStore('auth', {
         this.error = undefined
         
         // 使用账号注册API
-        const response = await axios.post('/auth/account/register', {
+        const response = await axios.post('/account/register', {
           ...registerData,
         })
         
@@ -178,7 +178,7 @@ export const useAuthStore = defineStore('auth', {
     async logout() {
       try {
         // 可选：调用登出 API
-        await axios.post('/auth/logout')
+        await axios.post('/logout')
       } catch (error) {
         console.error(t('errors.logoutFailed'), error)
       } finally {
@@ -194,7 +194,7 @@ export const useAuthStore = defineStore('auth', {
         if (!this.token) return null
         
         this.loading = true
-        const response = await axios.get('/auth/user')
+        const response = await axios.get('/user')
         this.user = response.data.user
         return this.user
       } catch (error) {
@@ -296,7 +296,7 @@ export const useAuthStore = defineStore('auth', {
     //             const credential = response.credential;
                 
     //             // 将JWT令牌发送到后端验证
-    //             const authResponse = await axios.post('/auth/google', {
+    //             const authResponse = await axios.post('/google', {
     //               credential: credential
     //             });
                 
@@ -361,7 +361,7 @@ export const useAuthStore = defineStore('auth', {
                 
                 // 获取JWT令牌并发送到后端验证
                 const credential = response.credential;
-                const authResponse = await axios.post('/auth/google', {
+                const authResponse = await axios.post('/google', {
                   credential: credential
                 });
                 
@@ -402,7 +402,7 @@ export const useAuthStore = defineStore('auth', {
     // 微信登录相关方法
     async getWechatAuthUrl() {
       try {
-        const response = await axios.get('/auth/weixin/url')
+        const response = await axios.get('/weixin/url')
         return response.data.url
       } catch (error: any) {
         this.error = error.response?.data?.message || t('errors.wechatUrlFetchFailed')
@@ -415,7 +415,7 @@ export const useAuthStore = defineStore('auth', {
         this.loading = true
         this.error = undefined
         
-        const response = await axios.post('/auth/weixin', { code })
+        const response = await axios.post('/weixin', { code })
         
         const { user, token } = response.data
         
@@ -439,7 +439,7 @@ export const useAuthStore = defineStore('auth', {
         this.loading = true
         this.error = undefined
         
-        const response = await axios.post('/auth/phone/send-code', { phone })
+        const response = await axios.post('/phone/send-code', { phone })
         return response.data
       } catch (error: any) {
         this.error = error.response?.data?.error || t('errors.codeSendFailed')
@@ -455,7 +455,7 @@ export const useAuthStore = defineStore('auth', {
         this.loading = true
         this.error = undefined
         
-        const response = await axios.post('/auth/phone/login', {
+        const response = await axios.post('/phone/login', {
           phone,
           password
         })
@@ -486,7 +486,7 @@ export const useAuthStore = defineStore('auth', {
         this.loading = true
         this.error = undefined
         
-        const response = await axios.post('/auth/phone/code-login', {
+        const response = await axios.post('/phone/code-login', {
           phone,
           code
         })
@@ -517,7 +517,7 @@ export const useAuthStore = defineStore('auth', {
         this.loading = true
         this.error = undefined
         
-        const response = await axios.post('/auth/phone/register', registerData)
+        const response = await axios.post('/phone/register', registerData)
         
         return response.data
       } catch (error: any) {
@@ -534,7 +534,7 @@ export const useAuthStore = defineStore('auth', {
         this.loading = true
         this.error = undefined
         
-        const response = await axios.post('/auth/phone/verify', { code })
+        const response = await axios.post('/phone/verify', { code })
         
         return response.data
       } catch (error: any) {
@@ -551,7 +551,7 @@ export const useAuthStore = defineStore('auth', {
         this.loading = true
         this.error = undefined
         
-        const response = await axios.post('/auth/phone/reset-password-init', { phone })
+        const response = await axios.post('/phone/reset-password-init', { phone })
         
         return response.data
       } catch (error: any) {
@@ -568,7 +568,7 @@ export const useAuthStore = defineStore('auth', {
         this.loading = true
         this.error = undefined
         
-        const response = await axios.post('/auth/phone/reset-password', {
+        const response = await axios.post('/phone/reset-password', {
           phone,
           code,
           new_password: newPassword

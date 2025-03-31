@@ -144,31 +144,31 @@ export interface UserSessionsResponse {
 export default {
   // 获取统计数据
   getStats(): Promise<StatsData> {
-    return api.get('/admin/stats').then(res => res.data)
+    return api.get('/stats').then(res => res.data)
   },
 
   // 获取用户列表
   getUsers(params: { page?: number, size?: number, status?: string, provider?: string, verified?: string, search?: string }): Promise<UserListResponse> {
-    return api.get('/admin/users', { params }).then(res => res.data)
+    return api.get('/users', { params }).then(res => res.data)
   },
 
   // 获取活跃情况
   getActivity(days: number): Promise<ActivityData[]> {
-    return api.get('/admin/activity', { params: { days } }).then(res => res.data)
+    return api.get('/activity', { params: { days } }).then(res => res.data)
   },
 
   // 获取用户会话列表
   getUserSessions(userId: string): Promise<UserSessionsResponse> {
-    return api.get(`/admin/user/${userId}/sessions`).then(res => res.data)
+    return api.get(`/user/${userId}/sessions`).then(res => res.data)
   },
 
   // 终止用户特定会话
   terminateUserSession(userId: string, sessionId: string): Promise<{ message: string }> {
-    return api.delete(`/admin/user/${userId}/sessions/${sessionId}`).then(res => res.data)
+    return api.delete(`/user/${userId}/sessions/${sessionId}`).then(res => res.data)
   },
 
   // 终止用户所有会话
   terminateAllUserSessions(userId: string): Promise<{ message: string }> {
-    return api.delete(`/admin/user/${userId}/sessions`).then(res => res.data)
+    return api.delete(`/user/${userId}/sessions`).then(res => res.data)
   }
 } 

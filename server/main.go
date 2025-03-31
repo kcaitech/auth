@@ -101,7 +101,7 @@ func main() {
 
 	// Add CORS middleware
 	corsConfig := cors.DefaultConfig()
-	corsConfig.AllowOrigins = []string{"http://localhost:3000"}
+	corsConfig.AllowOrigins = []string{"http://localhost:3000", "http://localhost:8088"}
 	corsConfig.AllowMethods = []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"}
 	corsConfig.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Authorization"}
 	corsConfig.AllowCredentials = true
@@ -123,7 +123,7 @@ func main() {
 	rateLimiter := middleware.RateLimiter{}
 	r.Use(rateLimiter.RateLimitMiddleware())
 	// Register routes
-	authHandler.RegisterRoutes(r.Group("/auth"))
+	authHandler.RegisterRoutes(r.Group("/authapi"))
 
 	// 添加静态文件服务
 	// 前端静态文件
