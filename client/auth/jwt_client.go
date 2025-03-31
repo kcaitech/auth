@@ -222,7 +222,7 @@ func (c *JWTClient) getTokenCached(token string) (*CustomClaims, error) {
 	// 检查缓存是否过期
 	if time.Now().Unix() > expiry {
 		delete(c.tokenCache, token)
-		return nil, errors.New("token expired")
+		return nil, errors.New("token cache expired")
 	}
 
 	return getJWTClaims(token)
