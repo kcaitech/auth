@@ -77,10 +77,9 @@ func getJWTClaims(accessToken string) (*CustomClaims, error) {
 
 	if claims, ok := token.Claims.(*CustomClaims); ok {
 		now := time.Now()
-		if claims.ExpiresAt.Time.Before(now) {
+		if claims.ExpiresAt.Time.After(now) {
 			return claims, nil
 		}
-		// return claims, nil
 		return nil, errors.New("token expired")
 	}
 
