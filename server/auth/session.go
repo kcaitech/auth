@@ -244,28 +244,16 @@ func (s *SessionManager) HasSessionWithIPAndUserAgent(userId, ip, userAgent stri
 		return nil, fmt.Errorf("failed to get user session list: %w", err)
 	}
 
+	sessions, err := s.redis.GetSessionsData(userId, keys)
+	if err != nil {
+		return nil, err
+	}
+
 	// Iterate through all session keys
-	for _, key := range keys {
-		// Get session data
-		data, err := s.redis.client.Get(context.Background(), key).Bytes()
-		if err != nil {
-			// Ignore non-existent keys
-			if errors.Is(err, redis.Nil) {
-				continue
-			}
-			return nil, fmt.Errorf("failed to get session data: %w", err)
-		}
-
-		// Parse session data
-		var session Session
-		if err := json.Unmarshal(data, &session); err != nil {
-			// Ignore unparseable session data
-			continue
-		}
-
+	for _, session := range sessions {
 		// Check if IP and UserAgent match
 		if session.IP == ip && session.UserAgent == userAgent {
-			return &session, nil
+			return session, nil
 		}
 	}
 
