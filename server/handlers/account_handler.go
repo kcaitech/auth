@@ -374,10 +374,15 @@ func (h *AuthHandler) ValidateToken(c *gin.Context) {
 		claims, err = h.jwtService.ValidateJWT(token)
 		if err == nil && claims != nil {
 			c.JSON(http.StatusOK, gin.H{"user_id": claims.UserID})
+			return
 		}
 	}
 
-	c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+	} else {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token format"})
+	}
 }
 
 // AuthRequired Verify if user is logged in

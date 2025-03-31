@@ -90,7 +90,7 @@ func getJWTClaims(accessToken string) (*CustomClaims, error) {
 // remoteValidateToken 验证令牌
 func (c *JWTClient) remoteValidateToken(accessToken string) (bool, error) {
 	// 创建请求
-	req, err := http.NewRequest("GET", c.AuthServerURL+"/auth/token/validate", nil)
+	req, err := http.NewRequest("POST", c.AuthServerURL+"/authapi/token/validate", nil)
 	if err != nil {
 		return false, err
 	}
@@ -242,7 +242,7 @@ func (c *JWTClient) cacheToken(token string) {
 // GetUserInfo 获取用户信息
 func (c *JWTClient) GetUserInfo(accessToken string) (*UserInfo, error) {
 	// 创建请求
-	req, err := http.NewRequest("GET", c.AuthServerURL+"/auth/user", nil)
+	req, err := http.NewRequest("GET", c.AuthServerURL+"/authapi/user", nil)
 	if err != nil {
 		return nil, err
 	}
