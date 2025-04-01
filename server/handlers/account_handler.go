@@ -280,9 +280,9 @@ func (h *AuthHandler) GetUserInfo(c *gin.Context) {
 // UpdateUserInfo Update user information
 func (h *AuthHandler) UpdateUserInfo(c *gin.Context) {
 	var req struct {
-		UserID   string           `json:"user_id"`
-		Nickname string           `json:"nickname"`
-		Profile  auth.UserProfile `json:"profile"`
+		UserID string `json:"user_id"`
+		// Nickname string           `json:"nickname"`
+		Profile auth.UserProfile `json:"profile"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -327,11 +327,11 @@ func (h *AuthHandler) UpdateUserInfo(c *gin.Context) {
 	}
 
 	// Update user profile
-	if req.Nickname != "" {
-		if user.Profile.Nickname != req.Nickname {
-			updates["profile.nickname"] = req.Nickname
-		}
+	// if req.Nickname != "" {
+	if user.Profile.Nickname != req.Profile.Nickname {
+		updates["nickname"] = req.Profile.Nickname
 	}
+	// }
 
 	// Update other profile fields
 	// if req.Profile.Avatar != "" && user.Profile.Avatar != req.Profile.Avatar {
@@ -341,16 +341,16 @@ func (h *AuthHandler) UpdateUserInfo(c *gin.Context) {
 	// 	updates["profile.bio"] = req.Profile.Bio
 	// }
 	if req.Profile.Location != "" && user.Profile.Location != req.Profile.Location {
-		updates["profile.location"] = req.Profile.Location
+		updates["location"] = req.Profile.Location
 	}
 	// if req.Profile.Website != "" && user.Profile.Website != req.Profile.Website {
 	// 	updates["profile.website"] = req.Profile.Website
 	// }
 	if req.Profile.Birthday != "" && user.Profile.Birthday != req.Profile.Birthday {
-		updates["profile.birthday"] = req.Profile.Birthday
+		updates["birthday"] = req.Profile.Birthday
 	}
 	if req.Profile.Gender != "" && user.Profile.Gender != req.Profile.Gender {
-		updates["profile.gender"] = req.Profile.Gender
+		updates["gender"] = req.Profile.Gender
 	}
 	// if req.Profile.Phone != "" && user.Profile.Phone != req.Profile.Phone {
 	// 	updates["profile.phone"] = req.Profile.Phone

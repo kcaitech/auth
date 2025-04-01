@@ -225,13 +225,14 @@ func (a *AccountAuth) UpdateProfile(userID string, updates map[string]interface{
 
 	// Check if user ID is already taken
 	if newUserID, ok := updates["user_id"]; ok && newUserID != user.UserID {
-		var count int64
-		if err := a.db.Model(&User{}).Where("user_id = ?", newUserID).Count(&count).Error; err != nil {
-			return err
-		}
-		if count > 0 {
-			return ErrUserIDTaken("Account ID is already taken")
-		}
+		// var count int64
+		// if err := a.db.Model(&User{}).Where("user_id = ?", newUserID).Count(&count).Error; err != nil {
+		// 	return err
+		// }
+		// if count > 0 {
+		// 	return ErrUserIDTaken("Account ID is already taken")
+		// }
+		return fmt.Errorf("user_id 不可变更")
 	}
 
 	updates["updated_at"] = time.Now()
