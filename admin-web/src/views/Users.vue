@@ -77,13 +77,13 @@
           </template>
         </el-table-column>
         
-        <el-table-column :label="$t('user.provider')" width="100">
+        <!-- <el-table-column :label="$t('user.provider')" width="100">
           <template #default="scope">
             <el-tag type="info">
               {{ getProviderText(getProvider(scope.row)) }}
             </el-tag>
           </template>
-        </el-table-column>
+        </el-table-column> -->
         
         <el-table-column :label="$t('user.is_verified')" width="80">
           <template #default="scope">
@@ -156,7 +156,7 @@ import { defineComponent, reactive, ref, onMounted, computed } from 'vue'
 import api, { User } from '@/api'
 import { ElMessage } from 'element-plus'
 import UserDetail from '@/components/UserDetail.vue'
-import { useI18n } from 'vue-i18n'
+import i18n from '@/locales'
 
 export default defineComponent({
   name: 'UsersView',
@@ -164,7 +164,7 @@ export default defineComponent({
     UserDetail
   },
   setup() {
-    const { t } = useI18n()
+    const { t } = i18n.global
     // 用户列表数据
     const users = ref<User[]>([])
     const loading = ref(true)
@@ -368,9 +368,9 @@ export default defineComponent({
     }
     
     // 辅助函数：获取提供商
-    const getProvider = (user: User): string => {
-      return user.provider || user.auth_provider || 'local'
-    }
+    // const getProvider = (user: User): string => {
+    //   return user.provider || user.auth_provider || 'local'
+    // }
     
     // 辅助函数：检查是否已验证
     const isVerified = (user: User): boolean => {
@@ -416,7 +416,7 @@ export default defineComponent({
       getUserId,
       getUserName,
       getStatus,
-      getProvider,
+      // getProvider,
       isVerified,
       getCreatedAt,
       getLastLogin

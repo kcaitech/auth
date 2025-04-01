@@ -10,9 +10,9 @@
           <el-descriptions-item :label="$t('userDetail.status')">
             <el-tag :type="getStatusType(getStatus(user))">{{ getStatusText(getStatus(user)) }}</el-tag>
           </el-descriptions-item>
-          <el-descriptions-item :label="$t('userDetail.provider')">
+          <!-- <el-descriptions-item :label="$t('userDetail.provider')">
             <el-tag type="info">{{ getProviderText(getProvider(user)) }}</el-tag>
-          </el-descriptions-item>
+          </el-descriptions-item> -->
           <el-descriptions-item :label="$t('userDetail.verification_status')">
             <el-tag :type="isVerified(user) ? 'success' : 'danger'">
               {{ isVerified(user) ? $t('userDetail.verified') : $t('userDetail.not_verified') }}
@@ -176,7 +176,7 @@ import { defineComponent, ref, PropType, computed, onMounted, watch } from 'vue'
 import { User, SessionData, JWTSessionData } from '@/api'
 import api from '@/api'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { useI18n } from 'vue-i18n'
+import i18n from '@/locales'
 
 export default defineComponent({
   name: 'UserDetail',
@@ -193,7 +193,7 @@ export default defineComponent({
   },
   emits: ['update:user', 'close'],
   setup(props, { emit }) {
-    const { t } = useI18n()
+    const { t } = i18n.global
     const activeTab = ref(props.initialTab)
     
     // 监听 initialTab 变化
@@ -359,9 +359,9 @@ export default defineComponent({
     }
     
     // 辅助函数：获取提供商
-    const getProvider = (user: User): string => {
-      return user.provider || user.auth_provider || 'local'
-    }
+    // const getProvider = (user: User): string => {
+    //   return user.provider || user.auth_provider || 'local'
+    // }
     
     // 辅助函数：检查是否已验证
     const isVerified = (user: User): boolean => {
@@ -467,7 +467,7 @@ export default defineComponent({
       getUserId,
       getUserName,
       getStatus,
-      getProvider,
+      // getProvider,
       isVerified,
       getCreatedAt,
       getLastLogin
