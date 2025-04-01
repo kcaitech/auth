@@ -23,6 +23,7 @@ type AuthHandler struct {
 	sessionMgr    *auth.SessionManager
 	redisStore    *auth.RedisStore
 	storage       *storage.StorageClient
+	avatarService *auth.AvatarService
 	avatarHandler *AvatarHandler
 	// emailService   *auth.EmailService
 	logger *log.Logger
@@ -42,6 +43,7 @@ func NewAuthHandler(
 	sessionMgr *auth.SessionManager,
 	redisStore *auth.RedisStore,
 	storage *storage.StorageClient) *AuthHandler {
+	avatarService := auth.NewAvatarService(storage.Bucket)
 	return &AuthHandler{
 		useAccountAuth: useAccountAuth,
 		accountAuth:    accountAuth,
@@ -56,7 +58,8 @@ func NewAuthHandler(
 		redisStore:    redisStore,
 		logger:        log.New(os.Stdout, "[AUTH] ", log.LstdFlags|log.Lshortfile),
 		storage:       storage,
-		avatarHandler: NewAvatarHandler(&accountAuth, auth.NewAvatarService(storage.Bucket)),
+		avatarService: avatarService,
+		avatarHandler: NewAvatarHandler(&accountAuth, avatarService),
 	}
 }
 

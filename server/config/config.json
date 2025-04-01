@@ -61,6 +61,18 @@
         "password": "",
         "db": 0
     },
+    "storage": {
+        "provider": "minio",
+        "minio": {
+            "endpoint": "minio:9002",
+            "region": "zhuhai-1",
+            "accessKeyID": "59L3pDWuk9oLQWIgytCI",
+            "secretAccessKey": "GmwAzetY1L0jU4pUAqpO7RJGIsG7k3gozVH6whoJ",
+            "stsAccessKeyID": "user",
+            "stsSecretAccessKey": "GmwAzetY1L0jU4pUAqpO7RJGIsG7k3gozVH6whoJ",
+            "bucketName": "attatch"
+        }
+    },
     "admin": {
         "enabled": true,
         "port": 8081,

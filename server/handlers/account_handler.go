@@ -264,7 +264,17 @@ func (h *AuthHandler) GetUserInfo(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"user": user})
+	// avata转换为url
+	if user.Profile.Avatar != "" {
+		url, err := h.avatarService.GetAvatarURL(user.Profile.Avatar)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		user.Profile.Avatar = url
+	}
+
+	c.JSON(http.StatusOK, user)
 }
 
 // UpdateUserInfo Update user information
