@@ -22,6 +22,7 @@ import (
 
 	"kcaitech.com/kcauth/server/admin"
 	"kcaitech.com/kcauth/server/auth"
+	"kcaitech.com/kcauth/server/auth/storage"
 	"kcaitech.com/kcauth/server/config"
 	"kcaitech.com/kcauth/server/handlers"
 	"kcaitech.com/kcauth/server/middleware"
@@ -325,6 +326,12 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 	sessionMgr := auth.NewSessionManager(auth.NewSessionRedisStore(globalRedisStore.GetClient()))
 	// rateLimiter := &middleware.RateLimiter{}
 	// Use constructor to create authentication handler
+
+	_storage, err := storage.NewStoraageClient(&cfg.Storage)
+	if err != nil {
+		return fmt.Errorf("failed to initialize Storage: %v", err)
+	}
+
 	*handler = handlers.NewAuthHandler(
 		containsProvider(cfg.Auth.EnabledProviders, "account"), // Use account authentication
 		*accountAuth,
@@ -337,6 +344,7 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 		// rateLimiter,
 		sessionMgr,
 		globalRedisStore,
+		_storage,
 	)
 
 	return nil

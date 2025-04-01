@@ -5,15 +5,18 @@ import (
 	"fmt"
 	"os"
 	"time"
+
+	"kcaitech.com/kcauth/server/auth/storage"
 )
 
 // Config Main configuration structure
 type Config struct {
-	Server   ServerConfig   `json:"server"`
-	Auth     AuthConfig     `json:"auth"`
-	Database DatabaseConfig `json:"database"`
-	Redis    RedisConfig    `json:"redis"`
-	Admin    AdminConfig    `json:"admin"`
+	Server   ServerConfig        `json:"server"`
+	Auth     AuthConfig          `json:"auth"`
+	Database DatabaseConfig      `json:"database"`
+	Redis    RedisConfig         `json:"redis"`
+	Admin    AdminConfig         `json:"admin"`
+	Storage  storage.StorageConf `json:"storage"`
 }
 
 // ServerConfig Server configuration

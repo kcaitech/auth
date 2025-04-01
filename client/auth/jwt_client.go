@@ -1,9 +1,11 @@
 package auth
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"mime/multipart"
 	"net/http"
 	"strings"
 	"sync"
@@ -238,6 +240,16 @@ func (c *JWTClient) cacheToken(token string) {
 	c.tokenCache[token] = expiry
 }
 
+func (c *JWTClient) refreshCacheToken(old string, newtoken string) {
+	c.cacheMutex.Lock()
+	defer c.cacheMutex.Unlock()
+
+	delete(c.tokenCache, old)
+	// 设置缓存过期时间
+	expiry := time.Now().Add(c.cacheExpiry).Unix()
+	c.tokenCache[newtoken] = expiry
+}
+
 // GetUserInfo 获取用户信息
 func (c *JWTClient) GetUserInfo(accessToken string) (*UserInfo, error) {
 	// 创建请求
@@ -275,4 +287,175 @@ func (c *JWTClient) GetUserInfo(accessToken string) (*UserInfo, error) {
 	}
 
 	return &userInfo, nil
+}
+
+// UpdateUserInfo 更新用户信息
+func (c *JWTClient) UpdateUserInfo(accessToken string, userInfo *UserInfo) error {
+	// 将用户信息转换为 JSON
+	jsonData, err := json.Marshal(userInfo)
+	if err != nil {
+		return fmt.Errorf("序列化用户信息失败: %v", err)
+	}
+
+	// 创建请求
+	req, err := http.NewRequest("PUT", c.AuthServerURL+"/authapi/user", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Content-Type", "application/json")
+
+	// 发送请求
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	// 检查响应状态
+	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusUnauthorized {
+			return errors.New("invalid token")
+		}
+		var errResp struct {
+			Error string `json:"error"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&errResp); err != nil {
+			return fmt.Errorf("更新用户信息失败: %d", resp.StatusCode)
+		}
+		return errors.New(errResp.Error)
+	}
+
+	return nil
+}
+
+// UpdateAvatar 更新用户头像
+func (c *JWTClient) UpdateAvatar(accessToken string, fileData []byte, fileName string) error {
+	// 创建multipart请求
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	// 添加文件
+	part, err := writer.CreateFormFile("file", fileName)
+	if err != nil {
+		return fmt.Errorf("创建表单文件失败: %v", err)
+	}
+	if _, err := part.Write(fileData); err != nil {
+		return fmt.Errorf("写入文件数据失败: %v", err)
+	}
+
+	// 关闭writer
+	if err := writer.Close(); err != nil {
+		return fmt.Errorf("关闭writer失败: %v", err)
+	}
+
+	// 创建请求
+	req, err := http.NewRequest("POST", c.AuthServerURL+"/authapi/avatar", body)
+	if err != nil {
+		return fmt.Errorf("创建请求失败: %v", err)
+	}
+
+	// 设置请求头
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	// 发送请求
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("发送请求失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// 检查响应状态
+	if resp.StatusCode != http.StatusOK {
+		var errResp struct {
+			Error string `json:"error"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&errResp); err != nil {
+			return fmt.Errorf("更新头像失败: %d", resp.StatusCode)
+		}
+		return errors.New(errResp.Error)
+	}
+
+	return nil
+}
+
+// DeleteAvatar 删除用户头像
+func (c *JWTClient) DeleteAvatar(accessToken string) error {
+	// 创建请求
+	req, err := http.NewRequest("DELETE", c.AuthServerURL+"/authapi/avatar", nil)
+	if err != nil {
+		return fmt.Errorf("创建请求失败: %v", err)
+	}
+
+	// 设置请求头
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	// 发送请求
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("发送请求失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// 检查响应状态
+	if resp.StatusCode != http.StatusOK {
+		var errResp struct {
+			Error string `json:"error"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&errResp); err != nil {
+			return fmt.Errorf("删除头像失败: %d", resp.StatusCode)
+		}
+		return errors.New(errResp.Error)
+	}
+
+	return nil
+}
+
+// RefreshToken 刷新访问令牌
+func (c *JWTClient) RefreshToken(accessToken string) (string, error) {
+	// 创建请求
+	req, err := http.NewRequest("POST", c.AuthServerURL+"/authapi/token/refresh", nil)
+	if err != nil {
+		return "", fmt.Errorf("创建请求失败: %v", err)
+	}
+
+	// 设置请求头
+	// req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	// 发送请求
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("发送请求失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// 检查响应状态
+	if resp.StatusCode != http.StatusOK {
+		var errResp struct {
+			Error string `json:"error"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&errResp); err != nil {
+			return "", fmt.Errorf("刷新令牌失败: %d", resp.StatusCode)
+		}
+		return "", errors.New(errResp.Error)
+	}
+
+	// 解析响应
+	var result struct {
+		AccessToken string `json:"access_token"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("解析响应失败: %v", err)
+	}
+
+	// 清除旧令牌的缓存
+	// c.cacheMutex.Lock()
+	// delete(c.tokenCache, accessToken)
+	// c.cacheMutex.Unlock()
+
+	// 缓存新token
+	c.refreshCacheToken(accessToken, result.AccessToken)
+
+	return result.AccessToken, nil
 }

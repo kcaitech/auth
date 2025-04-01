@@ -324,9 +324,9 @@ func (h *AuthHandler) UpdateUserInfo(c *gin.Context) {
 	}
 
 	// Update other profile fields
-	if req.Profile.Avatar != "" && user.Profile.Avatar != req.Profile.Avatar {
-		updates["profile.avatar"] = req.Profile.Avatar
-	}
+	// if req.Profile.Avatar != "" && user.Profile.Avatar != req.Profile.Avatar {
+	// 	updates["profile.avatar"] = req.Profile.Avatar
+	// }
 	// if req.Profile.Bio != "" && user.Profile.Bio != req.Profile.Bio {
 	// 	updates["profile.bio"] = req.Profile.Bio
 	// }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"kcaitech.com/kcauth/server/auth"
+	"kcaitech.com/kcauth/server/auth/storage"
 )
 
 // AuthHandler Authentication handler
@@ -19,8 +20,10 @@ type AuthHandler struct {
 	twoFactor      *auth.TwoFactorAuth
 	jwtService     *auth.JWTService
 	// rateLimiter    *middleware.RateLimiter
-	sessionMgr *auth.SessionManager
-	redisStore *auth.RedisStore
+	sessionMgr    *auth.SessionManager
+	redisStore    *auth.RedisStore
+	storage       *storage.StorageClient
+	avatarHandler *AvatarHandler
 	// emailService   *auth.EmailService
 	logger *log.Logger
 }
@@ -37,7 +40,8 @@ func NewAuthHandler(
 	jwtService *auth.JWTService,
 	// rateLimiter *middleware.RateLimiter,
 	sessionMgr *auth.SessionManager,
-	redisStore *auth.RedisStore) *AuthHandler {
+	redisStore *auth.RedisStore,
+	storage *storage.StorageClient) *AuthHandler {
 	return &AuthHandler{
 		useAccountAuth: useAccountAuth,
 		accountAuth:    accountAuth,
@@ -48,9 +52,11 @@ func NewAuthHandler(
 		twoFactor:      twoFactor,
 		jwtService:     jwtService,
 		// rateLimiter:    rateLimiter,
-		sessionMgr: sessionMgr,
-		redisStore: redisStore,
-		logger:     log.New(os.Stdout, "[AUTH] ", log.LstdFlags|log.Lshortfile),
+		sessionMgr:    sessionMgr,
+		redisStore:    redisStore,
+		logger:        log.New(os.Stdout, "[AUTH] ", log.LstdFlags|log.Lshortfile),
+		storage:       storage,
+		avatarHandler: NewAvatarHandler(auth.NewAvatarService(storage.Bucket)),
 	}
 }
 
@@ -124,6 +130,11 @@ func (h *AuthHandler) RegisterRoutes(authGroup *gin.RouterGroup) {
 	// User information related routes
 	authGroup.GET("/user", h.AuthRequired(), h.GetUserInfo)
 	authGroup.PUT("/user", h.AuthRequired(), h.UpdateUserInfo)
+
+	// Avatar related routes
+	authGroup.POST("/avatar/upload", h.AuthRequired(), h.avatarHandler.UploadAvatar)
+	authGroup.DELETE("/avatar", h.AuthRequired(), h.avatarHandler.DeleteAvatar)
+
 	// User session information
 	authGroup.GET("/sessions", h.AuthRequired(), h.GetUserSessions)
 	authGroup.DELETE("/sessions/:session_id", h.AuthRequired(), h.TerminateUserSession)

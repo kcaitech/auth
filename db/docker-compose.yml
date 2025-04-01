@@ -36,6 +36,32 @@ services:
       timeout: 5s
       retries: 5
 
+  minio:
+    image: quay.io/minio/minio
+    entrypoint: sh
+    command: -c "minio server /data --console-address ':9001' & sleep 5 && /usr/bin/minio-init.sh && tail -f /dev/null"
+    container_name: minio
+    # networks:
+    #   kcserver:
+    restart: always
+    environment:
+      TZ: Asia/Shanghai
+      MINIO_ROOT_USER: kcserver
+      MINIO_ROOT_PASSWORD: kcai1212
+      MINIO_REGION: zhuhai-1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    volumes:
+      - minio_data:/data
+      - ./minio/init/init-minio.sh:/usr/bin/minio-init.sh
+    ports:
+      - "9002:9000" # 测试用
+      - "9003:9001"
+
 volumes:
   mysql_data:
-  redis_data: 
+  redis_data:
+  minio_data:
