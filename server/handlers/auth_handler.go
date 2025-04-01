@@ -56,7 +56,7 @@ func NewAuthHandler(
 		redisStore:    redisStore,
 		logger:        log.New(os.Stdout, "[AUTH] ", log.LstdFlags|log.Lshortfile),
 		storage:       storage,
-		avatarHandler: NewAvatarHandler(auth.NewAvatarService(storage.Bucket)),
+		avatarHandler: NewAvatarHandler(&accountAuth, auth.NewAvatarService(storage.Bucket)),
 	}
 }
 

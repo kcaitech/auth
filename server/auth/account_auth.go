@@ -337,16 +337,16 @@ func (a *AccountAuth) CleanExpiredVerifications() error {
 }
 
 // GetUserByUserID Get user by UserID
-func (a *AccountAuth) GetUserByUserID(userID string) (*User, error) {
-	var user User
-	if err := a.db.Where("user_id = ?", userID).First(&user).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, NewAppError(ErrCodeUserNotFound, "User not found", err)
-		}
-		return nil, err
-	}
-	return &user, nil
-}
+// func (a *AccountAuth) GetUserByUserID(userID string) (*User, error) {
+// 	var user User
+// 	if err := a.db.Where("user_id = ?", userID).First(&user).Error; err != nil {
+// 		if err == gorm.ErrRecordNotFound {
+// 			return nil, NewAppError(ErrCodeUserNotFound, "User not found", err)
+// 		}
+// 		return nil, err
+// 	}
+// 	return &user, nil
+// }
 
 // CheckDuplicateUserID Check if UserID is duplicate
 func (a *AccountAuth) CheckDuplicateUserID(userID string) error {
@@ -362,7 +362,7 @@ func (a *AccountAuth) CheckDuplicateUserID(userID string) error {
 
 // SetNickname Set nickname
 func (a *AccountAuth) SetNickname(userID string, nickname string) error {
-	user, err := a.GetUserByUserID(userID)
+	user, err := a.GetUserByID(userID)
 	if err != nil {
 		return err
 	}
@@ -373,7 +373,7 @@ func (a *AccountAuth) SetNickname(userID string, nickname string) error {
 
 // SetAvatar Set avatar
 func (a *AccountAuth) SetAvatar(userID string, avatar string) error {
-	user, err := a.GetUserByUserID(userID)
+	user, err := a.GetUserByID(userID)
 	if err != nil {
 		return err
 	}

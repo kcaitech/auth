@@ -81,7 +81,7 @@ func (s *AvatarService) UploadAvatar(userID string, file *multipart.FileHeader) 
 	}
 
 	// 生成文件名
-	fileName := fmt.Sprintf("avatars/%s/%s%s", userID, uuid.New().String(), format)
+	fileName := fmt.Sprintf("avatars/%s/%s.%s", userID, uuid.New().String(), format)
 
 	// 上传到OSS
 	_, err = s.storage.PutObject(&storage.PutObjectInput{
