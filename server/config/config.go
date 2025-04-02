@@ -11,12 +11,13 @@ import (
 
 // Config Main configuration structure
 type Config struct {
-	Server   ServerConfig        `json:"server"`
-	Auth     AuthConfig          `json:"auth"`
-	Database DatabaseConfig      `json:"database"`
-	Redis    RedisConfig         `json:"redis"`
-	Admin    AdminConfig         `json:"admin"`
-	Storage  storage.StorageConf `json:"storage"`
+	Server         ServerConfig        `json:"server"`
+	Auth           AuthConfig          `json:"auth"`
+	Database       DatabaseConfig      `json:"database"`
+	Redis          RedisConfig         `json:"redis"`
+	Admin          AdminConfig         `json:"admin"`
+	Storage        storage.StorageConf `json:"storage"`
+	TrustedClients []TrustedClient     `json:"trusted_clients"` // 受信任的第三方客户端配置
 }
 
 // ServerConfig Server configuration
@@ -127,6 +128,23 @@ type SmtpConfig struct {
 	Password string `json:"password"`
 	From     string `json:"from"`
 	// BaseURL  string `json:"base_url"` // Used to generate verification links
+}
+
+// TrustedClient 受信任的第三方客户端配置
+type TrustedClient struct {
+	ClientID     string   `json:"client_id"`     // 客户端ID
+	ClientSecret string   `json:"client_secret"` // 客户端密钥
+	AllowedIPs   []string `json:"allowed_ips"`   // 允许的IP地址列表
+	Scopes       []string `json:"scopes"`        // 允许的权限范围
+}
+
+func (c *TrustedClient) HasScope(_scope string) bool {
+	for _, scope := range c.Scopes {
+		if scope == _scope {
+			return true
+		}
+	}
+	return false
 }
 
 // LoadConfig Load configuration from file

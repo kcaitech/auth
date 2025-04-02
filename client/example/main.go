@@ -11,7 +11,7 @@ import (
 
 func main() {
 	// 创建JWT客户端
-	jwtClient := auth.NewJWTClient("http://auth-service:8080/auth/token/validate")
+	jwtClient := auth.NewJWTClient("http://auth-service:8080/auth/token/validate", "", "")
 
 	// 创建JWT中间件
 	// jwtMiddleware := auth.NewJWTMiddleware(jwtClient)

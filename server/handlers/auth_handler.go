@@ -7,6 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"kcaitech.com/kcauth/server/auth"
 	"kcaitech.com/kcauth/server/auth/storage"
+	"kcaitech.com/kcauth/server/config"
+	"kcaitech.com/kcauth/server/middleware"
 )
 
 // AuthHandler Authentication handler
@@ -64,7 +66,7 @@ func NewAuthHandler(
 }
 
 // RegisterRoutes Register routes
-func (h *AuthHandler) RegisterRoutes(authGroup *gin.RouterGroup) {
+func (h *AuthHandler) RegisterRoutes(authGroup *gin.RouterGroup, cfg *config.Config) {
 	// Add error handling middleware
 	// r.Use(auth.ErrorHandler())
 
@@ -132,6 +134,8 @@ func (h *AuthHandler) RegisterRoutes(authGroup *gin.RouterGroup) {
 
 	// User information related routes
 	authGroup.GET("/user", h.AuthRequired(), h.GetUserInfo)
+	trustedClient := middleware.TrustedClient(cfg)
+	authGroup.POST("/users", h.AuthRequired(), trustedClient, h.GetUsersInfo)
 	authGroup.PUT("/user", h.AuthRequired(), h.UpdateUserInfo)
 
 	// Avatar related routes

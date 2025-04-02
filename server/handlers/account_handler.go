@@ -7,6 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"kcaitech.com/kcauth/server/auth"
+	"kcaitech.com/kcauth/server/config"
 )
 
 // User registration type constants
@@ -275,6 +276,51 @@ func (h *AuthHandler) GetUserInfo(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, user)
+}
+
+// 批量获取用户信息
+func (h *AuthHandler) GetUsersInfo(c *gin.Context) {
+	// 获取用户ID列表
+	var req struct {
+		UserIDs []string `json:"user_ids" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的请求参数"})
+		return
+	}
+
+	trustedClient, _ := c.Get("trusted_client")
+	// 验证权限范围
+	hasReadScope := trustedClient.(*config.TrustedClient).HasScope("read:users")
+	if !hasReadScope {
+		c.JSON(http.StatusForbidden, gin.H{"error": "权限不足"})
+		c.Abort()
+		return
+	}
+
+	// 批量获取用户信息
+	users, err := h.accountAuth.GetUsersByIDs(req.UserIDs)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// 处理用户头像URL
+	for i := range users {
+		if users[i].Profile.Avatar != "" {
+			url, err := h.avatarService.GetAvatarURL(users[i].Profile.Avatar)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				return
+			}
+			users[i].Profile.Avatar = url
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"users": users,
+	})
 }
 
 // UpdateUserInfo Update user information

@@ -383,3 +383,12 @@ func (a *AccountAuth) SetAvatar(userID string, avatar string) error {
 	user.Profile.Avatar = avatar
 	return a.db.Save(user).Error
 }
+
+// GetUsersByIDs 批量获取用户信息
+func (a *AccountAuth) GetUsersByIDs(ids []string) ([]User, error) {
+	var users []User
+	if err := a.db.Where("user_id IN ?", ids).Find(&users).Error; err != nil {
+		return nil, err
+	}
+	return users, nil
+}

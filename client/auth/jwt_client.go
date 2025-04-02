@@ -23,6 +23,8 @@ type JWTClient struct {
 	tokenCache    map[string]int64 // 令牌缓存，用于减少对认证服务的请求
 	cacheMutex    sync.RWMutex     // 缓存锁
 	cacheExpiry   time.Duration    // 缓存过期时间
+	ClientID      string           // 客户端ID
+	ClientSecret  string           // 客户端密钥
 }
 
 // 需要与服务端定义的 Claims 结构一致
@@ -60,15 +62,17 @@ type UserInfo struct {
 }
 
 // NewJWTClient 创建新的JWT客户端
-func NewJWTClient(authServerURL string) *JWTClient {
+func NewJWTClient(authServerURL string, clientID string, clientSecret string) *JWTClient {
 	return &JWTClient{
 		AuthServerURL: authServerURL,
 		HTTPClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
-		Timeout:     10 * time.Second,
-		tokenCache:  make(map[string]int64),
-		cacheExpiry: 15 * time.Minute, // 默认缓存15分钟
+		Timeout:      10 * time.Second,
+		tokenCache:   make(map[string]int64),
+		cacheExpiry:  15 * time.Minute, // 默认缓存15分钟
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
 	}
 }
 
@@ -240,15 +244,15 @@ func (c *JWTClient) cacheToken(token string) {
 	c.tokenCache[token] = expiry
 }
 
-func (c *JWTClient) refreshCacheToken(old string, newtoken string) {
-	c.cacheMutex.Lock()
-	defer c.cacheMutex.Unlock()
+// func (c *JWTClient) refreshCacheToken(old string, newtoken string) {
+// 	c.cacheMutex.Lock()
+// 	defer c.cacheMutex.Unlock()
 
-	delete(c.tokenCache, old)
-	// 设置缓存过期时间
-	expiry := time.Now().Add(c.cacheExpiry).Unix()
-	c.tokenCache[newtoken] = expiry
-}
+// 	delete(c.tokenCache, old)
+// 	// 设置缓存过期时间
+// 	expiry := time.Now().Add(c.cacheExpiry).Unix()
+// 	c.tokenCache[newtoken] = expiry
+// }
 
 // GetUserInfo 获取用户信息
 func (c *JWTClient) GetUserInfo(accessToken string) (*UserInfo, error) {
@@ -468,4 +472,63 @@ func (c *JWTClient) RefreshToken(refreshToken string) (string, error) {
 	c.cacheToken(result.AccessToken)
 
 	return result.AccessToken, nil
+}
+
+// GetUsersInfo 批量获取用户信息
+func (c *JWTClient) GetUsersInfo(accessToken string, userIDs []string) ([]UserInfo, error) {
+	// 创建请求体
+	reqBody := struct {
+		UserIDs []string `json:"user_ids"`
+	}{
+		UserIDs: userIDs,
+	}
+
+	// 将请求体转换为 JSON
+	jsonData, err := json.Marshal(reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("序列化请求数据失败: %v", err)
+	}
+
+	// 创建请求
+	req, err := http.NewRequest("POST", c.AuthServerURL+"/authapi/users", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %v", err)
+	}
+
+	// 设置请求头
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Client-ID", c.ClientID)
+	req.Header.Set("X-Client-Secret", c.ClientSecret)
+
+	// 发送请求
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("发送请求失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// 检查响应状态
+	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusUnauthorized {
+			return nil, errors.New("无效的访问令牌或客户端认证失败")
+		}
+		var errResp struct {
+			Error string `json:"error"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&errResp); err != nil {
+			return nil, fmt.Errorf("获取用户信息失败: %d", resp.StatusCode)
+		}
+		return nil, errors.New(errResp.Error)
+	}
+
+	// 解析响应
+	var result struct {
+		Users []UserInfo `json:"users"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("解析响应数据失败: %v", err)
+	}
+
+	return result.Users, nil
 }

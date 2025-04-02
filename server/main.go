@@ -124,7 +124,7 @@ func main() {
 	rateLimiter := middleware.RateLimiter{}
 	r.Use(rateLimiter.RateLimitMiddleware())
 	// Register routes
-	authHandler.RegisterRoutes(r.Group("/authapi"))
+	authHandler.RegisterRoutes(r.Group("/authapi"), cfg)
 
 	// 添加静态文件服务
 	// 前端静态文件
