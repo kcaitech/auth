@@ -146,24 +146,24 @@ export default {
     verificationEmailTpl: `
   <h2>Email Verification</h2>
   <p>Hello, please click the link below to verify your email:</p>
-  <p><a href="{{.BaseURL}}/auth/verify-email?token={{.Token}}">Verify Email</a></p>
+  <p><a href="<%BaseURL%>/auth/verify-email?token=<%Token%>">Verify Email</a></p>
   <p>If the link cannot be clicked, please copy the following address to your browser:</p>
-  <p>{{.BaseURL}}/auth/verify-email?token={{.Token}}</p>
+  <p><%BaseURL%>/auth/verify-email?token=<%Token%></p>
   <p>This link will expire in 24 hours.</p>
   `,
     passwordResetEmailTpl: `
   <h2>Password Reset</h2>
   <p>Hello, please click the link below to reset your password:</p>
-  <p><a href="{{.BaseURL}}/auth/reset-password?token={{.Token}}">Reset Password</a></p>
+  <p><a href="<%BaseURL%>/auth/reset-password?token=<%Token%>">Reset Password</a></p>
   <p>If the link cannot be clicked, please copy the following address to your browser:</p>
-  <p>{{.BaseURL}}/auth/reset-password?token={{.Token}}</p>
+  <p><%BaseURL%>/auth/reset-password?token=<%Token%></p>
   <p>This link will expire in 24 hours. If you did not request a password reset, please ignore this email.</p>
   `,
     loginNotificationEmailTpl: `
   <h2>Login Notification</h2>
   <p>Hello, your account was just logged in on a new device:</p>
-  <p>IP Address: {{.Ip}}</p>
-  <p>Time: {{.Time}}</p>
+  <p>IP Address: <%Ip%></p>
+  <p>Time: <%Time%></p>
   <p>If this was not you, please change your password immediately.</p>
   `,
   },

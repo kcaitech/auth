@@ -413,15 +413,24 @@ func (c *JWTClient) DeleteAvatar(accessToken string) error {
 }
 
 // RefreshToken 刷新访问令牌
-func (c *JWTClient) RefreshToken(accessToken string) (string, error) {
+func (c *JWTClient) RefreshToken(refreshToken string) (string, error) {
 	// 创建请求
 	req, err := http.NewRequest("POST", c.AuthServerURL+"/authapi/token/refresh", nil)
 	if err != nil {
 		return "", fmt.Errorf("创建请求失败: %v", err)
 	}
-
 	// 设置请求头
 	// req.Header.Set("Authorization", "Bearer "+accessToken)
+
+	// 设置Cookie
+	cookie := &http.Cookie{
+		Name:     "refreshToken",
+		Value:    refreshToken,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+	}
+	req.AddCookie(cookie)
 
 	// 发送请求
 	resp, err := c.HTTPClient.Do(req)
@@ -455,7 +464,8 @@ func (c *JWTClient) RefreshToken(accessToken string) (string, error) {
 	// c.cacheMutex.Unlock()
 
 	// 缓存新token
-	c.refreshCacheToken(accessToken, result.AccessToken)
+	// c.refreshCacheToken(accessToken, result.AccessToken)
+	c.cacheToken(result.AccessToken)
 
 	return result.AccessToken, nil
 }
