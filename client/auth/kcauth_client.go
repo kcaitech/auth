@@ -15,8 +15,8 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// JWTClient JWT客户端
-type JWTClient struct {
+// KCAuthClient JWT客户端
+type KCAuthClient struct {
 	AuthServerURL string           // 认证服务URL
 	HTTPClient    *http.Client     // HTTP客户端
 	Timeout       time.Duration    // 请求超时时间
@@ -62,8 +62,8 @@ type UserInfo struct {
 }
 
 // NewJWTClient 创建新的JWT客户端
-func NewJWTClient(authServerURL string, clientID string, clientSecret string) *JWTClient {
-	return &JWTClient{
+func NewJWTClient(authServerURL string, clientID string, clientSecret string) *KCAuthClient {
+	return &KCAuthClient{
 		AuthServerURL: authServerURL,
 		HTTPClient: &http.Client{
 			Timeout: 10 * time.Second,
@@ -93,7 +93,7 @@ func getJWTClaims(accessToken string) (*CustomClaims, error) {
 }
 
 // remoteValidateToken 验证令牌
-func (c *JWTClient) remoteValidateToken(accessToken string) (bool, error) {
+func (c *KCAuthClient) remoteValidateToken(accessToken string) (bool, error) {
 	// 创建请求
 	req, err := http.NewRequest("POST", c.AuthServerURL+"/authapi/token/validate", nil)
 	if err != nil {
@@ -129,7 +129,7 @@ func (c *JWTClient) remoteValidateToken(accessToken string) (bool, error) {
 }
 
 // AuthRequired 验证JWT令牌的中间件
-func (c *JWTClient) AuthRequired() gin.HandlerFunc {
+func (c *KCAuthClient) AuthRequired() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		// 从请求头获取令牌
 		authHeader := ctx.GetHeader("Authorization")
@@ -164,7 +164,7 @@ func (c *JWTClient) AuthRequired() gin.HandlerFunc {
 }
 
 // 验证令牌
-func (c *JWTClient) ValidateToken(tokenString string) (*CustomClaims, error) {
+func (c *KCAuthClient) ValidateToken(tokenString string) (*CustomClaims, error) {
 
 	claims, err := c.getTokenCached(tokenString)
 	if err == nil {
@@ -186,7 +186,7 @@ func (c *JWTClient) ValidateToken(tokenString string) (*CustomClaims, error) {
 }
 
 // OptionalAuth 可选的JWT验证中间件
-func (c *JWTClient) OptionalAuth() gin.HandlerFunc {
+func (c *KCAuthClient) OptionalAuth() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		authHeader := ctx.GetHeader("Authorization")
 		if authHeader == "" {
@@ -216,7 +216,7 @@ func (c *JWTClient) OptionalAuth() gin.HandlerFunc {
 }
 
 // getTokenCached 检查令牌是否在缓存中
-func (c *JWTClient) getTokenCached(token string) (*CustomClaims, error) {
+func (c *KCAuthClient) getTokenCached(token string) (*CustomClaims, error) {
 	c.cacheMutex.RLock()
 	defer c.cacheMutex.RUnlock()
 
@@ -235,7 +235,7 @@ func (c *JWTClient) getTokenCached(token string) (*CustomClaims, error) {
 }
 
 // cacheToken 缓存令牌
-func (c *JWTClient) cacheToken(token string) {
+func (c *KCAuthClient) cacheToken(token string) {
 	c.cacheMutex.Lock()
 	defer c.cacheMutex.Unlock()
 
@@ -255,7 +255,7 @@ func (c *JWTClient) cacheToken(token string) {
 // }
 
 // GetUserInfo 获取用户信息
-func (c *JWTClient) GetUserInfo(accessToken string) (*UserInfo, error) {
+func (c *KCAuthClient) GetUserInfo(accessToken string) (*UserInfo, error) {
 	// 创建请求
 	req, err := http.NewRequest("GET", c.AuthServerURL+"/authapi/user", nil)
 	if err != nil {
@@ -294,7 +294,7 @@ func (c *JWTClient) GetUserInfo(accessToken string) (*UserInfo, error) {
 }
 
 // UpdateUserInfo 更新用户信息
-func (c *JWTClient) UpdateUserInfo(accessToken string, userInfo *UserInfo) error {
+func (c *KCAuthClient) UpdateUserInfo(accessToken string, userInfo *UserInfo) error {
 	// 将用户信息转换为 JSON
 	jsonData, err := json.Marshal(userInfo)
 	if err != nil {
@@ -334,7 +334,7 @@ func (c *JWTClient) UpdateUserInfo(accessToken string, userInfo *UserInfo) error
 }
 
 // UpdateAvatar 更新用户头像
-func (c *JWTClient) UpdateAvatar(accessToken string, fileData []byte, fileName string) error {
+func (c *KCAuthClient) UpdateAvatar(accessToken string, fileData []byte, fileName string) error {
 	// 创建multipart请求
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
@@ -385,7 +385,7 @@ func (c *JWTClient) UpdateAvatar(accessToken string, fileData []byte, fileName s
 }
 
 // DeleteAvatar 删除用户头像
-func (c *JWTClient) DeleteAvatar(accessToken string) error {
+func (c *KCAuthClient) DeleteAvatar(accessToken string) error {
 	// 创建请求
 	req, err := http.NewRequest("DELETE", c.AuthServerURL+"/authapi/avatar", nil)
 	if err != nil {
@@ -417,7 +417,7 @@ func (c *JWTClient) DeleteAvatar(accessToken string) error {
 }
 
 // RefreshToken 刷新访问令牌
-func (c *JWTClient) RefreshToken(refreshToken string) (string, error) {
+func (c *KCAuthClient) RefreshToken(refreshToken string) (string, error) {
 	// 创建请求
 	req, err := http.NewRequest("POST", c.AuthServerURL+"/authapi/token/refresh", nil)
 	if err != nil {
@@ -475,7 +475,7 @@ func (c *JWTClient) RefreshToken(refreshToken string) (string, error) {
 }
 
 // GetUsersInfo 批量获取用户信息
-func (c *JWTClient) GetUsersInfo(accessToken string, userIDs []string) ([]UserInfo, error) {
+func (c *KCAuthClient) GetUsersInfo(accessToken string, userIDs []string) ([]UserInfo, error) {
 	// 创建请求体
 	reqBody := struct {
 		UserIDs []string `json:"user_ids"`

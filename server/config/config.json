@@ -93,5 +93,13 @@
         "require_tls": false,
         "session_ttl": 30,
         "login_timeout": 60
-    }
+    },
+    "trusted_clients": [
+        {
+        "client_id": "kcserver",
+        "client_secret": "$2a$10$fG44fQ/dghOcCqLJUHWJterKptRWn4DNbnb1H9QK5ec9Lij2srSA2",
+        "allowed_ips": ["*"],
+        "scopes": ["read:users"]
+        }
+    ]
 } 

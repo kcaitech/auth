@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"strings"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"github.com/gin-gonic/gin"
 	"kcaitech.com/kcauth/server/config"
 )
@@ -20,7 +22,9 @@ func TrustedClient(_config *config.Config) gin.HandlerFunc {
 		// 验证客户端
 		var trustedClient *config.TrustedClient
 		for _, client := range _config.TrustedClients {
-			if client.ClientID == clientID && client.ClientSecret == clientSecret {
+			// 使用 bcrypt 比较密钥
+			err := bcrypt.CompareHashAndPassword([]byte(client.ClientSecret), []byte(clientSecret))
+			if client.ClientID == clientID && err == nil {
 				trustedClient = &client
 				break
 			}
