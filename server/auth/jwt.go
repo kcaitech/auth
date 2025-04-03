@@ -111,11 +111,11 @@ func (s *JWTService) generateToken(userID string, sessionID, tokenType string, e
 		return "", "", fmt.Errorf("failed to generate secret key: %w", err)
 	}
 
+	now := time.Now()
 	// Store key in Redis, using token's expiration time
 	if err := s.storeKey(keyID, secretKey, expiration+time.Hour); err != nil {
 		return "", "", fmt.Errorf("failed to store key: %w", err)
 	}
-
 	// Create Claims
 	claims := CustomClaims{
 		UserID: userID,
@@ -124,8 +124,8 @@ func (s *JWTService) generateToken(userID string, sessionID, tokenType string, e
 		// KeyID:     keyID,
 		TokenType: tokenType,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(expiration)),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			ExpiresAt: jwt.NewNumericDate(now.Add(expiration)),
+			IssuedAt:  jwt.NewNumericDate(now),
 			Issuer:    s.config.Issuer,
 		},
 	}
@@ -199,7 +199,7 @@ func (s *JWTService) ValidateJWT(tokenString string) (*CustomClaims, error) {
 		})
 
 		if err != nil {
-			return nil, fmt.Errorf("failed to validate token: %w", err)
+			return nil, fmt.Errorf("failed to validate token: %w, %s", err, tokenString)
 		}
 
 		if claims, ok := token.Claims.(*CustomClaims); ok && token.Valid {

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -511,7 +512,8 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 
 	claims, err := h.jwtService.ValidateJWT(refreshToken)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid access token"})
+		log.Println("Invalid refresh token:", err.Error())
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid refresh token"})
 		return
 	}
 
