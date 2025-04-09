@@ -279,6 +279,47 @@ func (h *AuthHandler) GetUserInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, user)
 }
 
+// GetUserInfo Get user information
+func (h *AuthHandler) GetUserInfoById(c *gin.Context) {
+	userID := c.Param("id")
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Need id param"})
+		return
+	}
+
+	// Convert userID to string
+	// userIDStr := ""
+	// switch v := userID.(type) {
+	// case string:
+	// 	userIDStr = v
+	// case uint:
+	// 	userIDStr = strconv.FormatUint(uint64(v), 10)
+	// case int:
+	// 	userIDStr = strconv.Itoa(v)
+	// default:
+	// 	c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID type"})
+	// 	return
+	// }
+
+	user, err := h.accountAuth.GetUserByID(userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// avata转换为url
+	if user.Profile.Avatar != "" {
+		url, err := h.avatarService.GetAvatarURL(user.Profile.Avatar)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		user.Profile.Avatar = url
+	}
+
+	c.JSON(http.StatusOK, user)
+}
+
 // 批量获取用户信息
 func (h *AuthHandler) GetUsersInfo(c *gin.Context) {
 	// 获取用户ID列表

@@ -132,9 +132,10 @@ func (h *AuthHandler) RegisterRoutes(authGroup *gin.RouterGroup, cfg *config.Con
 		authGroup.POST("/2fa/recovery", h.AuthRequired(), h.GenerateRecoveryCodes)
 	}
 
+	trustedClient := middleware.TrustedClient(cfg)
 	// User information related routes
 	authGroup.GET("/user", h.AuthRequired(), h.GetUserInfo)
-	trustedClient := middleware.TrustedClient(cfg)
+	authGroup.GET("/user/:id", h.AuthRequired(), trustedClient, h.GetUserInfoById)
 	authGroup.POST("/users", h.AuthRequired(), trustedClient, h.GetUsersInfo)
 	authGroup.PUT("/user", h.AuthRequired(), h.UpdateUserInfo)
 

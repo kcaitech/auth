@@ -254,10 +254,9 @@ func (c *KCAuthClient) cacheToken(token string) {
 // 	c.tokenCache[newtoken] = expiry
 // }
 
-// GetUserInfo 获取用户信息
-func (c *KCAuthClient) GetUserInfo(accessToken string) (*UserInfo, error) {
+func (c *KCAuthClient) getUserInfo(accessToken string, url string) (*UserInfo, error) {
 	// 创建请求
-	req, err := http.NewRequest("GET", c.AuthServerURL+"/authapi/user", nil)
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -291,6 +290,16 @@ func (c *KCAuthClient) GetUserInfo(accessToken string) (*UserInfo, error) {
 	}
 
 	return &userInfo, nil
+}
+
+// GetUserInfo 获取用户信息
+func (c *KCAuthClient) GetUserInfo(accessToken string) (*UserInfo, error) {
+	return c.getUserInfo(accessToken, c.AuthServerURL+"/authapi/user")
+}
+
+// GetUserInfo 获取用户信息
+func (c *KCAuthClient) GetUserInfoById(accessToken string, userId string) (*UserInfo, error) {
+	return c.getUserInfo(accessToken, fmt.Sprintf("%s/authapi/user/%s", c.AuthServerURL, userId))
 }
 
 // UpdateUserInfo 更新用户信息
