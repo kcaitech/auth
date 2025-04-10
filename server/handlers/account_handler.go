@@ -38,9 +38,9 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		UserID:   req.Username,
 		Password: req.Password,
 		Status:   auth.UserStatusActive,
-		// Profile:  auth.UserProfile{
-		// Nickname: req.Nickname,
-		// },
+		Profile: auth.UserProfile{
+			Nickname: req.Username,
+		},
 	}
 
 	if err := h.accountAuth.CreateUser(user); err != nil {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"strings"
@@ -426,7 +427,7 @@ func (c *KCAuthClient) DeleteAvatar(accessToken string) error {
 }
 
 // RefreshToken 刷新访问令牌
-func (c *KCAuthClient) RefreshToken(refreshToken string) (string, error) {
+func (c *KCAuthClient) RefreshToken(refreshToken string, gin *gin.Context) (string, error) {
 	// 创建请求
 	req, err := http.NewRequest("POST", c.AuthServerURL+"/authapi/token/refresh", nil)
 	if err != nil {
@@ -460,15 +461,24 @@ func (c *KCAuthClient) RefreshToken(refreshToken string) (string, error) {
 		if err := json.NewDecoder(resp.Body).Decode(&errResp); err != nil {
 			return "", fmt.Errorf("刷新令牌失败: %d", resp.StatusCode)
 		}
+		log.Println("刷新令牌失败", errResp.Error, refreshToken)
 		return "", errors.New(errResp.Error)
 	}
 
 	// 解析响应
 	var result struct {
-		AccessToken string `json:"access_token"`
+		AccessToken string `json:"token"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return "", fmt.Errorf("解析响应失败: %v", err)
+	}
+
+	// 将resp里的refreshToken转存到gin
+	for _, cookie := range resp.Cookies() {
+		if cookie.Name == "refreshToken" {
+			gin.SetCookie("refreshToken", cookie.Value, cookie.MaxAge, cookie.Path, cookie.Domain, cookie.Secure, cookie.HttpOnly)
+			break
+		}
 	}
 
 	// 清除旧令牌的缓存
