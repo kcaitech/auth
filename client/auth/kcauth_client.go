@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"mime/multipart"
 	"net/http"
@@ -262,6 +263,8 @@ func (c *KCAuthClient) getUserInfo(accessToken string, url string) (*UserInfo, e
 		return nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("X-Client-ID", c.ClientID)
+	req.Header.Set("X-Client-Secret", c.ClientSecret)
 
 	// 发送请求
 	resp, err := c.HTTPClient.Do(req)
@@ -273,7 +276,12 @@ func (c *KCAuthClient) getUserInfo(accessToken string, url string) (*UserInfo, e
 	// 检查响应状态
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusUnauthorized {
-			return nil, errors.New("invalid token")
+			bodyBytes, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, fmt.Errorf("读取响应数据失败: %v", err)
+			}
+			log.Printf("响应数据: %s", string(bodyBytes))
+			return nil, errors.New("未授权")
 		}
 		var errResp struct {
 			Error string `json:"error"`
