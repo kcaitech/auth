@@ -219,18 +219,36 @@ func (c *KCAuthClient) OptionalAuth() gin.HandlerFunc {
 
 // getTokenCached 检查令牌是否在缓存中
 func (c *KCAuthClient) getTokenCached(token string) (*CustomClaims, error) {
-	c.cacheMutex.RLock()
-	defer c.cacheMutex.RUnlock()
+	var expiry int64
+	{
+		c.cacheMutex.RLock()
+		defer c.cacheMutex.RUnlock()
 
-	expiry, exists := c.tokenCache[token]
-	if !exists {
-		return nil, errors.New("token not cached")
+		var exists bool
+		expiry, exists = c.tokenCache[token]
+
+		if !exists {
+			return nil, errors.New("token not cached")
+		}
 	}
 
+	now := time.Now().Unix()
 	// 检查缓存是否过期
-	if time.Now().Unix() > expiry {
-		delete(c.tokenCache, token)
-		return nil, errors.New("token cache expired")
+	if now > expiry {
+		c.cacheMutex.Lock()
+		defer c.cacheMutex.Unlock()
+
+		//重新检查expiry
+		var exists bool
+		expiry, exists = c.tokenCache[token]
+		if !exists {
+			return nil, errors.New("token not cached")
+		}
+
+		if now > expiry {
+			delete(c.tokenCache, token)
+			return nil, errors.New("token cache expired")
+		}
 	}
 
 	return getJWTClaims(token)
