@@ -557,16 +557,34 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid refresh token"})
 		return
 	}
+	if claims.TokenType != auth.RefreshTokenType {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token type"})
+		return
+	}
 
-	// Refresh session
-	if err := h.sessionMgr.RefreshSession(claims.UserID, claims.SessionID, auth.RefreshTokenExpiration); err != nil {
+	// 判断refreshToken的超时时间，如果还比较长，仅更新accessToken
+	if time.Until(claims.ExpiresAt.Time) > time.Duration(auth.RefreshTokenExpiration.Hours()/2) {
+		// Refresh session
+		token, err := h.jwtService.GenerateAccessToken(claims.UserID, claims.SessionID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"token":       token,
+			"expire_time": auth.TokenExpiration,
+		})
+		return
+	}
+
+	if err := h.sessionMgr.RefreshSession(claims.UserID, claims.SessionID, auth.RefreshTokenExpiration+time.Hour); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to refresh session"})
 		return
 	}
 	// Refresh JWT token
 	tokenPair, err := h.jwtService.RefreshJWT(refreshToken)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 

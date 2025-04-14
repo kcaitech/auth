@@ -143,8 +143,8 @@ func (s *JWTService) generateToken(userID string, sessionID, tokenType string, e
 	return tokenString, keyID, nil
 }
 
-// GenerateJWT Generate JWT access token
-func (s *JWTService) GenerateJWT(userID string, sessionID string) (string, error) {
+// GenerateAccessToken Generate JWT access token
+func (s *JWTService) GenerateAccessToken(userID string, sessionID string) (string, error) {
 	tokenString, _, err := s.generateToken(userID, sessionID, AccessTokenType, TokenExpiration)
 	return tokenString, err
 }
