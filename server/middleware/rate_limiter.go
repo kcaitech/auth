@@ -15,8 +15,8 @@ import (
 
 // RedisStore Redis storage service
 type RedisStore struct {
-	client *redis.Client
-	ctx    context.Context
+	Client *redis.Client
+	Ctx    context.Context
 }
 
 // NewRedisStore Create a new Redis storage service
@@ -33,33 +33,37 @@ func NewRedisStore(addr, password string, db int) (*RedisStore, error) {
 	}
 
 	return &RedisStore{
-		client: client,
-		ctx:    ctx,
+		Client: client,
+		Ctx:    ctx,
 	}, nil
 }
 
 // IncrRateLimit Increment rate limit counter and return current value
 func (rs *RedisStore) IncrRateLimit(key string, window time.Duration) (int, error) {
-	pipe := rs.client.Pipeline()
-	incr := pipe.Incr(rs.ctx, key)
-	pipe.Expire(rs.ctx, key, window)
-	_, err := pipe.Exec(rs.ctx)
+	// 使用 Redis 的 INCR 命令增加计数
+	count, err := rs.Client.Incr(rs.Ctx, key).Result()
 	if err != nil {
 		return 0, err
 	}
-	return int(incr.Val()), nil
+
+	// 如果是第一次设置或者没有设置过期时间，则设置过期时间
+	if count == 1 || rs.Client.TTL(rs.Ctx, key).Val() == -1 {
+		rs.Client.Expire(rs.Ctx, key, window)
+	}
+
+	return int(count), nil
 }
 
 // StoreRateLimit Store rate limit information
 func (rs *RedisStore) StoreRateLimit(ip string, count int, window time.Duration) error {
 	key := fmt.Sprintf("ratelimit:%s", ip)
-	return rs.client.Set(rs.ctx, key, count, window).Err()
+	return rs.Client.Set(rs.Ctx, key, count, window).Err()
 }
 
 // GetRateLimit Get rate limit information
 func (rs *RedisStore) GetRateLimit(ip string) (int, error) {
 	key := fmt.Sprintf("ratelimit:%s", ip)
-	count, err := rs.client.Get(rs.ctx, key).Int()
+	count, err := rs.Client.Get(rs.Ctx, key).Int()
 	if err == redis.Nil {
 		return 0, nil
 	}
@@ -69,12 +73,12 @@ func (rs *RedisStore) GetRateLimit(ip string) (int, error) {
 // DeleteRateLimit Delete rate limit information
 func (rs *RedisStore) DeleteRateLimit(ip string) error {
 	key := fmt.Sprintf("ratelimit:%s", ip)
-	return rs.client.Del(rs.ctx, key).Err()
+	return rs.Client.Del(rs.Ctx, key).Err()
 }
 
 // Close Close Redis connection
 func (rs *RedisStore) Close() error {
-	return rs.client.Close()
+	return rs.Client.Close()
 }
 
 // RateLimiterConfig Rate limiter configuration
@@ -103,7 +107,7 @@ func DefaultRateLimiterConfig() RateLimiterConfig {
 		EnableIPRateLimit:     true,
 		EnableUserRateLimit:   true,
 		EnableGlobalRateLimit: false,
-		GlobalMaxRequests:     1000,
+		GlobalMaxRequests:     10000,
 		GlobalWindow:          time.Minute,
 	}
 }
