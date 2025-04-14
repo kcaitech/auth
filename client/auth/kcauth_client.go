@@ -218,37 +218,48 @@ func (c *KCAuthClient) OptionalAuth() gin.HandlerFunc {
 }
 
 // getTokenCached 检查令牌是否在缓存中
-func (c *KCAuthClient) getTokenCached(token string) (*CustomClaims, error) {
+func (c *KCAuthClient) _getTokenCached(token string) (string, error) {
 	var expiry int64
-	{
-		c.cacheMutex.RLock()
-		defer c.cacheMutex.RUnlock()
 
-		var exists bool
-		expiry, exists = c.tokenCache[token]
+	c.cacheMutex.RLock()
 
-		if !exists {
-			return nil, errors.New("token not cached")
-		}
+	var exists bool
+	expiry, exists = c.tokenCache[token]
+	c.cacheMutex.RUnlock()
+
+	if !exists {
+		return "", errors.New("token not cached")
 	}
 
-	now := time.Now().Unix()
 	// 检查缓存是否过期
-	if now > expiry {
-		c.cacheMutex.Lock()
-		defer c.cacheMutex.Unlock()
+	now := time.Now().Unix()
+	if now <= expiry {
+		return token, nil
+	}
 
-		//重新检查expiry
-		var exists bool
-		expiry, exists = c.tokenCache[token]
-		if !exists {
-			return nil, errors.New("token not cached")
-		}
+	c.cacheMutex.Lock()
+	defer c.cacheMutex.Unlock()
 
-		if now > expiry {
-			delete(c.tokenCache, token)
-			return nil, errors.New("token cache expired")
-		}
+	//重新检查expiry
+	expiry, exists = c.tokenCache[token]
+	if !exists {
+		return "", errors.New("token not cached")
+	}
+
+	if now <= expiry {
+		return token, nil
+	}
+
+	delete(c.tokenCache, token)
+	return "", errors.New("token cache expired")
+
+}
+
+// getTokenCached 检查令牌是否在缓存中
+func (c *KCAuthClient) getTokenCached(token string) (*CustomClaims, error) {
+	token, err := c._getTokenCached(token)
+	if err != nil {
+		return nil, err
 	}
 
 	return getJWTClaims(token)
