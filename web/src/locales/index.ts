@@ -42,6 +42,7 @@ const i18n = createI18n({
   legacy: false, // 使用Composition API模式
   locale: getPreferredLanguage(),
   fallbackLocale: 'en-US',
+  warnHtmlMessage: false,
   messages: {
     'en-US': enUS,
     'zh-CN': zhCN,
