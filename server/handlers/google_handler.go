@@ -243,10 +243,10 @@ func (h *AuthHandler) handleGoogleUser(googleID, email, name, pictureURL string)
 		}
 	} else {
 		// Update user information
-		if err := h.googleOAuth.UpdateGoogleUserInfo(user.UserID, googleUserInfo); err != nil {
-			h.logger.Printf("Failed to update Google user information: %v", err)
-			// Does not affect login flow, just log the error
-		}
+		// if err := h.googleOAuth.UpdateGoogleUserInfo(user.UserID, googleUserInfo); err != nil {
+		// 	h.logger.Printf("Failed to update Google user information: %v", err)
+		// 	// Does not affect login flow, just log the error
+		// }
 	}
 
 	return user, nil
