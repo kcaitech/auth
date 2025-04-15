@@ -381,7 +381,7 @@ func (c *KCAuthClient) UpdateUserInfo(accessToken string, userInfo *UserInfo) er
 }
 
 // UpdateAvatar 更新用户头像
-func (c *KCAuthClient) UpdateAvatar(accessToken string, fileData []byte, fileName string) error {
+func (c *KCAuthClient) UpdateAvatar(accessToken string, fileData []byte, fileName string) (string, error) {
 	// 创建multipart请求
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
@@ -389,21 +389,21 @@ func (c *KCAuthClient) UpdateAvatar(accessToken string, fileData []byte, fileNam
 	// 添加文件
 	part, err := writer.CreateFormFile("avatar", fileName)
 	if err != nil {
-		return fmt.Errorf("创建表单文件失败: %v", err)
+		return "", fmt.Errorf("创建表单文件失败: %v", err)
 	}
 	if _, err := part.Write(fileData); err != nil {
-		return fmt.Errorf("写入文件数据失败: %v", err)
+		return "", fmt.Errorf("写入文件数据失败: %v", err)
 	}
 
 	// 关闭writer
 	if err := writer.Close(); err != nil {
-		return fmt.Errorf("关闭writer失败: %v", err)
+		return "", fmt.Errorf("关闭writer失败: %v", err)
 	}
 
 	// 创建请求
 	req, err := http.NewRequest("POST", c.AuthServerURL+"/authapi/avatar/upload", body)
 	if err != nil {
-		return fmt.Errorf("创建请求失败: %v", err)
+		return "", fmt.Errorf("创建请求失败: %v", err)
 	}
 
 	// 设置请求头
@@ -413,7 +413,7 @@ func (c *KCAuthClient) UpdateAvatar(accessToken string, fileData []byte, fileNam
 	// 发送请求
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("发送请求失败: %v", err)
+		return "", fmt.Errorf("发送请求失败: %v", err)
 	}
 	defer resp.Body.Close()
 
@@ -423,12 +423,19 @@ func (c *KCAuthClient) UpdateAvatar(accessToken string, fileData []byte, fileNam
 			Error string `json:"error"`
 		}
 		if err := json.NewDecoder(resp.Body).Decode(&errResp); err != nil {
-			return fmt.Errorf("更新头像失败: %d", resp.StatusCode)
+			return "", fmt.Errorf("更新头像失败: %d", resp.StatusCode)
 		}
-		return errors.New(errResp.Error)
+		return "", errors.New(errResp.Error)
 	}
 
-	return nil
+	// 解析响应
+	var result struct {
+		Url string `json:"url"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("解析响应失败: %v", err)
+	}
+	return result.Url, nil
 }
 
 // DeleteAvatar 删除用户头像
