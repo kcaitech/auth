@@ -69,17 +69,15 @@ const verifyEmail = async (token: string) => {
   try {
     loading.value = true;
     
-    const response = await fetch(`/auth/email/verify?token=${token}`, {
-      method: 'GET',
+    const response = await axios.get(`/email/verify?token=${token}`, {
       headers: {
         'Content-Type': 'application/json',
       },
-      credentials: 'include',
     });
 
-    const data = await response.json();
-    
-    if (!response.ok) {
+    const data = response.data;
+
+    if (response.status !== 200) {
       throw new Error(data.error || '验证失败，请稍后重试');
     }
     
@@ -116,7 +114,7 @@ const resendVerification = async () => {
     resending.value = true;
     resendSuccess.value = false;
     
-    await axios.post('/auth/email/resend-verification', {
+    await axios.post('/email/resend-verification', {
       email: verifiedEmail.value,
       title: '邮箱验证',
       content: verificationEmailTpl

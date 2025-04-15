@@ -99,14 +99,14 @@ export const useAuthStore = defineStore('auth', {
       }
     },
     
-    async login(usernameOrEmail: string, password: string) {
+    async login(username: string, password: string) {
       try {
         this.loading = true
         this.error = undefined
         
         // 这里应该调用实际的 API 端点
         const response = await axios.post('/account/login', {
-          username: usernameOrEmail,
+          username: username,
           password
         })
         
@@ -523,6 +523,38 @@ export const useAuthStore = defineStore('auth', {
         return response.data
       } catch (error: any) {
         this.error = error.response?.data?.error || t('errors.passwordResetFailed')
+        throw new Error(this.error)
+      } finally {
+        this.loading = false
+      }
+    },
+
+    // 邮箱登录
+    async emailLogin(email: string, password: string) {
+      try {
+        this.loading = true
+        this.error = undefined
+        
+        const response = await axios.post('/email/login', {
+          email,
+          password
+        })
+
+        const { user_id, token, profile, expire_time } = response.data
+        
+        this.user = {
+          // id: user_id,
+          userID: user_id,
+          nickname: profile?.nickname || '',
+          email: profile?.email || ''
+        }
+
+        this.token = token
+        localStorage.setItem('token', token)
+        
+        return this.user
+      } catch (error: any) {
+        this.error = error.response?.data?.error || t('errors.emailLoginFailed')
         throw new Error(this.error)
       } finally {
         this.loading = false

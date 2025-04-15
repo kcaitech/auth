@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"time"
 
@@ -96,7 +97,7 @@ func (h *AuthHandler) EmailVerify(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing verification token"})
 		return
 	}
-
+	log.Println("email verify token:", token)
 	// Verify email and complete registration
 	user, err := h.emailAuth.VerifyEmail(token)
 	if err != nil {

@@ -34,6 +34,7 @@ import { reactive, ref, defineEmits } from 'vue'
 import axios from 'axios'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useAuthStore } from '@/stores/auth';
 
 const emit = defineEmits<{
   (e: 'login-success'): void
@@ -80,7 +81,7 @@ const validateForm = () => {
   
   return isValid
 }
-
+const authStore = useAuthStore()
 const handleEmailLogin = async () => {
   try {
     // 表单验证
@@ -89,10 +90,11 @@ const handleEmailLogin = async () => {
     isLoading.value = true
     
     // 实际实现邮箱登录逻辑
-    const response = await axios.post('/auth/email/login', {
-      email: formData.email,
-      password: formData.password
-    })
+    const response = await authStore.emailLogin(formData.email, formData.password)
+    // const response = await axios.post('/email/login', {
+    //   email: formData.email,
+    //   password: formData.password
+    // })
     
     // 登录成功，通知父组件
     emit('login-success')
