@@ -44,8 +44,8 @@ func NewAuthHandler(
 	// rateLimiter *middleware.RateLimiter,
 	sessionMgr *auth.SessionManager,
 	redisStore *auth.RedisStore,
-	storage *storage.StorageClient) *AuthHandler {
-	avatarService := auth.NewAvatarService(storage.Bucket)
+	storage *storage.StorageClient,
+	avatarService *auth.AvatarService) *AuthHandler {
 	return &AuthHandler{
 		useAccountAuth: useAccountAuth,
 		accountAuth:    accountAuth,
@@ -107,6 +107,8 @@ func (h *AuthHandler) RegisterRoutes(authGroup *gin.RouterGroup, cfg *config.Con
 		authGroup.GET("/google/login", h.GoogleLogin)
 		authGroup.GET("/google/callback", h.GoogleCallback)
 		authGroup.POST("/google", h.GoogleLoginPost)
+		// Get Google client ID, for frontend to use
+		authGroup.GET("/google/client_id", h.GetGoogleClientID)
 		authGroup.POST("/google/credential", h.GoogleCredential)
 	}
 

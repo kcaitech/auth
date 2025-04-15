@@ -10,6 +10,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useI18n } from 'vue-i18n'
 
 const emit = defineEmits<{
+  (e: 'login-success'): void
   (e: 'login-error', message: string): void
 }>()
 
@@ -20,7 +21,9 @@ const { t } = useI18n()
 onMounted(async () => {
   try {
     // 使用改进后的renderGoogleButton方法，它会同时处理初始化和渲染
-    await authStore.renderGoogleButton('google-signin-button')
+    await authStore.renderGoogleButton('google-signin-button', () => {
+      emit('login-success')
+    })
     console.log(t('logs.googleInitComplete'))
   } catch (error: any) {
     console.error(t('logs.googleInitFailed'), error.message || error)

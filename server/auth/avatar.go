@@ -11,6 +11,8 @@ import (
 	// "image/webp"
 	"mime/multipart"
 
+	"net/http"
+
 	"github.com/google/uuid"
 	"github.com/nfnt/resize"
 	"github.com/pkg/errors"
@@ -132,4 +134,56 @@ func (s *AvatarService) DeleteAvatar(fileName string) error {
 	}
 
 	return nil
+}
+
+// DownloadAndUploadAvatar 从URL下载头像并上传到服务器
+func (s *AvatarService) DownloadAndUploadAvatar(userID string, avatarURL string) (string, error) {
+	// 下载头像
+	resp, err := http.Get(avatarURL)
+	if err != nil {
+		return "", fmt.Errorf("下载头像失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// 解码图片
+	img, format, err := image.Decode(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("解码图片失败: %w", err)
+	}
+
+	// 调整图片大小
+	resized := resize.Resize(AvatarWidth, AvatarHeight, img, resize.Lanczos3)
+
+	// 编码图片
+	var buf bytes.Buffer
+	switch format {
+	case "jpeg":
+		err = jpeg.Encode(&buf, resized, &jpeg.Options{Quality: 85})
+	case "png":
+		err = png.Encode(&buf, resized)
+	case "gif":
+		err = gif.Encode(&buf, resized, nil)
+	default:
+		return "", fmt.Errorf("不支持的图片格式: %s", format)
+	}
+	if err != nil {
+		return "", fmt.Errorf("编码图片失败: %w", err)
+	}
+
+	// 生成文件名
+	fileName := fmt.Sprintf("avatars/%s/%s.%s", userID, uuid.New().String(), format)
+
+	// 上传到OSS
+	_, err = s.storage.PutObject(&storage.PutObjectInput{
+		ObjectName:  fileName,
+		Reader:      &buf,
+		ObjectSize:  int64(buf.Len()),
+		ContentType: fmt.Sprintf("image/%s", format),
+	})
+	if err != nil {
+		return "", fmt.Errorf("上传头像失败: %w", err)
+	}
+
+	// 返回文件名
+	return fileName, nil
 }

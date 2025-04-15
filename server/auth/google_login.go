@@ -41,19 +41,21 @@ type GoogleUser struct {
 
 // GoogleOAuthConfig configuration options
 type GoogleOAuthConfig struct {
-	ClientID     string
-	ClientSecret string
-	RedirectURL  string
-	Scopes       []string
-	Timeout      time.Duration
-	DB           *gorm.DB // Added database connection
+	ClientID      string
+	ClientSecret  string
+	RedirectURL   string
+	Scopes        []string
+	Timeout       time.Duration
+	DB            *gorm.DB       // Added database connection
+	AvatarService *AvatarService // Added avatar service
 }
 
 // GoogleOAuth merged structure that handles both OAuth and user management
 type GoogleOAuth struct {
-	config     *oauth2.Config
-	httpClient *http.Client
-	db         *gorm.DB
+	config        *oauth2.Config
+	httpClient    *http.Client
+	db            *gorm.DB
+	avatarService *AvatarService // Added avatar service
 }
 
 // NewGoogleOAuth creates a new Google OAuth handler
@@ -84,7 +86,8 @@ func NewGoogleOAuth(cfg GoogleOAuthConfig) (*GoogleOAuth, error) {
 		httpClient: &http.Client{
 			Timeout: cfg.Timeout,
 		},
-		db: cfg.DB,
+		db:            cfg.DB,
+		avatarService: cfg.AvatarService,
 	}, nil
 }
 
@@ -302,10 +305,6 @@ func (g *GoogleOAuth) CreateUserFromGoogle(googleInfo *GoogleUserInfo) (*User, e
 	}
 
 	// Generate random UserID
-	// b := make([]byte, 8)
-	// if _, err := rand.Read(b); err != nil {
-	// 	return nil, fmt.Errorf("failed to generate random ID: %v", err)
-	// }
 	userID, err := GenerateUserID()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate random ID: %v", err)
@@ -323,6 +322,12 @@ func (g *GoogleOAuth) CreateUserFromGoogle(googleInfo *GoogleUserInfo) (*User, e
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate random ID: %v", err)
 		}
+	}
+
+	// Download and upload avatar
+	avatarURL, err := g.avatarService.DownloadAndUploadAvatar(userID, googleInfo.Picture)
+	if err != nil {
+		return nil, fmt.Errorf("failed to process avatar: %w", err)
 	}
 
 	// Use transaction to ensure data consistency
@@ -369,9 +374,8 @@ func (g *GoogleOAuth) CreateUserFromGoogle(googleInfo *GoogleUserInfo) (*User, e
 		Status:   UserStatusActive,
 		Profile: UserProfile{
 			Nickname: nickname,
-			Avatar:   googleInfo.Picture,
+			Avatar:   avatarURL,
 		},
-		// LastAttempt: now,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
@@ -383,12 +387,11 @@ func (g *GoogleOAuth) CreateUserFromGoogle(googleInfo *GoogleUserInfo) (*User, e
 
 	// Create Google user association record
 	googleUser := &GoogleUser{
-		UserID:   userID,
-		GoogleID: googleInfo.ID,
-		Email:    googleInfo.Email,
-		// VerifiedEmail: googleInfo.VerifiedEmail,
+		UserID:    userID,
+		GoogleID:  googleInfo.ID,
+		Email:     googleInfo.Email,
 		Name:      googleInfo.Name,
-		Picture:   googleInfo.Picture,
+		Picture:   avatarURL,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
@@ -412,17 +415,25 @@ func (g *GoogleOAuth) UpdateGoogleUserInfo(userID string, googleInfo *GoogleUser
 		return fmt.Errorf("database not initialized")
 	}
 
-	// Update Google user table information
-	result := g.db.Model(&GoogleUser{}).Where("user_id = ?", userID).Updates(map[string]interface{}{
-		"name":  googleInfo.Name,
-		"email": googleInfo.Email,
-		// "verified_email": googleInfo.VerifiedEmail,
-		"picture":    googleInfo.Picture,
-		"updated_at": time.Now(),
-	})
+	// Download and upload avatar
+	avatarURL, err := g.avatarService.DownloadAndUploadAvatar(userID, googleInfo.Picture)
+	if err != nil {
+		return fmt.Errorf("failed to process avatar: %w", err)
+	}
 
-	if result.Error != nil {
-		return result.Error
+	// Update Google user table information
+	var googleUser GoogleUser
+	if err := g.db.Where("user_id = ?", userID).First(&googleUser).Error; err != nil {
+		return err
+	}
+
+	googleUser.Name = googleInfo.Name
+	googleUser.Email = googleInfo.Email
+	googleUser.Picture = avatarURL
+	googleUser.UpdatedAt = time.Now()
+
+	if err := g.db.Save(&googleUser).Error; err != nil {
+		return err
 	}
 
 	// Extract username as nickname
@@ -435,11 +446,19 @@ func (g *GoogleOAuth) UpdateGoogleUserInfo(userID string, googleInfo *GoogleUser
 		}
 	}
 
-	// Also update user profile
-	return g.db.Model(&User{}).Where("user_id = ?", userID).Update("profile", UserProfile{
+	// Update user profile
+	var user User
+	if err := g.db.Where("user_id = ?", userID).First(&user).Error; err != nil {
+		return err
+	}
+
+	user.Profile = UserProfile{
 		Nickname: nickname,
-		Avatar:   googleInfo.Picture,
-	}).Error
+		Avatar:   avatarURL,
+	}
+	user.UpdatedAt = time.Now()
+
+	return g.db.Save(&user).Error
 }
 
 // GetClientID 获取 Google OAuth 客户端 ID

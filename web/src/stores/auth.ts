@@ -220,12 +220,6 @@ export const useAuthStore = defineStore('auth', {
     async initGoogleAuth() {
       return new Promise<void>((resolve, reject) => {
         try {
-          // 检查是否配置了谷歌客户端ID
-          if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
-            reject(new Error(t('errors.googleClientIdMissing')))
-            return
-          }
-          
           // 如果已经加载了谷歌API，直接解析
           if (window.google && window.google.accounts) {
             resolve()
@@ -267,20 +261,17 @@ export const useAuthStore = defineStore('auth', {
     },
 
     // 创建谷歌登录按钮
-    renderGoogleButton(elementId: string) {
+    async renderGoogleButton(elementId: string, loginSuccessCallback: () => void) {
       // 检查是否配置了谷歌客户端ID
-      if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
-        console.error(t('logs.googleClientIdMissing'));
-        this.error = t('errors.googleConfigIncomplete');
-        return;
-      }
+      const response = await axios.get('/google/client_id')
+      const clientID = response.data.client_id
       
       this.initGoogleAuth().then(() => {
         const buttonElement = document.getElementById(elementId);
         if (buttonElement && window.google && window.google.accounts && window.google.accounts.id) {
           // 先初始化谷歌登录
           window.google.accounts.id.initialize({
-            client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
+            client_id: clientID,
             callback: async (response: any) => {
               try {
                 if (!response || !response.credential) {
@@ -306,6 +297,8 @@ export const useAuthStore = defineStore('auth', {
                 this.token = token;
                 localStorage.setItem('token', token);
                 axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+                loginSuccessCallback()
               } catch (error: any) {
                 this.error = error.response?.data?.message || t('errors.googleLoginProcessFailed');
                 console.error(t('errors.googleLoginProcessFailed'), error);

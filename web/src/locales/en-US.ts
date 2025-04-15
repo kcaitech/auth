@@ -169,7 +169,6 @@ export default {
   },
   logs: {
     googleInit: 'Initializing Google login...',
-    googleClientIdMissing: 'Google client ID is not configured, please set VITE_GOOGLE_CLIENT_ID in .env file',
     googleInitComplete: 'Google login button initialization complete',
     googleInitFailed: 'Google login initialization failed:',
     googleButtonRendered: 'Google login button has been rendered',

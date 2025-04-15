@@ -64,7 +64,7 @@
     "storage": {
         "provider": "minio",
         "minio": {
-            "endpoint": "minio:9002",
+            "endpoint": "localhost:9002",
             "region": "zhuhai-1",
             "accessKeyID": "59L3pDWuk9oLQWIgytCI",
             "secretAccessKey": "GmwAzetY1L0jU4pUAqpO7RJGIsG7k3gozVH6whoJ",

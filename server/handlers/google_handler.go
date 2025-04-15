@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 	"kcaitech.com/kcauth/server/auth"
 )
 
@@ -222,9 +223,8 @@ func (h *AuthHandler) handleGoogleUser(googleID, email, name, pictureURL string)
 
 	// Create a GoogleUserInfo object
 	googleUserInfo := &auth.GoogleUserInfo{
-		ID:    googleID,
-		Email: email,
-		// VerifiedEmail: true, // Assume email is verified
+		ID:      googleID,
+		Email:   email,
 		Name:    name,
 		Picture: pictureURL,
 	}
@@ -232,18 +232,14 @@ func (h *AuthHandler) handleGoogleUser(googleID, email, name, pictureURL string)
 	// Find existing user
 	user, err := h.googleOAuth.GetUserByGoogleID(googleID, email)
 	if err != nil {
-		// If the error is not "user not found", return directly
-		var appErr *auth.AppError
-		if !errors.As(err, &appErr) || appErr.Code != auth.ErrCodeUserNotFound {
+		// If user not found, create new user
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			user, err = h.googleOAuth.CreateUserFromGoogle(googleUserInfo)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create Google user: %w", err)
+			}
+		} else {
 			return nil, err
-		}
-	}
-
-	// If user does not exist, create new user
-	if user == nil {
-		user, err = h.googleOAuth.CreateUserFromGoogle(googleUserInfo)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create Google user: %w", err)
 		}
 	} else {
 		// Update user information
@@ -370,4 +366,8 @@ func (h *AuthHandler) GoogleCredential(c *gin.Context) {
 		"profile":     user.Profile,
 		"expire_time": auth.TokenExpiration,
 	})
+}
+
+func (h *AuthHandler) GetGoogleClientID(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"client_id": h.googleOAuth.GetClientID()})
 }
