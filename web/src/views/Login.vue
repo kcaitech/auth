@@ -123,6 +123,7 @@
         <GoogleLogin 
           v-if="hasProvider('google')" 
           @login-error="handleLoginError"
+          @login-success="handleLoginSuccess"
         />
         
         <!-- 使用微信登录组件 -->

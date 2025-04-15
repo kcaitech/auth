@@ -147,7 +147,7 @@ func (rs *AccountRedisStore) StoreVerification(verificationType VerificationType
 		return fmt.Errorf("failed to store verification information: %w", err)
 	}
 
-	err = rs.Set(fmt.Sprintf("verification:identifier:%s", token), identifier, expiry)
+	err = rs.Set(fmt.Sprintf("verification:token:%s", token), identifier, expiry)
 	if err != nil {
 		return fmt.Errorf("failed to store verification information (2): %w", err)
 	}
@@ -165,7 +165,7 @@ func (rs *AccountRedisStore) GetVerification(verificationType VerificationType, 
 	}
 
 	// Check if expired
-	if verification.ExpiresAt.After(time.Now()) {
+	if verification.ExpiresAt.Before(time.Now()) {
 		return nil, NewAppError(ErrCodeInvalidToken, "Verification token has expired", nil)
 	}
 
@@ -179,7 +179,7 @@ func (rs *AccountRedisStore) DeleteVerification(verificationType VerificationTyp
 	if err != nil {
 		return fmt.Errorf("failed to delete verification information: %w", err)
 	}
-	key = fmt.Sprintf("verification:identifier:%s", token)
+	key = fmt.Sprintf("verification:token:%s", token)
 	err = rs.Delete(key)
 	if err != nil {
 		return fmt.Errorf("failed to delete verification information (2): %w", err)
@@ -189,7 +189,7 @@ func (rs *AccountRedisStore) DeleteVerification(verificationType VerificationTyp
 }
 
 func (rs *AccountRedisStore) GetVerificationByToken(verificationType VerificationType, token string) (*Verification, error) {
-	key := fmt.Sprintf("verification:identifier:%s", token)
+	key := fmt.Sprintf("verification:token:%s", token)
 	var identifier string
 	err := rs.Get(key, &identifier)
 	if err != nil {
@@ -212,7 +212,7 @@ func (rs *AccountRedisStore) GetVerificationByToken(verificationType Verificatio
 // UpdateVerification Update verification information
 func (rs *AccountRedisStore) UpdateVerification(verificationType VerificationType, identifier string, oldToken string, newToken string, expiry time.Duration) error {
 	// Delete old token association
-	keyIdentifier := fmt.Sprintf("verification:identifier:%s", oldToken)
+	keyIdentifier := fmt.Sprintf("verification:token:%s", oldToken)
 	err := rs.Delete(keyIdentifier)
 	if err != nil {
 		return fmt.Errorf("failed to delete old verification token association: %w", err)
@@ -237,7 +237,7 @@ func (rs *AccountRedisStore) UpdateVerification(verificationType VerificationTyp
 	}
 
 	// Add new token association
-	err = rs.Set(fmt.Sprintf("verification:identifier:%s", newToken), identifier, expiry)
+	err = rs.Set(fmt.Sprintf("verification:token:%s", newToken), identifier, expiry)
 	if err != nil {
 		return fmt.Errorf("failed to add new verification token association: %w", err)
 	}

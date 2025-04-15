@@ -10,6 +10,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useI18n } from 'vue-i18n'
 
 const emit = defineEmits<{
+  (e: 'login-success'): void
   (e: 'login-error', message: string): void
 }>()
 
@@ -19,16 +20,10 @@ const { t } = useI18n()
 // 初始化谷歌登录
 onMounted(async () => {
   try {
-    console.log(t('logs.googleInit'))
-    // 检查是否配置了谷歌客户端ID
-    if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
-      console.error(t('logs.googleClientIdMissing'))
-      emit('login-error', t('errors.googleLoginFailed'))
-      return
-    }
-    
     // 使用改进后的renderGoogleButton方法，它会同时处理初始化和渲染
-    await authStore.renderGoogleButton('google-signin-button')
+    await authStore.renderGoogleButton('google-signin-button', () => {
+      emit('login-success')
+    })
     console.log(t('logs.googleInitComplete'))
   } catch (error: any) {
     console.error(t('logs.googleInitFailed'), error.message || error)

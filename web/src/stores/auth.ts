@@ -99,14 +99,14 @@ export const useAuthStore = defineStore('auth', {
       }
     },
     
-    async login(usernameOrEmail: string, password: string) {
+    async login(username: string, password: string) {
       try {
         this.loading = true
         this.error = undefined
         
         // 这里应该调用实际的 API 端点
         const response = await axios.post('/account/login', {
-          username: usernameOrEmail,
+          username: username,
           password
         })
         
@@ -220,12 +220,6 @@ export const useAuthStore = defineStore('auth', {
     async initGoogleAuth() {
       return new Promise<void>((resolve, reject) => {
         try {
-          // 检查是否配置了谷歌客户端ID
-          if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
-            reject(new Error(t('errors.googleClientIdMissing')))
-            return
-          }
-          
           // 如果已经加载了谷歌API，直接解析
           if (window.google && window.google.accounts) {
             resolve()
@@ -265,104 +259,19 @@ export const useAuthStore = defineStore('auth', {
         }
       })
     },
-    
-    // async handleGoogleLogin() {
-    //   try {
-    //     this.loading = true;
-    //     this.error = null;
-        
-    //     // 检查是否配置了谷歌客户端ID
-    //     if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
-    //       this.loading = false;
-    //       this.error = '未配置谷歌客户端ID';
-    //       throw new Error(this.error);
-    //     }
-        
-    //     // 确保谷歌库已加载
-    //     await this.initGoogleAuth();
-        
-    //     return new Promise((resolve, reject) => {
-    //       // 如果没有加载谷歌库，拒绝Promise
-    //       if (!window.google || !window.google.accounts || !window.google.accounts.id) {
-    //         this.loading = false;
-    //         this.error = '谷歌登录服务未加载';
-    //         reject(new Error(this.error));
-    //         return;
-    //       }
-          
-    //       // 初始化谷歌登录
-    //       window.google.accounts.id.initialize({
-    //         client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
-    //         callback: async (response: any) => {
-    //           try {
-    //             // 验证令牌
-    //             if (!response || !response.credential) {
-    //               this.loading = false;
-    //               this.error = '谷歌登录失败：未获取到凭证';
-    //               reject(new Error(this.error));
-    //               return;
-    //             }
-                
-    //             // 获取JWT令牌
-    //             const credential = response.credential;
-                
-    //             // 将JWT令牌发送到后端验证
-    //             const authResponse = await axios.post('/google', {
-    //               credential: credential
-    //             });
-                
-    //             // 处理登录结果
-    //             const { user, token } = authResponse.data;
-                
-    //             this.user = user;
-    //             this.token = token;
-    //             localStorage.setItem('token', token);
-    //             axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-                
-    //             this.loading = false;
-    //             resolve(user);
-    //           } catch (error: any) {
-    //             this.loading = false;
-    //             this.error = error.response?.data?.message || '谷歌登录处理失败';
-    //             reject(new Error(this.error || ''));
-    //           }
-    //         },
-    //         auto_select: false,
-    //         cancel_on_tap_outside: true
-    //       });
-          
-    //       // 显示谷歌登录提示
-    //       window.google.accounts.id.prompt((notification: any) => {
-    //         if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-    //           // 如果没有显示登录提示，可能是用户已经登录过或其他原因
-    //           this.loading = false;
-    //           this.error = '无法显示谷歌登录窗口，请检查浏览器设置或尝试其他登录方式';
-    //           reject(new Error(this.error));
-    //         }
-    //       });
-    //     });
-    //   } catch (error: any) {
-    //     this.loading = false;
-    //     this.error = error.message || '谷歌登录初始化失败';
-    //     throw new Error(this.error || '');
-    //   }
-    // },
-    
+
     // 创建谷歌登录按钮
-    renderGoogleButton(elementId: string) {
+    async renderGoogleButton(elementId: string, loginSuccessCallback: () => void) {
       // 检查是否配置了谷歌客户端ID
-      if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
-        console.error(t('logs.googleClientIdMissing'));
-        this.error = t('errors.googleConfigIncomplete');
-        return;
-      }
+      const response = await axios.get('/google/client_id')
+      const clientID = response.data.client_id
       
       this.initGoogleAuth().then(() => {
         const buttonElement = document.getElementById(elementId);
         if (buttonElement && window.google && window.google.accounts && window.google.accounts.id) {
           // 先初始化谷歌登录
           window.google.accounts.id.initialize({
-            client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
+            client_id: clientID,
             callback: async (response: any) => {
               try {
                 if (!response || !response.credential) {
@@ -372,7 +281,7 @@ export const useAuthStore = defineStore('auth', {
                 
                 // 获取JWT令牌并发送到后端验证
                 const credential = response.credential;
-                const authResponse = await axios.post('/google', {
+                const authResponse = await axios.post('/google/credential', {
                   credential: credential
                 });
                 
@@ -388,6 +297,8 @@ export const useAuthStore = defineStore('auth', {
                 this.token = token;
                 localStorage.setItem('token', token);
                 axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+                loginSuccessCallback()
               } catch (error: any) {
                 this.error = error.response?.data?.message || t('errors.googleLoginProcessFailed');
                 console.error(t('errors.googleLoginProcessFailed'), error);
@@ -612,6 +523,38 @@ export const useAuthStore = defineStore('auth', {
         return response.data
       } catch (error: any) {
         this.error = error.response?.data?.error || t('errors.passwordResetFailed')
+        throw new Error(this.error)
+      } finally {
+        this.loading = false
+      }
+    },
+
+    // 邮箱登录
+    async emailLogin(email: string, password: string) {
+      try {
+        this.loading = true
+        this.error = undefined
+        
+        const response = await axios.post('/email/login', {
+          email,
+          password
+        })
+
+        const { user_id, token, profile, expire_time } = response.data
+        
+        this.user = {
+          // id: user_id,
+          userID: user_id,
+          nickname: profile?.nickname || '',
+          email: profile?.email || ''
+        }
+
+        this.token = token
+        localStorage.setItem('token', token)
+        
+        return this.user
+      } catch (error: any) {
+        this.error = error.response?.data?.error || t('errors.emailLoginFailed')
         throw new Error(this.error)
       } finally {
         this.loading = false
