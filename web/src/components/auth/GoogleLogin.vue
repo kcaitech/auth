@@ -19,14 +19,6 @@ const { t } = useI18n()
 // 初始化谷歌登录
 onMounted(async () => {
   try {
-    console.log(t('logs.googleInit'))
-    // 检查是否配置了谷歌客户端ID
-    if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
-      console.error(t('logs.googleClientIdMissing'))
-      emit('login-error', t('errors.googleLoginFailed'))
-      return
-    }
-    
     // 使用改进后的renderGoogleButton方法，它会同时处理初始化和渲染
     await authStore.renderGoogleButton('google-signin-button')
     console.log(t('logs.googleInitComplete'))

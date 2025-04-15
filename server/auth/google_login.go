@@ -21,11 +21,11 @@ import (
 
 // GoogleUserInfo represents user information retrieved from Google
 type GoogleUserInfo struct {
-	ID            string `json:"id"`
-	Email         string `json:"email"`
-	VerifiedEmail bool   `json:"verified_email"`
-	Name          string `json:"name"`
-	Picture       string `json:"picture"`
+	ID    string `json:"id"`
+	Email string `json:"email"`
+	// VerifiedEmail bool   `json:"verified_email"`
+	Name    string `json:"name"`
+	Picture string `json:"picture"`
 }
 
 type GoogleUser struct {
@@ -383,14 +383,14 @@ func (g *GoogleOAuth) CreateUserFromGoogle(googleInfo *GoogleUserInfo) (*User, e
 
 	// Create Google user association record
 	googleUser := &GoogleUser{
-		UserID:        userID,
-		GoogleID:      googleInfo.ID,
-		Email:         googleInfo.Email,
-		VerifiedEmail: googleInfo.VerifiedEmail,
-		Name:          googleInfo.Name,
-		Picture:       googleInfo.Picture,
-		CreatedAt:     now,
-		UpdatedAt:     now,
+		UserID:   userID,
+		GoogleID: googleInfo.ID,
+		Email:    googleInfo.Email,
+		// VerifiedEmail: googleInfo.VerifiedEmail,
+		Name:      googleInfo.Name,
+		Picture:   googleInfo.Picture,
+		CreatedAt: now,
+		UpdatedAt: now,
 	}
 
 	if err := tx.Create(googleUser).Error; err != nil {
@@ -414,11 +414,11 @@ func (g *GoogleOAuth) UpdateGoogleUserInfo(userID string, googleInfo *GoogleUser
 
 	// Update Google user table information
 	result := g.db.Model(&GoogleUser{}).Where("user_id = ?", userID).Updates(map[string]interface{}{
-		"name":           googleInfo.Name,
-		"email":          googleInfo.Email,
-		"verified_email": googleInfo.VerifiedEmail,
-		"picture":        googleInfo.Picture,
-		"updated_at":     time.Now(),
+		"name":  googleInfo.Name,
+		"email": googleInfo.Email,
+		// "verified_email": googleInfo.VerifiedEmail,
+		"picture":    googleInfo.Picture,
+		"updated_at": time.Now(),
 	})
 
 	if result.Error != nil {
@@ -440,4 +440,9 @@ func (g *GoogleOAuth) UpdateGoogleUserInfo(userID string, googleInfo *GoogleUser
 		Nickname: nickname,
 		Avatar:   googleInfo.Picture,
 	}).Error
+}
+
+// GetClientID 获取 Google OAuth 客户端 ID
+func (g *GoogleOAuth) GetClientID() string {
+	return g.config.ClientID
 }

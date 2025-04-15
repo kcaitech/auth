@@ -7,8 +7,8 @@
     "auth": {
         "enabled_providers": ["account", "email", "weixin", "google", "phone"],
         "google": {
-            "client_id": "your-google-client-id",
-            "client_secret": "your-google-client-secret",
+            "client_id": "804389849149-c0molmbgt1c2ipp1k2ipa3cu92cte5d8.apps.googleusercontent.com",
+            "client_secret": "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",
             "redirect_url": "http://localhost:8080/auth/google/callback",
             "scopes": [
                 "https://www.googleapis.com/auth/userinfo.email",

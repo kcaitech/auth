@@ -107,6 +107,7 @@ func (h *AuthHandler) RegisterRoutes(authGroup *gin.RouterGroup, cfg *config.Con
 		authGroup.GET("/google/login", h.GoogleLogin)
 		authGroup.GET("/google/callback", h.GoogleCallback)
 		authGroup.POST("/google", h.GoogleLoginPost)
+		authGroup.POST("/google/credential", h.GoogleCredential)
 	}
 
 	// WeChat login related routes
