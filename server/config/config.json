@@ -7,8 +7,8 @@
     "auth": {
         "enabled_providers": ["account", "email", "weixin", "google", "phone"],
         "google": {
-            "client_id": "your-google-client-id",
-            "client_secret": "your-google-client-secret",
+            "client_id": "804389849149-c0molmbgt1c2ipp1k2ipa3cu92cte5d8.apps.googleusercontent.com",
+            "client_secret": "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",
             "redirect_url": "http://localhost:8080/auth/google/callback",
             "scopes": [
                 "https://www.googleapis.com/auth/userinfo.email",
@@ -40,7 +40,7 @@
             "port": 80,
             "username": "noreply@verify.vextra.io",
             "password": "DeXyxinC1xbce83",
-            "from": "Vextro <noreply@verify.vextra.io>"
+            "from": "Vextra <noreply@verify.vextra.io>"
         },
         "jwt": {
             "issuer": "kcaitech.com"
@@ -64,7 +64,7 @@
     "storage": {
         "provider": "minio",
         "minio": {
-            "endpoint": "minio:9002",
+            "endpoint": "localhost:9002",
             "region": "zhuhai-1",
             "accessKeyID": "59L3pDWuk9oLQWIgytCI",
             "secretAccessKey": "GmwAzetY1L0jU4pUAqpO7RJGIsG7k3gozVH6whoJ",

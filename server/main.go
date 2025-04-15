@@ -241,16 +241,24 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 		}
 	}
 
+	_storage, err := storage.NewStoraageClient(&cfg.Storage)
+	if err != nil {
+		return fmt.Errorf("failed to initialize Storage: %v", err)
+	}
+
+	avatarService := auth.NewAvatarService(_storage.Bucket)
+
 	// Create Google OAuth handler based on configuration
 	var googleOAuth *auth.GoogleOAuth
 	if containsProvider(cfg.Auth.EnabledProviders, "google") {
 		var err error
 		googleOAuth, err = auth.NewGoogleOAuth(auth.GoogleOAuthConfig{
-			ClientID:     cfg.Auth.Google.ClientID,
-			ClientSecret: cfg.Auth.Google.ClientSecret,
-			RedirectURL:  cfg.Auth.Google.RedirectURL,
-			Scopes:       cfg.Auth.Google.Scopes,
-			DB:           globalDB,
+			ClientID:      cfg.Auth.Google.ClientID,
+			ClientSecret:  cfg.Auth.Google.ClientSecret,
+			RedirectURL:   cfg.Auth.Google.RedirectURL,
+			Scopes:        cfg.Auth.Google.Scopes,
+			DB:            globalDB,
+			AvatarService: avatarService,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to initialize Google OAuth: %v", err)
@@ -327,11 +335,6 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 	// rateLimiter := &middleware.RateLimiter{}
 	// Use constructor to create authentication handler
 
-	_storage, err := storage.NewStoraageClient(&cfg.Storage)
-	if err != nil {
-		return fmt.Errorf("failed to initialize Storage: %v", err)
-	}
-
 	*handler = handlers.NewAuthHandler(
 		containsProvider(cfg.Auth.EnabledProviders, "account"), // Use account authentication
 		*accountAuth,
@@ -345,6 +348,7 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 		sessionMgr,
 		globalRedisStore,
 		_storage,
+		avatarService,
 	)
 
 	return nil

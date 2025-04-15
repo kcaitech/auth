@@ -169,7 +169,6 @@ export default {
   },
   logs: {
     googleInit: '开始初始化谷歌登录...',
-    googleClientIdMissing: '未配置谷歌客户端ID，请在.env文件中设置VITE_GOOGLE_CLIENT_ID',
     googleInitComplete: '谷歌登录按钮初始化完成',
     googleInitFailed: '初始化谷歌登录失败:',
     googleButtonRendered: '谷歌登录按钮已渲染',
