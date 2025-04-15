@@ -181,7 +181,7 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 
 	// Create session
 	clientIP := c.ClientIP()
-	session1, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), auth.RefreshTokenExpiration+time.Hour+time.Hour)
+	session1, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), auth.RefreshTokenExpiration+time.Hour)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 		return

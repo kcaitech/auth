@@ -121,16 +121,17 @@ func (h *PhoneHandler) Login(c *gin.Context) {
 		return
 	}
 
-	token, err := h.jwtService.GenerateJWT(user.UserID, session.ID)
+	token, err := h.jwtService.GenerateTokenPair(user.UserID, session.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
 
+	c.SetCookie("refreshToken", token.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
 	// Login successful, return user information and token
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Login successful",
-		"token":   token,
+		"token":   token.AccessToken,
 		"user": gin.H{
 			"user_id":  user.UserID,
 			"nickname": user.Profile.Nickname,
@@ -161,16 +162,17 @@ func (h *PhoneHandler) PhoneCodeLogin(c *gin.Context) {
 		return
 	}
 
-	token, err := h.jwtService.GenerateJWT(user.UserID, session.ID)
+	token, err := h.jwtService.GenerateTokenPair(user.UserID, session.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
 
+	c.SetCookie("refreshToken", token.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
 	// Login successful, return user information and token
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Login successful",
-		"token":   token,
+		"token":   token.AccessToken,
 		"user": gin.H{
 			"user_id":  user.UserID,
 			"nickname": user.Profile.Nickname,
@@ -449,16 +451,16 @@ func (h *PhoneHandler) PhoneLogin(c *gin.Context) {
 		return
 	}
 
-	token, err := h.jwtService.GenerateJWT(user.UserID, session.ID)
+	token, err := h.jwtService.GenerateTokenPair(user.UserID, session.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
-
+	c.SetCookie("refreshToken", token.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
 	// Login successful, return user information and token
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Login successful",
-		"token":   token,
+		"token":   token.AccessToken,
 		"user": gin.H{
 			"user_id":  user.UserID,
 			"nickname": user.Profile.Nickname,

@@ -464,11 +464,11 @@ func (c *KCAuthClient) DeleteAvatar(accessToken string) error {
 }
 
 // RefreshToken 刷新访问令牌
-func (c *KCAuthClient) RefreshToken(refreshToken string, gin *gin.Context) (string, error) {
+func (c *KCAuthClient) RefreshToken(refreshToken string, gin *gin.Context) (string, int, error) {
 	// 创建请求
 	req, err := http.NewRequest("POST", c.AuthServerURL+"/authapi/token/refresh", nil)
 	if err != nil {
-		return "", fmt.Errorf("创建请求失败: %v", err)
+		return "", 0, fmt.Errorf("创建请求失败: %v", err)
 	}
 	// 设置请求头
 	// req.Header.Set("Authorization", "Bearer "+accessToken)
@@ -486,7 +486,7 @@ func (c *KCAuthClient) RefreshToken(refreshToken string, gin *gin.Context) (stri
 	// 发送请求
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("发送请求失败: %v", err)
+		return "", 0, fmt.Errorf("发送请求失败: %v", err)
 	}
 	defer resp.Body.Close()
 
@@ -496,10 +496,10 @@ func (c *KCAuthClient) RefreshToken(refreshToken string, gin *gin.Context) (stri
 			Error string `json:"error"`
 		}
 		if err := json.NewDecoder(resp.Body).Decode(&errResp); err != nil {
-			return "", fmt.Errorf("刷新令牌失败: %d", resp.StatusCode)
+			return "", resp.StatusCode, fmt.Errorf("刷新令牌失败: %d", resp.StatusCode)
 		}
 		log.Println("刷新令牌失败", errResp.Error, refreshToken)
-		return "", errors.New(errResp.Error)
+		return "", resp.StatusCode, errors.New(errResp.Error)
 	}
 
 	// 解析响应
@@ -507,7 +507,7 @@ func (c *KCAuthClient) RefreshToken(refreshToken string, gin *gin.Context) (stri
 		AccessToken string `json:"token"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("解析响应失败: %v", err)
+		return "", resp.StatusCode, fmt.Errorf("解析响应失败: %v", err)
 	}
 
 	// 将resp里的refreshToken转存到gin
@@ -527,7 +527,7 @@ func (c *KCAuthClient) RefreshToken(refreshToken string, gin *gin.Context) (stri
 	// c.refreshCacheToken(accessToken, result.AccessToken)
 	c.cacheToken(result.AccessToken)
 
-	return result.AccessToken, nil
+	return result.AccessToken, resp.StatusCode, nil
 }
 
 // GetUsersInfo 批量获取用户信息
