@@ -18,6 +18,11 @@ type Config struct {
 	Admin          AdminConfig         `json:"admin"`
 	Storage        storage.StorageConf `json:"storage"`
 	TrustedClients []TrustedClient     `json:"trusted_clients"` // 受信任的第三方客户端配置
+	StorageUrl     StorageUrlConfig    `json:"storage_url"`     // 存储URL配置
+}
+
+type StorageUrlConfig struct {
+	Attatch string `json:"attatch"`
 }
 
 // ServerConfig Server configuration
