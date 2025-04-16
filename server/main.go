@@ -246,7 +246,7 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 		return fmt.Errorf("failed to initialize Storage: %v", err)
 	}
 
-	avatarService := auth.NewAvatarService(_storage.Bucket)
+	avatarService := auth.NewAvatarService(_storage.Bucket, cfg.StorageUrl.Attatch)
 
 	// Create Google OAuth handler based on configuration
 	var googleOAuth *auth.GoogleOAuth

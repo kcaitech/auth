@@ -4,7 +4,7 @@
     <div v-if="registrationStage === 'emailSent'" class="email-verification-info">
       <div class="success-icon">✓</div>
       <h2>{{ $t('auth.verificationEmailSent') }}</h2>
-      <p>{{ $t('auth.verificationEmailSentTo', { email: formData.email }) }}</p>
+      <p v-html="$t('auth.verificationEmailSentTo', { email: formData.email })"></p>
       <p>{{ $t('auth.pleaseCheckEmail') }}</p>
       
       <div class="tips">
@@ -177,7 +177,7 @@ const resendVerification = async () => {
     resendSuccess.value = false
     resendError.value = ''
     
-    await axios.post('/auth/email/resend-verification', {
+    await axios.post('/email/resend-verification', {
       email: formData.email,
       title: t('email.verificationTitle'),
       content: verificationEmailTpl
@@ -220,7 +220,7 @@ const handleEmailRegister = async () => {
     isLoading.value = true
     
     // 实际实现邮箱注册逻辑
-    await axios.post('/auth/email/register', {
+    await axios.post('/email/register', {
       nickname: formData.nickname,
       email: formData.email,
       password: formData.password,

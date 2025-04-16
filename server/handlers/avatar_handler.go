@@ -45,7 +45,7 @@ func (h *AvatarHandler) UploadAvatar(c *gin.Context) {
 	// 将fileName更新到用户信息
 	// Prepare update data
 	updates := make(map[string]interface{})
-	updates["profile.avatar"] = fileName
+	updates["avatar"] = fileName
 	if err := h.accountAuth.UpdateProfile(userID, updates); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

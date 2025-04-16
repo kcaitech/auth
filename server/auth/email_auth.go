@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -177,7 +178,7 @@ func (a *EmailAuth) EmailPreregister(email, password, nickname, title, content s
 	if err != nil {
 		return "", err
 	}
-
+	// log.Println("email preregister token:", token)
 	// Create pre-registration information
 	preregInfo := &EmailPreregisterInfo{
 		Email:     email,
@@ -313,6 +314,7 @@ func (a *EmailAuth) VerifyEmail(token string) (*User, error) {
 	// Get verification record from Redis
 	verification, err := a.redis.GetVerificationByToken(VerificationTypeEmail, token)
 	if err != nil {
+		log.Println("verify email error:", err)
 		return nil, ErrInvalidToken("Email verification token is invalid or expired")
 	}
 

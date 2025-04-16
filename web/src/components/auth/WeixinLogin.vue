@@ -24,7 +24,7 @@ const handleWechatLogin = async () => {
     isLoading.value = true
     
     // 获取微信登录的URL
-    const response = await axios.get('/auth/weixin/url')
+    const response = await axios.get('/weixin/url')
     const url = response.data.url
     
     // 重定向到微信登录页面

@@ -26,12 +26,14 @@ const (
 )
 
 type AvatarService struct {
-	storage storage.Bucket
+	storage    storage.Bucket
+	storageUrl string
 }
 
-func NewAvatarService(storage storage.Bucket) *AvatarService {
+func NewAvatarService(storage storage.Bucket, storageUrl string) *AvatarService {
 	return &AvatarService{
-		storage: storage,
+		storage:    storage,
+		storageUrl: storageUrl,
 	}
 }
 
@@ -107,12 +109,14 @@ func (s *AvatarService) GetAvatarURL(fileName string) (string, error) {
 	}
 
 	// 生成临时访问URL
-	accessKey, err := s.storage.GenerateAccessKey(fileName, storage.AuthOpGetObject, 3600, "avatar-access")
-	if err != nil {
-		return "", errors.Wrap(err, "生成访问URL失败")
-	}
+	// accessKey, err := s.storage.GenerateAccessKey(fileName, storage.AuthOpGetObject, 3600, "avatar-access")
+	// if err != nil {
+	// 	return "", errors.Wrap(err, "生成访问URL失败")
+	// }
 
-	return accessKey.AccessKey, nil
+	// return accessKey.AccessKey, nil
+
+	return fmt.Sprintf("%s/%s", s.storageUrl, fileName), nil
 }
 
 // DeleteAvatar 删除头像

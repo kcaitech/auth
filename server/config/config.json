@@ -73,6 +73,9 @@
             "bucketName": "attatch"
         }
     },
+    "storage_url": {
+        "attatch": "http://localhost:9002/attatch"
+    },
     "admin": {
         "enabled": true,
         "port": 8081,
