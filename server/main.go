@@ -275,9 +275,10 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 	if containsProvider(cfg.Auth.EnabledProviders, "weixin") {
 		var err error
 		weixinLogin, err = auth.NewWeixinLogin(globalDB, auth.WeixinConfig{
-			AppID:       cfg.Auth.Weixin.AppID,
-			AppSecret:   cfg.Auth.Weixin.AppSecret,
-			RedirectURL: cfg.Auth.Weixin.RedirectURL,
+			AppID:             cfg.Auth.Weixin.AppID,
+			AppSecret:         cfg.Auth.Weixin.AppSecret,
+			RedirectURL:       cfg.Auth.Weixin.RedirectURL,
+			DomainVerifyToken: cfg.Auth.Weixin.DomainVerifyToken,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to initialize WeChat login: %v", err)

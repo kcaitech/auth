@@ -117,6 +117,7 @@ func (h *AuthHandler) RegisterRoutes(authGroup *gin.RouterGroup, cfg *config.Con
 		authGroup.GET("/weixin/url", h.WeixinLoginURL)
 		authGroup.GET("/weixin/login", h.WeixinLoginHandler)
 		authGroup.GET("/weixin/callback", h.WeixinCallback)
+		authGroup.GET("/weixin/domain/verify", h.WeixinDomainVerify)
 	}
 
 	// Phone login related routes
