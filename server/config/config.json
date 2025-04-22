@@ -16,9 +16,10 @@
             ]
         },
         "weixin": {
-            "app_id": "your-weixin-app-id",
-            "app_secret": "your-weixin-app-secret",
-            "redirect_url": "http://localhost:8080/auth/weixin/callback"
+            "app_id": "wx3cd1e3d22165ec8f",
+            "app_secret": "42eec703f7fd7317f8b97eba35d552ee",
+            "redirect_url": "http://develop.protodesign.cn/auth/weixin/callback",
+            "domain_verify_token": "b3eac26e-ce72-4268-a7fa-d71a2c628f39"
         },
         "sms": {
             "provider": "aliyun",

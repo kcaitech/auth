@@ -20,9 +20,10 @@ import (
 
 // WeixinConfig WeChat login configuration
 type WeixinConfig struct {
-	AppID       string
-	AppSecret   string
-	RedirectURL string
+	AppID             string
+	AppSecret         string
+	RedirectURL       string
+	DomainVerifyToken string
 }
 
 // Validate Validate configuration

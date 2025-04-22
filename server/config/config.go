@@ -63,9 +63,10 @@ type GoogleConfig struct {
 
 // WeixinConfig WeChat login configuration
 type WeixinConfig struct {
-	AppID       string `json:"app_id"`
-	AppSecret   string `json:"app_secret"`
-	RedirectURL string `json:"redirect_url"`
+	AppID             string `json:"app_id"`
+	AppSecret         string `json:"app_secret"`
+	RedirectURL       string `json:"redirect_url"`
+	DomainVerifyToken string `json:"domain_verify_token"`
 }
 
 // SMSConfig SMS configuration
