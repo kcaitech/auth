@@ -19,20 +19,20 @@
             </el-select>
           </el-form-item>
           
-          <el-form-item :label="$t('user.provider')">
+          <!-- <el-form-item :label="$t('user.provider')">
             <el-select v-model="filter.provider" :placeholder="$t('user.select_provider')" clearable>
               <el-option :label="$t('user.provider_local')" value="local" />
               <el-option label="Google" value="google" />
               <el-option :label="$t('user.provider_weixin')" value="weixin" />
             </el-select>
-          </el-form-item>
+          </el-form-item> -->
           
-          <el-form-item :label="$t('user.verification_status')">
+          <!-- <el-form-item :label="$t('user.verification_status')">
             <el-select v-model="filter.verified" :placeholder="$t('user.verification_status')" clearable>
               <el-option :label="$t('user.verified')" value="true" />
               <el-option :label="$t('user.not_verified')" value="false" />
             </el-select>
-          </el-form-item>
+          </el-form-item> -->
           
           <el-form-item :label="$t('user.search')">
             <el-input v-model="filter.search" :placeholder="$t('user.username_email')" clearable />
@@ -63,11 +63,11 @@
             {{ getUserName(scope.row) }}
           </template>
         </el-table-column>
-        <el-table-column :label="$t('user.email')">
+        <!-- <el-table-column :label="$t('user.email')">
           <template #default="scope">
             {{ scope.row.email || $t('user.none') }}
           </template>
-        </el-table-column>
+        </el-table-column> -->
         
         <el-table-column :label="$t('user.status')" width="100">
           <template #default="scope">
@@ -85,13 +85,13 @@
           </template>
         </el-table-column> -->
         
-        <el-table-column :label="$t('user.is_verified')" width="80">
+        <!-- <el-table-column :label="$t('user.is_verified')" width="80">
           <template #default="scope">
             <el-tag :type="isVerified(scope.row) ? 'success' : 'danger'" size="small">
               {{ isVerified(scope.row) ? $t('common.yes') : $t('common.no') }}
             </el-tag>
           </template>
-        </el-table-column>
+        </el-table-column> -->
         
         <el-table-column :label="$t('user.registration_time')" width="180">
           <template #default="scope">
@@ -359,7 +359,7 @@ export default defineComponent({
     
     // 辅助函数：获取用户名
     const getUserName = (user: User): string => {
-      return user.profile.nickname || t('user.unknown_username')
+      return user.nickname || t('user.unknown_username')
     }
     
     // 辅助函数：获取状态

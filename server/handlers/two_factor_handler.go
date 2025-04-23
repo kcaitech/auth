@@ -36,7 +36,7 @@ func (h *AuthHandler) Enable2FA(c *gin.Context) {
 	}
 
 	// Use user nickname or ID as account name
-	accountName := user.Profile.Nickname
+	accountName := user.Nickname
 	if accountName == "" {
 		accountName = userIDStr
 	}

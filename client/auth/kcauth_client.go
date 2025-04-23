@@ -33,34 +33,14 @@ type KCAuthClient struct {
 // Define JWT Claims structure
 type CustomClaims struct {
 	UserID string `json:"user_id"`
-	// Email     string `json:"email"`
-	SessionID string `json:"session_id"`
-	// KeyID     string `json:"kid"`        // For key rotation
-	// TokenType string `json:"token_type"` // Identifies whether it's an access token or refresh token
 	jwt.RegisteredClaims
-}
-
-type UserProfile struct {
-	Nickname string `json:"nickname" gorm:"size:50"`  // Nickname
-	Avatar   string `json:"avatar" gorm:"size:255"`   // Avatar URL
-	Location string `json:"location" gorm:"size:100"` // Location
-	Birthday string `json:"birthday" gorm:"size:10"`  // Birthday
-	Gender   string `json:"gender" gorm:"size:10"`    // Gender
-	Language string `json:"language" gorm:"size:20"`  // Preferred Language
-	Timezone string `json:"timezone" gorm:"size:50"`  // Timezone
 }
 
 // UserInfo 用户信息结构
 type UserInfo struct {
-	UserID string `json:"user_id" gorm:"primarykey"` // Login identifier, for normal accounts this is the login account, for email accounts it's automatically generated
-	// Password      string      `json:"-" gorm:"not null"`
-	Status        string      `json:"status" gorm:"not null;default:'active'"`
-	Profile       UserProfile `json:"profile" gorm:"embedded"`
-	LastLogin     *time.Time  `json:"last_login"`
-	LoginAttempts int         `json:"login_attempts" gorm:"default:0"`
-	LastAttempt   *time.Time  `json:"last_attempt"`
-	CreatedAt     time.Time   `json:"created_at"`
-	UpdatedAt     time.Time   `json:"updated_at"`
+	UserID   string `json:"user_id" gorm:"primarykey"` // Login identifier, for normal accounts this is the login account, for email accounts it's automatically generated
+	Nickname string `json:"nickname" gorm:"size:50"`   // Nickname
+	Avatar   string `json:"avatar" gorm:"size:255"`    // Avatar URL
 }
 
 // NewJWTClient 创建新的JWT客户端
@@ -158,7 +138,6 @@ func (c *KCAuthClient) AuthRequired() gin.HandlerFunc {
 			return
 		}
 		ctx.Set("user_id", claims.UserID)
-		ctx.Set("session_id", claims.SessionID)
 		ctx.Set("authenticated", true)
 		ctx.Set("access_token", tokenString)
 		ctx.Next()
@@ -210,7 +189,6 @@ func (c *KCAuthClient) OptionalAuth() gin.HandlerFunc {
 			return
 		}
 		ctx.Set("user_id", claims.UserID)
-		ctx.Set("session_id", claims.SessionID)
 		ctx.Set("authenticated", true)
 		ctx.Set("access_token", tokenString)
 		ctx.Next()

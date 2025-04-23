@@ -69,21 +69,9 @@ export interface StatsData {
 export interface User {
   user_id: string
   status: string
-  profile: {
-    nickname: string
-    avatar: string
-    // bio: string
-    location: string
-    // website: string
-    birthday: string
-    gender: string
-    // phone: string
-    // company: string
-    // position: string
-    // education: string
-    language: string
-    timezone: string
-  },
+  nickname: string
+  avatar: string
+
   last_login: string | null
   login_attempts: number
   last_attempt: string | null

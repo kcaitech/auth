@@ -6,18 +6,18 @@
         <el-descriptions :title="$t('userDetail.user_info')" :column="2" border>
           <el-descriptions-item :label="$t('userDetail.user_id')">{{ getUserId(user) }}</el-descriptions-item>
           <el-descriptions-item :label="$t('userDetail.username')">{{ getUserName(user) }}</el-descriptions-item>
-          <el-descriptions-item :label="$t('userDetail.email')">{{ user.email || $t('userDetail.none') }}</el-descriptions-item>
-          <el-descriptions-item :label="$t('userDetail.status')">
+          <!-- <el-descriptions-item :label="$t('userDetail.email')">{{ user.email || $t('userDetail.none') }}</el-descriptions-item> -->
+          <!-- <el-descriptions-item :label="$t('userDetail.status')">
             <el-tag :type="getStatusType(getStatus(user))">{{ getStatusText(getStatus(user)) }}</el-tag>
-          </el-descriptions-item>
+          </el-descriptions-item> -->
           <!-- <el-descriptions-item :label="$t('userDetail.provider')">
             <el-tag type="info">{{ getProviderText(getProvider(user)) }}</el-tag>
           </el-descriptions-item> -->
-          <el-descriptions-item :label="$t('userDetail.verification_status')">
+          <!-- <el-descriptions-item :label="$t('userDetail.verification_status')">
             <el-tag :type="isVerified(user) ? 'success' : 'danger'">
               {{ isVerified(user) ? $t('userDetail.verified') : $t('userDetail.not_verified') }}
             </el-tag>
-          </el-descriptions-item>
+          </el-descriptions-item> -->
           <el-descriptions-item :label="$t('userDetail.two_factor_auth')">
             <el-tag :type="user.two_factor_enabled ? 'success' : 'info'">
               {{ user.two_factor_enabled ? $t('userDetail.enabled') : $t('userDetail.disabled') }}
@@ -37,15 +37,15 @@
 
         <div class="action-buttons">
           <el-button type="primary" @click="handleEditUser">{{ $t('userDetail.edit_user') }}</el-button>
-          <el-button :type="getActionButtonType(getStatus(user))" @click="handleToggleStatus">
+          <!-- <el-button :type="getActionButtonType(getStatus(user))" @click="handleToggleStatus">
             {{ getActionButtonText(getStatus(user)) }}
-          </el-button>
-          <el-button 
+          </el-button> -->
+          <!-- <el-button 
             :type="isVerified(user) ? 'warning' : 'success'" 
             @click="handleToggleVerified"
           >
             {{ isVerified(user) ? $t('userDetail.cancel_verification') : $t('userDetail.mark_as_verified') }}
-          </el-button>
+          </el-button> -->
         </div>
       </el-tab-pane>
 
@@ -350,13 +350,13 @@ export default defineComponent({
     
     // 辅助函数：获取用户名
     const getUserName = (user: User): string => {
-      return user.profile.nickname || t('userDetail.unknown_username')
+      return user.nickname || t('userDetail.unknown_username')
     }
     
     // 辅助函数：获取状态
-    const getStatus = (user: User): string => {
-      return user.status || 'inactive'
-    }
+    // const getStatus = (user: User): string => {
+    //   return user.status || 'inactive'
+    // }
     
     // 辅助函数：获取提供商
     // const getProvider = (user: User): string => {
@@ -364,9 +364,9 @@ export default defineComponent({
     // }
     
     // 辅助函数：检查是否已验证
-    const isVerified = (user: User): boolean => {
-      return user.verified === true || user.is_verified === true
-    }
+    // const isVerified = (user: User): boolean => {
+    //   return user.verified === true || user.is_verified === true
+    // }
     
     // 辅助函数：获取创建时间
     const getCreatedAt = (user: User): string => {
@@ -466,9 +466,9 @@ export default defineComponent({
       getActionButtonText,
       getUserId,
       getUserName,
-      getStatus,
+      // getStatus,
       // getProvider,
-      isVerified,
+      // isVerified,
       getCreatedAt,
       getLastLogin
     }

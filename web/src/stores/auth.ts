@@ -30,19 +30,11 @@ declare global {
 }
 
 interface User {
-  // id: string
   userID: string
   nickname: string
-  email: string
+  avatar: string
 }
 
-// interface RegisterForm {
-//   userID: string
-//   nickname: string
-//   email: string
-//   password: string
-//   confirmPassword: string
-// }
 
 interface AccountRegisterForm {
   username: string
@@ -75,6 +67,7 @@ export const useAuthStore = defineStore('auth', {
     loading: false,
     error: undefined as string | undefined,
     supportedProviders: [] as AuthProvider[],
+    // providersLoaded: false
   }),
   
   getters: {
@@ -84,16 +77,18 @@ export const useAuthStore = defineStore('auth', {
   },
   
   actions: {
-    // 获取后端支持的登录方式
+    // 获取支持的登录方式和注册配置
     async fetchSupportedProviders() {
+ 
       try {
         this.loading = true
         const response = await axios.get('/providers')
-        this.supportedProviders = response.data.providers || []
-        return this.supportedProviders
-      } catch (error: any) {
-        console.error(t('errors.fetchProvidersFailed'), error)
-        return []
+        this.supportedProviders = response.data.providers
+        // this.providersLoaded = true
+        return response.data
+      } catch (error) {
+        console.error('Failed to get providers:', error)
+        throw error
       } finally {
         this.loading = false
       }
@@ -110,13 +105,13 @@ export const useAuthStore = defineStore('auth', {
           password
         })
         
-        const { user_id, token, profile, expire_time } = response.data
+        const { user_id, token, nickname, avatar } = response.data
         
         this.user = {
           // id: user_id,
           userID: user_id,
-          nickname: profile?.nickname || '',
-          email: profile?.email || ''
+          nickname: nickname || '',
+          avatar: avatar || '',
         }
         this.token = token
         
@@ -162,13 +157,13 @@ export const useAuthStore = defineStore('auth', {
           ...registerData,
         })
         
-        const { user_id, token, profile, expire_time } = response.data
+        const { user_id, token, nickname, avatar } = response.data
         
         this.user = {
           // id: user_id,
           userID: user_id,
-          nickname: profile?.nickname || '',
-          email: profile?.email || ''
+          nickname: nickname || '',
+          avatar: avatar || '',
         }
         this.token = token
         
@@ -286,13 +281,13 @@ export const useAuthStore = defineStore('auth', {
                 });
                 
                 // 处理登录结果
-                const { user_id, token, profile, expire_time } = authResponse.data
+                const { user_id, token, nickname, avatar } = authResponse.data
         
                 this.user = {
                   // id: user_id,
                   userID: user_id,
-                  nickname: profile?.nickname || '',
-                  email: profile?.email || ''
+                  nickname: nickname || '',
+                  avatar: avatar || '',
                 }
                 this.token = token;
                 localStorage.setItem('token', token);
@@ -345,13 +340,13 @@ export const useAuthStore = defineStore('auth', {
         
         const response = await axios.post('/weixin', { code })
         
-        const { user_id, token, profile, expire_time } = response.data
+        const { user_id, token, nickname, avatar } = response.data
         
         this.user = {
           // id: user_id,
           userID: user_id,
-          nickname: profile?.nickname || '',
-          email: profile?.email || ''
+          nickname: nickname || '',
+          avatar: avatar || '',
         }
 
         this.token = token
@@ -394,13 +389,13 @@ export const useAuthStore = defineStore('auth', {
           password
         })
         
-        const { user_id, token, profile, expire_time } = response.data
+        const { user_id, token, nickname, avatar } = response.data
         
         this.user = {
           // id: user_id,
           userID: user_id,
-          nickname: profile?.nickname || '',
-          email: profile?.email || ''
+          nickname: nickname || '',
+          avatar: avatar || '',
         }
         
         this.token = token
@@ -431,13 +426,13 @@ export const useAuthStore = defineStore('auth', {
           code
         })
         
-        const { user_id, token, profile, expire_time } = response.data
+        const { user_id, token, nickname, avatar } = response.data
         
         this.user = {
           // id: user_id,
           userID: user_id,
-          nickname: profile?.nickname || '',
-          email: profile?.email || ''
+          nickname: nickname || '',
+          avatar: avatar || '',
         }
         
         this.token = token
@@ -540,13 +535,13 @@ export const useAuthStore = defineStore('auth', {
           password
         })
 
-        const { user_id, token, profile, expire_time } = response.data
+        const { user_id, token, nickname, avatar } = response.data
         
         this.user = {
           // id: user_id,
           userID: user_id,
-          nickname: profile?.nickname || '',
-          email: profile?.email || ''
+          nickname: nickname || '',
+          avatar: avatar || '',
         }
 
         this.token = token

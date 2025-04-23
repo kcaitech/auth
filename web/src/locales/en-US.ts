@@ -178,4 +178,20 @@ export default {
     description: 'Sorry, the page you visited does not exist.',
     backToHome: 'Back to Home',
   },
+  emailVerify: {
+    loading: 'Verifying your email...',
+    verifyFailed: 'Verification Failed',
+    resendVerification: 'Resend Verification Email',
+    sending: 'Sending...',
+    register: 'Register Again',
+    backToLogin: 'Back to Login',
+    resendSuccess: 'Verification email has been resent, please check your inbox',
+    verifySuccess: 'Verification Successful',
+    emailVerified: 'Your email has been verified and your account is now activated.',
+    userId: 'User ID',
+    nickname: 'Nickname',
+    enterHome: 'Enter Home',
+    invalidLink: 'Invalid verification link, missing verification token',
+    cannotResend: 'Cannot resend verification email, please register again'
+  }
 } 

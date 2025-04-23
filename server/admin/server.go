@@ -35,7 +35,7 @@ type AdminServer struct {
 	sessions   map[string]*AdminSession
 	sessionMu  sync.Mutex
 	logger     *log.Logger
-	redis      *auth.RedisStore // Add Redis storage field
+	redis      *auth.RedisStore
 	sessionMgr *auth.SessionManager
 	jwtService *auth.JWTService
 }

@@ -369,13 +369,11 @@ func (g *GoogleOAuth) CreateUserFromGoogle(googleInfo *GoogleUserInfo) (*User, e
 	// Create basic user record
 	now := time.Now()
 	user := &User{
-		UserID:   userID,
-		Password: string(hashedPassword),
-		Status:   UserStatusActive,
-		Profile: UserProfile{
-			Nickname: nickname,
-			Avatar:   avatarURL,
-		},
+		UserID:    userID,
+		Password:  string(hashedPassword),
+		Status:    UserStatusActive,
+		Nickname:  nickname,
+		Avatar:    avatarURL,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
@@ -452,10 +450,8 @@ func (g *GoogleOAuth) UpdateGoogleUserInfo(userID string, googleInfo *GoogleUser
 		return err
 	}
 
-	user.Profile = UserProfile{
-		Nickname: nickname,
-		Avatar:   avatarURL,
-	}
+	user.Nickname = nickname
+	user.Avatar = avatarURL
 	user.UpdatedAt = time.Now()
 
 	return g.db.Save(&user).Error

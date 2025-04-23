@@ -84,9 +84,9 @@ func (h *AvatarHandler) DeleteAvatar(c *gin.Context) {
 		return
 	}
 
-	if user.Profile.Avatar != "" {
+	if user.Avatar != "" {
 		// 删除头像
-		err = h.avatarService.DeleteAvatar(user.Profile.Avatar)
+		err = h.avatarService.DeleteAvatar(user.Avatar)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "删除头像失败"})
 			return

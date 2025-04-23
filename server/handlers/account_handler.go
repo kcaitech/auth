@@ -38,9 +38,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		UserID:   req.Username,
 		Password: req.Password,
 		Status:   auth.UserStatusActive,
-		Profile: auth.UserProfile{
-			Nickname: req.Username,
-		},
+		Nickname: req.Username,
 	}
 
 	if err := h.accountAuth.CreateUser(user); err != nil {
@@ -87,7 +85,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"user_id":     user.UserID,
 		"token":       tokenPair.AccessToken,
-		"profile":     user.Profile,
+		"nickname":    user.Nickname,
+		"avatar":      user.Avatar,
 		"expire_time": auth.TokenExpiration,
 	})
 }
@@ -142,7 +141,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"user_id":     user.UserID,
 		"token":       tokenPair.AccessToken,
-		"profile":     user.Profile,
+		"nickname":    user.Nickname,
+		"avatar":      user.Avatar,
 		"expire_time": auth.TokenExpiration,
 	})
 }
@@ -267,13 +267,13 @@ func (h *AuthHandler) GetUserInfo(c *gin.Context) {
 	}
 
 	// avata转换为url
-	if user.Profile.Avatar != "" {
-		url, err := h.avatarService.GetAvatarURL(user.Profile.Avatar)
+	if user.Avatar != "" {
+		url, err := h.avatarService.GetAvatarURL(user.Avatar)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		user.Profile.Avatar = url
+		user.Avatar = url
 	}
 
 	c.JSON(http.StatusOK, user)
@@ -308,13 +308,13 @@ func (h *AuthHandler) GetUserInfoById(c *gin.Context) {
 	}
 
 	// avata转换为url
-	if user.Profile.Avatar != "" {
-		url, err := h.avatarService.GetAvatarURL(user.Profile.Avatar)
+	if user.Avatar != "" {
+		url, err := h.avatarService.GetAvatarURL(user.Avatar)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		user.Profile.Avatar = url
+		user.Avatar = url
 	}
 
 	c.JSON(http.StatusOK, user)
@@ -350,13 +350,13 @@ func (h *AuthHandler) GetUsersInfo(c *gin.Context) {
 
 	// 处理用户头像URL
 	for i := range users {
-		if users[i].Profile.Avatar != "" {
-			url, err := h.avatarService.GetAvatarURL(users[i].Profile.Avatar)
+		if users[i].Avatar != "" {
+			url, err := h.avatarService.GetAvatarURL(users[i].Avatar)
 			if err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 				return
 			}
-			users[i].Profile.Avatar = url
+			users[i].Avatar = url
 		}
 	}
 
@@ -368,9 +368,9 @@ func (h *AuthHandler) GetUsersInfo(c *gin.Context) {
 // UpdateUserInfo Update user information
 func (h *AuthHandler) UpdateUserInfo(c *gin.Context) {
 	var req struct {
-		UserID string `json:"user_id"`
-		// Nickname string           `json:"nickname"`
-		Profile auth.UserProfile `json:"profile"`
+		UserID   string `json:"user_id"`
+		Nickname string `json:"nickname"`
+		Avatar   string `json:"avatar"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -409,44 +409,14 @@ func (h *AuthHandler) UpdateUserInfo(c *gin.Context) {
 	// Prepare update data
 	updates := make(map[string]interface{})
 
-	// Update user information
-	if req.UserID != "" && req.UserID != user.UserID {
-		updates["user_id"] = req.UserID
+	if user.Nickname != req.Nickname {
+		updates["nickname"] = req.Nickname
+		user.Nickname = req.Nickname
 	}
-
-	// Update user profile
-	// if req.Nickname != "" {
-	if user.Profile.Nickname != req.Profile.Nickname {
-		updates["nickname"] = req.Profile.Nickname
-	}
-	// }
-
-	// Update other profile fields
-	// if req.Profile.Avatar != "" && user.Profile.Avatar != req.Profile.Avatar {
-	// 	updates["profile.avatar"] = req.Profile.Avatar
-	// }
-	// if req.Profile.Bio != "" && user.Profile.Bio != req.Profile.Bio {
-	// 	updates["profile.bio"] = req.Profile.Bio
-	// }
-	if req.Profile.Location != "" && user.Profile.Location != req.Profile.Location {
-		updates["location"] = req.Profile.Location
-	}
-	// if req.Profile.Website != "" && user.Profile.Website != req.Profile.Website {
-	// 	updates["profile.website"] = req.Profile.Website
-	// }
-	if req.Profile.Birthday != "" && user.Profile.Birthday != req.Profile.Birthday {
-		updates["birthday"] = req.Profile.Birthday
-	}
-	if req.Profile.Gender != "" && user.Profile.Gender != req.Profile.Gender {
-		updates["gender"] = req.Profile.Gender
-	}
-	// if req.Profile.Phone != "" && user.Profile.Phone != req.Profile.Phone {
-	// 	updates["profile.phone"] = req.Profile.Phone
-	// }
 
 	// If there are fields to update
 	if len(updates) > 0 {
-		if err := h.accountAuth.UpdateProfile(userIDStr, updates); err != nil {
+		if err := h.accountAuth.UpdateUser(user); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}

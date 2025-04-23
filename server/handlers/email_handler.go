@@ -57,7 +57,8 @@ func (h *AuthHandler) EmailLogin(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"user_id":     user.UserID,
 		"token":       tokenPair.AccessToken,
-		"profile":     user.Profile,
+		"nickname":    user.Nickname,
+		"avatar":      user.Avatar,
 		"expire_time": auth.TokenExpiration,
 	})
 }
@@ -124,7 +125,8 @@ func (h *AuthHandler) EmailVerify(c *gin.Context) {
 		"message":     "Email verification successful, registration complete",
 		"user_id":     user.UserID,
 		"token":       tokenPair.AccessToken,
-		"profile":     user.Profile,
+		"nickname":    user.Nickname,
+		"avatar":      user.Avatar,
 		"expire_time": auth.TokenExpiration,
 	})
 }
