@@ -96,3 +96,13 @@ func (rs *RedisStore) GetClient() *redis.Client {
 func (rs *RedisStore) Close() error {
 	return rs.client.Close()
 }
+
+// SAdd Add member to set
+func (rs *RedisStore) SAdd(key string, member interface{}) error {
+	return rs.client.SAdd(rs.ctx, key, member).Err()
+}
+
+// SMembers Get all members of set
+func (rs *RedisStore) SMembers(key string) ([]string, error) {
+	return rs.client.SMembers(rs.ctx, key).Result()
+}

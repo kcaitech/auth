@@ -272,12 +272,10 @@ func (a *EmailAuth) RegisterEmailUser(email, password, nickname string) (*User, 
 	// Create basic user record
 	now := time.Now()
 	user := &User{
-		UserID:   userID,
-		Password: password, // Already encrypted password
-		Status:   UserStatusActive,
-		Profile: UserProfile{
-			Nickname: nickname,
-		},
+		UserID:    userID,
+		Password:  password, // Already encrypted password
+		Status:    UserStatusActive,
+		Nickname:  nickname,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}

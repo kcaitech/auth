@@ -14,38 +14,37 @@ import (
 // AuthHandler Authentication handler
 type AuthHandler struct {
 	useAccountAuth bool
-	accountAuth    auth.AccountAuth
+	accountAuth    *auth.AccountAuth
 	emailAuth      *auth.EmailAuth
 	googleOAuth    *auth.GoogleOAuth
 	weixinLogin    *auth.WeixinLogin
 	phoneAuth      *auth.PhoneAuth
 	twoFactor      *auth.TwoFactorAuth
 	jwtService     *auth.JWTService
-	// rateLimiter    *middleware.RateLimiter
-	sessionMgr    *auth.SessionManager
-	redisStore    *auth.RedisStore
-	storage       *storage.StorageClient
-	avatarService *auth.AvatarService
-	avatarHandler *AvatarHandler
-	// emailService   *auth.EmailService
-	logger *log.Logger
+	sessionMgr     *auth.SessionManager
+	redisStore     *auth.RedisStore
+	storage        *storage.StorageClient
+	avatarService  *auth.AvatarService
+	avatarHandler  *AvatarHandler
+	config         *config.Config
+	logger         *log.Logger
 }
 
 // NewAuthHandler Create new authentication handler
 func NewAuthHandler(
 	useAccountAuth bool,
-	accountAuth auth.AccountAuth,
+	accountAuth *auth.AccountAuth,
 	emailAuth *auth.EmailAuth,
 	googleOAuth *auth.GoogleOAuth,
 	weixinLogin *auth.WeixinLogin,
 	phoneAuth *auth.PhoneAuth,
 	twoFactor *auth.TwoFactorAuth,
 	jwtService *auth.JWTService,
-	// rateLimiter *middleware.RateLimiter,
 	sessionMgr *auth.SessionManager,
 	redisStore *auth.RedisStore,
 	storage *storage.StorageClient,
-	avatarService *auth.AvatarService) *AuthHandler {
+	avatarService *auth.AvatarService,
+	config *config.Config) *AuthHandler {
 	return &AuthHandler{
 		useAccountAuth: useAccountAuth,
 		accountAuth:    accountAuth,
@@ -55,30 +54,18 @@ func NewAuthHandler(
 		phoneAuth:      phoneAuth,
 		twoFactor:      twoFactor,
 		jwtService:     jwtService,
-		// rateLimiter:    rateLimiter,
-		sessionMgr:    sessionMgr,
-		redisStore:    redisStore,
-		logger:        log.New(os.Stdout, "[AUTH] ", log.LstdFlags|log.Lshortfile),
-		storage:       storage,
-		avatarService: avatarService,
-		avatarHandler: NewAvatarHandler(&accountAuth, avatarService),
+		sessionMgr:     sessionMgr,
+		redisStore:     redisStore,
+		storage:        storage,
+		avatarService:  avatarService,
+		avatarHandler:  NewAvatarHandler(accountAuth, avatarService),
+		config:         config,
+		logger:         log.New(os.Stdout, "[AUTH] ", log.LstdFlags|log.Lshortfile),
 	}
 }
 
 // RegisterRoutes Register routes
 func (h *AuthHandler) RegisterRoutes(authGroup *gin.RouterGroup, cfg *config.Config) {
-	// Add error handling middleware
-	// r.Use(auth.ErrorHandler())
-
-	// // Add monitoring middleware
-	// r.Use(middleware.MetricsMiddleware())
-
-	// // Add rate limiting middleware
-	// rateLimiter := middleware.RateLimiter{}
-	// r.Use(rateLimiter.RateLimitMiddleware())
-	// // Authentication related route group
-	// authGroup := r.Group("/auth")
-	// {
 	// Get supported login methods
 	authGroup.GET("/providers", h.GetSupportedProviders)
 
@@ -123,7 +110,7 @@ func (h *AuthHandler) RegisterRoutes(authGroup *gin.RouterGroup, cfg *config.Con
 	// Phone login related routes
 	if h.phoneAuth != nil {
 		// Create phone handler
-		phoneHandler := NewPhoneHandler(h.phoneAuth, h.sessionMgr, h.jwtService)
+		phoneHandler := NewPhoneHandler(h.phoneAuth, h.sessionMgr, h.jwtService, h.config)
 		// Register phone authentication routes
 		phoneHandler.RegisterRoutes(authGroup)
 	}
@@ -151,7 +138,6 @@ func (h *AuthHandler) RegisterRoutes(authGroup *gin.RouterGroup, cfg *config.Con
 	authGroup.GET("/sessions", h.AuthRequired(), h.GetUserSessions)
 	authGroup.DELETE("/sessions/:session_id", h.AuthRequired(), h.TerminateUserSession)
 	authGroup.DELETE("/sessions", h.AuthRequired(), h.TerminateAllUserSessions)
-	// }
 }
 
 // GetSupportedProviders Get supported login methods

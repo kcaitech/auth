@@ -178,4 +178,20 @@ export default {
     description: '抱歉，您访问的页面不存在。',
     backToHome: '返回首页',
   },
+  emailVerify: {
+    loading: '正在验证您的邮箱...',
+    verifyFailed: '验证失败',
+    resendVerification: '重新发送验证邮件',
+    sending: '发送中...',
+    register: '重新注册',
+    backToLogin: '返回登录',
+    resendSuccess: '验证邮件已重新发送，请查收',
+    verifySuccess: '验证成功',
+    emailVerified: '您的邮箱已验证成功，账号已激活。',
+    userId: '用户ID',
+    nickname: '昵称',
+    enterHome: '进入首页',
+    invalidLink: '验证链接无效，缺少验证令牌',
+    cannotResend: '无法重新发送验证邮件，请重新注册'
+  }
 } 

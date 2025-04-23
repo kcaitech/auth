@@ -84,12 +84,6 @@ func main() {
 		log.Fatalf("Database migration failed: %v", err)
 	}
 
-	// Initialize authentication handler
-	var authHandler *handlers.AuthHandler
-	if err := initAuthHandler(cfg, accountAuth, &authHandler); err != nil {
-		log.Fatalf("Failed to initialize authentication handler: %v", err)
-	}
-
 	// Set Gin mode
 	if gin.Mode() == gin.DebugMode {
 		gin.SetMode(gin.DebugMode)
@@ -99,6 +93,12 @@ func main() {
 
 	// Create Gin engine
 	r := gin.Default()
+
+	// Initialize authentication handler
+	var authHandler *handlers.AuthHandler
+	if err := initAuthHandler(cfg, accountAuth, &authHandler, r); err != nil {
+		log.Fatalf("Failed to initialize authentication handler: %v", err)
+	}
 
 	// Add CORS middleware
 	corsConfig := cors.DefaultConfig()
@@ -213,8 +213,8 @@ func main() {
 	log.Println("Main server has been shut down")
 }
 
-func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler **handlers.AuthHandler) error {
-	// Configure email account
+func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler **handlers.AuthHandler, r *gin.Engine) error {
+	// Initialize email authentication
 	var emailAuth *auth.EmailAuth
 	if containsProvider(cfg.Auth.EnabledProviders, "email") && cfg.Auth.Smtp.Host != "" {
 		// Create email service
@@ -224,15 +224,12 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 			Username: cfg.Auth.Smtp.Username,
 			Password: cfg.Auth.Smtp.Password,
 			From:     cfg.Auth.Smtp.From,
-			// BaseURL:  cfg.Auth.Smtp.BaseURL,
 		})
 
-		// Use types imported from file, don't manually define structure types
-		// Here we directly create the type and pass parameters
 		emailAuth = auth.NewEmailAuth(globalDB, auth.EmailAutnConfig{
 			VerificationExpiry: time.Hour * 24,
 			EmailService:       emailService,
-			Redis:              auth.NewAccountRedisStore(globalRedisStore.GetClient()), // Temporarily nil
+			Redis:              auth.NewAccountRedisStore(globalRedisStore.GetClient()),
 		})
 
 		// Execute table structure migration
@@ -241,17 +238,18 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 		}
 	}
 
-	_storage, err := storage.NewStoraageClient(&cfg.Storage)
+	// Initialize storage client
+	storageClient, err := storage.NewStorageClient(&cfg.Storage)
 	if err != nil {
 		return fmt.Errorf("failed to initialize Storage: %v", err)
 	}
 
-	avatarService := auth.NewAvatarService(_storage.Bucket, cfg.StorageUrl.Attatch)
+	// Initialize avatar service
+	avatarService := auth.NewAvatarService(storageClient.Bucket, cfg.StorageUrl.Attatch)
 
-	// Create Google OAuth handler based on configuration
+	// Initialize Google OAuth
 	var googleOAuth *auth.GoogleOAuth
 	if containsProvider(cfg.Auth.EnabledProviders, "google") {
-		var err error
 		googleOAuth, err = auth.NewGoogleOAuth(auth.GoogleOAuthConfig{
 			ClientID:      cfg.Auth.Google.ClientID,
 			ClientSecret:  cfg.Auth.Google.ClientSecret,
@@ -270,10 +268,9 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 		}
 	}
 
-	// Create WeChat login handler based on configuration
+	// Initialize WeChat login
 	var weixinLogin *auth.WeixinLogin
 	if containsProvider(cfg.Auth.EnabledProviders, "weixin") {
-		var err error
 		weixinLogin, err = auth.NewWeixinLogin(globalDB, auth.WeixinConfig{
 			AppID:             cfg.Auth.Weixin.AppID,
 			AppSecret:         cfg.Auth.Weixin.AppSecret,
@@ -283,14 +280,14 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 		if err != nil {
 			return fmt.Errorf("failed to initialize WeChat login: %v", err)
 		}
-		// autoMigrate
+
 		// Execute table structure migration
 		if err := weixinLogin.AutoMigrate(); err != nil {
 			return fmt.Errorf("WeChat login table migration failed: %v", err)
 		}
 	}
 
-	// Create phone number login handler based on configuration
+	// Initialize phone authentication
 	var phoneAuth *auth.PhoneAuth
 	if containsProvider(cfg.Auth.EnabledProviders, "phone") {
 		// Create SMS service
@@ -303,9 +300,8 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 			Region:     cfg.Auth.SMS.Region,
 		})
 
-		// Create phone authentication
 		phoneAuth = auth.NewPhoneAuth(globalDB, auth.PhoneAuthConfig{
-			VerificationExpiry: time.Minute * 10, // 10 minutes
+			VerificationExpiry: time.Minute * 10,
 			SMSService:         smsService,
 			Redis:              auth.NewAccountRedisStore(globalRedisStore.GetClient()),
 		})
@@ -316,7 +312,7 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 		}
 	}
 
-	// Create two-factor authentication service
+	// Initialize two-factor authentication
 	var twoFactor *auth.TwoFactorAuth
 	if cfg.Auth.TwoFactor.Enabled {
 		twoFactorConfig := &auth.TwoFactorConfig{
@@ -330,26 +326,27 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 		twoFactor = auth.NewTwoFactorAuth(globalDB, twoFactorConfig)
 	}
 
-	// Create empty JWTService and SessionManager
+	// Initialize JWT service
 	jwtService := auth.NewJWTService(globalRedisStore, auth.JWTConfig{Issuer: cfg.Auth.JWT.Issuer})
-	sessionMgr := auth.NewSessionManager(auth.NewSessionRedisStore(globalRedisStore.GetClient()))
-	// rateLimiter := &middleware.RateLimiter{}
-	// Use constructor to create authentication handler
 
+	// Initialize session manager
+	sessionMgr := auth.NewSessionManager(auth.NewSessionRedisStore(globalRedisStore.GetClient()))
+
+	// Initialize auth handler
 	*handler = handlers.NewAuthHandler(
-		containsProvider(cfg.Auth.EnabledProviders, "account"), // Use account authentication
-		*accountAuth,
+		containsProvider(cfg.Auth.EnabledProviders, "account"),
+		accountAuth,
 		emailAuth,
 		googleOAuth,
 		weixinLogin,
 		phoneAuth,
 		twoFactor,
 		jwtService,
-		// rateLimiter,
 		sessionMgr,
 		globalRedisStore,
-		_storage,
+		storageClient,
 		avatarService,
+		cfg,
 	)
 
 	return nil

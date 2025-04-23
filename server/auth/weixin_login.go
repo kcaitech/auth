@@ -321,25 +321,14 @@ func (w *WeixinLogin) CreateUserFromWeixin(weixinInfo *WeixinUserInfo) (*User, e
 	// Create basic user record
 	now := time.Now()
 
-	// Convert gender to string
-	gender := "unknown"
-	if weixinInfo.Sex == 1 {
-		gender = "male"
-	} else if weixinInfo.Sex == 2 {
-		gender = "female"
-	}
-
 	user := &User{
 		UserID:   userID,
 		Password: string(hashedPassword),
 		Status:   UserStatusActive,
-		Profile: UserProfile{
-			Nickname: weixinInfo.Nickname,
-			Avatar:   weixinInfo.HeadImgURL,
-			Gender:   gender,
-			Location: fmt.Sprintf("%s %s %s", weixinInfo.Country, weixinInfo.Province, weixinInfo.City),
-		},
-		// LastAttempt: now,
+
+		Nickname: weixinInfo.Nickname,
+		Avatar:   weixinInfo.HeadImgURL,
+
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
@@ -384,19 +373,9 @@ func (w *WeixinLogin) UpdateWeixinUserInfo(userID string, weixinInfo *WeixinUser
 		return result.Error
 	}
 
-	// Convert gender to string
-	gender := "unknown"
-	if weixinInfo.Sex == 1 {
-		gender = "male"
-	} else if weixinInfo.Sex == 2 {
-		gender = "female"
-	}
-
 	// Also update user profile
-	return w.db.Model(&User{}).Where("user_id = ?", userID).Update("profile", UserProfile{
-		Nickname: weixinInfo.Nickname,
-		Avatar:   weixinInfo.HeadImgURL,
-		Gender:   gender,
-		Location: fmt.Sprintf("%s %s %s", weixinInfo.Country, weixinInfo.Province, weixinInfo.City),
+	return w.db.Model(&User{}).Where("user_id = ?", userID).Updates(map[string]interface{}{
+		"nickname": weixinInfo.Nickname,
+		"avatar":   weixinInfo.HeadImgURL,
 	}).Error
 }

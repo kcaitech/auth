@@ -17,7 +17,7 @@ type StorageClient struct {
 	// AttatchBucket Bucket
 }
 
-func NewStoraageClient(config *StorageConf) (*StorageClient, error) {
+func NewStorageClient(config *StorageConf) (*StorageClient, error) {
 	var client Client
 	var err error
 	var bucketConfig BucketConfig
