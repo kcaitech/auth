@@ -139,10 +139,10 @@
     </div>
     
     <!-- 加载中提示 -->
-    <div v-if="initialLoading" class="loading-container">
+    <!-- <div v-if="initialLoading" class="loading-container">
       <div class="loading-spinner"></div>
       <p>{{ $t('auth.loadingLoginOptions') }}</p>
-    </div>
+    </div> -->
   </div>
 </template>
 
@@ -176,8 +176,8 @@ const { t } = useI18n()
 const activeTab = ref<'login' | 'register'>('login')
 const loginType = ref<'account' | 'email' | 'phone'>('account')
 const registerType = ref<'account' | 'email' | 'phone'>('account')
-const initialLoading = ref(true)
-const isLoading = ref(false)
+// const initialLoading = ref(true)
+// const isLoading = ref(false)
 const errorMessage = ref('')
 
 // 直接使用auth store中的hasProvider方法
@@ -186,8 +186,8 @@ const hasProvider = (provider: AuthProvider) => authStore.hasProvider(provider)
 // 加载支持的登录方式
 onMounted(async () => {
   try {
-    initialLoading.value = true
-    await authStore.fetchSupportedProviders()
+    // initialLoading.value = true
+    // await authStore.fetchSupportedProviders()
     
     // 设置默认登录和注册类型
     if (hasProvider('account')) {
@@ -204,7 +204,7 @@ onMounted(async () => {
     console.error(t('errors.initLoginPageFailed'), error)
     errorMessage.value = t('errors.loadLoginOptionsFailed')
   } finally {
-    initialLoading.value = false
+    // initialLoading.value = false
   }
 })
 

@@ -61,7 +61,8 @@ func (h *AuthHandler) GoogleLoginPost(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"user_id":     user.UserID,
 		"token":       tokenPair.AccessToken,
-		"profile":     user.Profile,
+		"nickname":    user.Nickname,
+		"avatar":      user.Avatar,
 		"expire_time": auth.TokenExpiration,
 	})
 }
@@ -210,7 +211,8 @@ func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"user_id":     user.UserID,
 		"token":       tokenPair.AccessToken,
-		"profile":     user.Profile,
+		"nickname":    user.Nickname,
+		"avatar":      user.Avatar,
 		"expire_time": auth.TokenExpiration,
 	})
 }
@@ -363,7 +365,8 @@ func (h *AuthHandler) GoogleCredential(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"user_id":     user.UserID,
 		"token":       tokenPair.AccessToken,
-		"profile":     user.Profile,
+		"nickname":    user.Nickname,
+		"avatar":      user.Avatar,
 		"expire_time": auth.TokenExpiration,
 	})
 }

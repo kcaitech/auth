@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"kcaitech.com/kcauth/server/auth"
+	"kcaitech.com/kcauth/server/config"
 )
 
 // PhoneRegisterRequest Phone registration request
@@ -50,6 +51,7 @@ type PhoneHandler struct {
 	sessionMgr    *auth.SessionManager
 	jwtService    *auth.JWTService
 	verifyCodeTTL int
+	config        *config.Config
 }
 
 // NewPhoneHandler Create phone authentication handler
@@ -57,12 +59,14 @@ func NewPhoneHandler(
 	phoneAuth *auth.PhoneAuth,
 	sessionMgr *auth.SessionManager,
 	jwtService *auth.JWTService,
+	config *config.Config,
 ) *PhoneHandler {
 	return &PhoneHandler{
 		phoneAuth:     phoneAuth,
 		sessionMgr:    sessionMgr,
 		jwtService:    jwtService,
 		verifyCodeTTL: 300, // Default 5 minutes
+		config:        config,
 	}
 }
 
@@ -134,8 +138,8 @@ func (h *PhoneHandler) Login(c *gin.Context) {
 		"token":   token.AccessToken,
 		"user": gin.H{
 			"user_id":  user.UserID,
-			"nickname": user.Profile.Nickname,
-			"avatar":   user.Profile.Avatar,
+			"nickname": user.Nickname,
+			"avatar":   user.Avatar,
 		},
 	})
 }
@@ -175,8 +179,8 @@ func (h *PhoneHandler) PhoneCodeLogin(c *gin.Context) {
 		"token":   token.AccessToken,
 		"user": gin.H{
 			"user_id":  user.UserID,
-			"nickname": user.Profile.Nickname,
-			"avatar":   user.Profile.Avatar,
+			"nickname": user.Nickname,
+			"avatar":   user.Avatar,
 		},
 	})
 }
@@ -414,7 +418,8 @@ func (h *PhoneHandler) VerifyPhoneAndRegister(c *gin.Context) {
 		"message":     "Phone verification successful, registration complete",
 		"user_id":     user.UserID,
 		"token":       tokenPair.AccessToken,
-		"profile":     user.Profile,
+		"nickname":    user.Nickname,
+		"avatar":      user.Avatar,
 		"expire_time": auth.TokenExpiration,
 	})
 }
@@ -463,8 +468,8 @@ func (h *PhoneHandler) PhoneLogin(c *gin.Context) {
 		"token":   token.AccessToken,
 		"user": gin.H{
 			"user_id":  user.UserID,
-			"nickname": user.Profile.Nickname,
-			"avatar":   user.Profile.Avatar,
+			"nickname": user.Nickname,
+			"avatar":   user.Avatar,
 		},
 	})
 }

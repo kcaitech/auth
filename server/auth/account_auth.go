@@ -49,15 +49,16 @@ type LoginAttempt struct {
 
 // User User Model
 type User struct { // Automatically generated ID
-	UserID        string      `json:"user_id" gorm:"primarykey"` // Login identifier, for normal accounts this is the login account, for email accounts it's automatically generated
-	Password      string      `json:"-" gorm:"not null"`
-	Status        UserStatus  `json:"status" gorm:"not null;default:'active'"`
-	Profile       UserProfile `json:"profile" gorm:"embedded"`
-	LastLogin     *time.Time  `json:"last_login"`
-	LoginAttempts int         `json:"login_attempts" gorm:"default:0"`
-	LastAttempt   *time.Time  `json:"last_attempt"`
-	CreatedAt     time.Time   `json:"created_at"`
-	UpdatedAt     time.Time   `json:"updated_at"`
+	UserID        string     `json:"user_id" gorm:"primarykey"` // Login identifier, for normal accounts this is the login account, for email accounts it's automatically generated
+	Password      string     `json:"-" gorm:"not null"`
+	Status        UserStatus `json:"status" gorm:"not null;default:'active'"`
+	Nickname      string     `json:"nickname" gorm:"size:50"` // Nickname
+	Avatar        string     `json:"avatar" gorm:"size:255"`  // Avatar URL
+	LastLogin     *time.Time `json:"last_login"`
+	LoginAttempts int        `json:"login_attempts" gorm:"default:0"`
+	LastAttempt   *time.Time `json:"last_attempt"`
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
 }
 
 // Extended AccountAuth
@@ -297,9 +298,7 @@ func (a *AccountAuth) Register(userID string, password string) error {
 		// LastAttempt: now,
 		CreatedAt: now,
 		UpdatedAt: now,
-		Profile: UserProfile{
-			Nickname: userID,
-		},
+		Nickname:  userID,
 	}
 
 	if err := a.db.Create(user).Error; err != nil {
@@ -368,7 +367,7 @@ func (a *AccountAuth) SetNickname(userID string, nickname string) error {
 		return err
 	}
 	// todo 审核
-	user.Profile.Nickname = nickname
+	user.Nickname = nickname
 	return a.db.Save(user).Error
 }
 
@@ -380,7 +379,7 @@ func (a *AccountAuth) SetAvatar(userID string, avatar string) error {
 	}
 	// todo 审核
 	// todo 存oss
-	user.Profile.Avatar = avatar
+	user.Avatar = avatar
 	return a.db.Save(user).Error
 }
 

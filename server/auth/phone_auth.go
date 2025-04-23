@@ -420,9 +420,8 @@ func (a *PhoneAuth) VerifyPhoneAndRegister(phone, code string) (*User, error) {
 		UserID:   userID,
 		Password: preregInfo.Password, // Already encrypted password
 		Status:   UserStatusActive,
-		Profile: UserProfile{
-			Nickname: preregInfo.Nickname,
-		},
+
+		Nickname:  preregInfo.Nickname,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}

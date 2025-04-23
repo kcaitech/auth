@@ -432,7 +432,7 @@ func (t *TwoFactorAuth) GetQRCodeURL(userID string) (string, error) {
 	}
 
 	// Construct account name
-	accountName := user.Profile.Nickname
+	accountName := user.Nickname
 	if accountName == "" {
 		accountName = userID
 	}
