@@ -63,8 +63,11 @@ func (s *AvatarService) UploadAvatar(userID string, file *multipart.FileHeader) 
 		return "", errors.Wrap(err, "解码图片失败")
 	}
 
-	// 调整图片大小
-	resized := resize.Resize(AvatarWidth, AvatarHeight, img, resize.Lanczos3)
+	// 原始宽高
+	fmt.Printf("原始图片宽: %d, 高: %d\n", img.Bounds().Dx(), img.Bounds().Dy())
+
+	// 调整图片大小，保持原有宽高比例，最长边不超过 AvatarWidth 和 AvatarHeight
+	resized := resize.Thumbnail(AvatarWidth, AvatarHeight, img, resize.Lanczos3)
 
 	// 编码图片
 	var buf bytes.Buffer
@@ -155,8 +158,8 @@ func (s *AvatarService) DownloadAndUploadAvatar(userID string, avatarURL string)
 		return "", fmt.Errorf("解码图片失败: %w", err)
 	}
 
-	// 调整图片大小
-	resized := resize.Resize(AvatarWidth, AvatarHeight, img, resize.Lanczos3)
+	// 调整图片大小，保持原有宽高比例，最长边不超过 AvatarWidth 和 AvatarHeight
+	resized := resize.Thumbnail(AvatarWidth, AvatarHeight, img, resize.Lanczos3)
 
 	// 编码图片
 	var buf bytes.Buffer
