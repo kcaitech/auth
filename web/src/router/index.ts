@@ -15,7 +15,10 @@ const routes = [
     path: '/success',
     name: 'Success',
     component: () => import('../views/LoginSuccess.vue'),
-    meta: {requiresAuth: true}
+    meta: { requiresAuth: true },
+    beforeEnter: () => { // 正式环境，如果没有redirect，强制跳转到根路径
+      window.location.href = `/`; // 跳转到后端路由
+    }
   },
   {
     path: '/verify-email',
@@ -37,7 +40,7 @@ const router = createRouter({
 // 导航守卫
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
-  
+
   // 如果路由需要认证
   if (to.meta.requiresAuth) {
     // 检查用户是否已登录
@@ -57,7 +60,7 @@ router.beforeEach(async (to, from, next) => {
       return next('/login')
     }
   }
-  
+
   next()
 })
 

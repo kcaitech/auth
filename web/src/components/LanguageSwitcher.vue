@@ -1,63 +1,113 @@
 <template>
   <div class="language-switcher">
-    <select v-model="currentLocale" @change="switchLanguage" class="language-select">
-      <option v-for="locale in locales" :key="locale.code" :value="locale.code">
+    <div class="language-icon" @click="toggleDropdown">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="2" y1="12" x2="22" y2="12"></line>
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+      </svg>
+    </div>
+    <div v-if="isOpen" class="language-dropdown">
+      <div v-for="locale in locales" 
+           :key="locale.code" 
+           class="language-option"
+           :class="{ active: currentLocale === locale.code }"
+           @click="selectLanguage(locale.code)">
         {{ locale.name }}
-      </option>
-    </select>
+      </div>
+    </div>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { SUPPORTED_LOCALES, setLanguage } from '@/locales'
 
 const { locale } = useI18n()
 const currentLocale = ref(locale.value)
 const locales = SUPPORTED_LOCALES
+const isOpen = ref(false)
 
-// 切换语言
-const switchLanguage = () => {
-  locale.value = currentLocale.value
-  setLanguage(currentLocale.value)
+// 切换下拉菜单
+const toggleDropdown = () => {
+  isOpen.value = !isOpen.value
 }
 
-// 组件挂载时获取当前语言
+// 选择语言
+const selectLanguage = (code: string) => {
+  currentLocale.value = code
+  locale.value = code
+  setLanguage(code)
+  isOpen.value = false
+}
+
+// 点击外部关闭下拉菜单
+const handleClickOutside = (event: MouseEvent) => {
+  const target = event.target as HTMLElement
+  if (!target.closest('.language-switcher')) {
+    isOpen.value = false
+  }
+}
+
 onMounted(() => {
   currentLocale.value = locale.value
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
 })
 </script>
 
 <style scoped>
 .language-switcher {
-  margin: 0;
-  padding: 0;
+  position: relative;
 }
 
-.language-select {
-  padding: 5px 10px;
-  border-radius: 4px;
-  border: 1px solid #ddd;
-  background-color: white;
-  font-size: 0.9em;
+.language-icon {
   cursor: pointer;
-  transition: all 0.2s ease;
-  appearance: none;
-  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-  background-repeat: no-repeat;
-  background-position: right 8px center;
-  background-size: 12px;
-  padding-right: 30px;
+  padding: 8px;
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
 }
 
-.language-select:hover {
-  border-color: #1890ff;
+.language-icon svg {
+  width: 24px;
+  height: 24px;
 }
 
-.language-select:focus {
-  outline: none;
-  border-color: #1890ff;
-  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+.language-icon:hover {
+  color: #1890ff;
+}
+
+.language-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: white;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  min-width: 120px;
+  margin-top: 4px;
+}
+
+.language-option {
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.language-option:hover {
+  background-color: #f5f5f5;
+}
+
+.language-option.active {
+  color: #1890ff;
+  background-color: #e6f7ff;
 }
 </style> 
