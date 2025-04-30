@@ -67,7 +67,7 @@ export const useAuthStore = defineStore('auth', {
     loading: false,
     error: undefined as string | undefined,
     supportedProviders: [] as AuthProvider[],
-    // providersLoaded: false
+    redirectUrl: localStorage.getItem('redirect_url') || '',
   }),
   
   getters: {
@@ -276,7 +276,7 @@ export const useAuthStore = defineStore('auth', {
                 
                 // 获取JWT令牌并发送到后端验证
                 const credential = response.credential;
-                const authResponse = await axios.post('/google/credential', {
+                const authResponse = await axios.post('/google/callback', {
                   credential: credential
                 });
                 
@@ -330,35 +330,6 @@ export const useAuthStore = defineStore('auth', {
       } catch (error: any) {
         this.error = error.response?.data?.message || t('errors.wechatUrlFetchFailed')
         throw new Error(this.error || t('errors.wechatUrlFetchFailed'))
-      }
-    },
-    
-    async handleWechatLogin(code: string) {
-      try {
-        this.loading = true
-        this.error = undefined
-        
-        const response = await axios.post('/weixin', { code })
-        
-        const { user_id, token, nickname, avatar } = response.data
-        
-        this.user = {
-          // id: user_id,
-          userID: user_id,
-          nickname: nickname || '',
-          avatar: avatar || '',
-        }
-
-        this.token = token
-        localStorage.setItem('token', token)
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
-        
-        return this.user
-      } catch (error: any) {
-        this.error = error.response?.data?.message || t('errors.wechatLoginFailed')
-        throw new Error(this.error || t('errors.wechatLoginFailed'))
-      } finally {
-        this.loading = false
       }
     },
     
@@ -554,6 +525,51 @@ export const useAuthStore = defineStore('auth', {
       } finally {
         this.loading = false
       }
+    },
+
+    // 处理微信登录回调
+    async handleWeixinCallback(code: string, state: string) {
+      try {
+        const response = await axios.get('/weixin/callback', {
+          params: {
+            code,
+            state
+          }
+        })
+        
+        const { user_id, token, nickname, avatar } = response.data
+        
+        this.user = {
+          // id: user_id,
+          userID: user_id,
+          nickname: nickname || '',
+          avatar: avatar || '',
+        }
+
+        this.token = token
+        localStorage.setItem('token', token)
+        
+        return this.user
+      } catch (error: any) {
+        throw new Error(error.response?.data?.message || '微信登录失败')
+      }
+    },
+    
+    // 设置重定向 URL
+    setRedirectUrl(url: string) {
+      this.redirectUrl = url
+      localStorage.setItem('redirect_url', url)
+    },
+    
+    // 获取重定向 URL
+    getRedirectUrl(): string {
+      return this.redirectUrl
+    },
+    
+    // 清除重定向 URL
+    clearRedirectUrl() {
+      this.redirectUrl = ''
+      localStorage.removeItem('redirect_url')
     },
   }
 }) 

@@ -276,7 +276,7 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 			AppSecret:         cfg.Auth.Weixin.AppSecret,
 			RedirectURL:       cfg.Auth.Weixin.RedirectURL,
 			DomainVerifyToken: cfg.Auth.Weixin.DomainVerifyToken,
-		})
+		}, avatarService)
 		if err != nil {
 			return fmt.Errorf("failed to initialize WeChat login: %v", err)
 		}

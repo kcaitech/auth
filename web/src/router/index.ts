@@ -26,6 +26,11 @@ const routes = [
     component: () => import('../components/auth/EmailVerify.vue')
   },
   {
+    path: '/weixin/callback',
+    name: 'WeixinCallback',
+    component: () => import('../views/WeixinCallback.vue')
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('../views/NotFound.vue')

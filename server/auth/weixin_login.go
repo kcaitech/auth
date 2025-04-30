@@ -65,22 +65,26 @@ type WeixinErrorResponse struct {
 type WeixinUser struct {
 	UserID string `json:"user_id" gorm:"primarykey"`
 	WeixinUserInfo
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // WeixinLogin WeChat login handler struct
 type WeixinLogin struct {
-	Config WeixinConfig
-	db     *gorm.DB
+	Config        WeixinConfig
+	db            *gorm.DB
+	avatarService *AvatarService
 }
 
 // NewWeixinLogin Create WeChat login instance
-func NewWeixinLogin(db *gorm.DB, config WeixinConfig) (*WeixinLogin, error) {
+func NewWeixinLogin(db *gorm.DB, config WeixinConfig, avatarService *AvatarService) (*WeixinLogin, error) {
 	if err := config.Validate(); err != nil {
 		return nil, err
 	}
 	return &WeixinLogin{
-		Config: config,
-		db:     db,
+		Config:        config,
+		db:            db,
+		avatarService: avatarService,
 	}, nil
 }
 
@@ -244,7 +248,7 @@ func (w *WeixinLogin) RegisterOrLoginWithWeixin(code string) (*User, *WeixinLogi
 
 	// 3. Check if this WeChat user already exists
 	user, err := w.GetUserByWeixinID(userInfo.UnionID)
-	if err != nil {
+	if err != nil && err != gorm.ErrRecordNotFound {
 		return nil, nil, err
 	}
 
@@ -256,18 +260,19 @@ func (w *WeixinLogin) RegisterOrLoginWithWeixin(code string) (*User, *WeixinLogi
 		}
 	} else {
 		// 5. If user already exists, update user information
-		if err := w.UpdateWeixinUserInfo(user.UserID, userInfo); err != nil {
-			log.Printf("failed to update WeChat user information: %v", err)
+		// if err := w.UpdateWeixinUserInfo(user.UserID, userInfo); err != nil {
+		// 	log.Printf("failed to update WeChat user information: %v", err)
+		// 	// Doesn't affect login process, just log it
+		// }
+
+		// 6. Update last login time
+		err := w.db.Model(&User{}).Where("user_id = ?", user.UserID).Updates(map[string]interface{}{
+			"last_login": time.Now(),
+		}).Error
+		if err != nil {
+			log.Printf("failed to update user's last login time: %v", err)
 			// Doesn't affect login process, just log it
 		}
-	}
-
-	// 6. Update last login time
-	now := time.Now()
-	user.LastLogin = &now
-	if err := w.db.Save(user).Error; err != nil {
-		log.Printf("failed to update user's last login time: %v", err)
-		// Doesn't affect login process, just log it
 	}
 
 	return user, loginResp, nil
@@ -293,6 +298,12 @@ func (w *WeixinLogin) CreateUserFromWeixin(weixinInfo *WeixinUserInfo) (*User, e
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate random ID: %v", err)
 		}
+	}
+
+	// Download and upload avatar
+	avatarURL, err := w.avatarService.DownloadAndUploadAvatar(userID, weixinInfo.HeadImgURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to process avatar: %w", err)
 	}
 
 	// Use transaction to ensure data consistency
@@ -327,7 +338,7 @@ func (w *WeixinLogin) CreateUserFromWeixin(weixinInfo *WeixinUserInfo) (*User, e
 		Status:   UserStatusActive,
 
 		Nickname: weixinInfo.Nickname,
-		Avatar:   weixinInfo.HeadImgURL,
+		Avatar:   avatarURL,
 
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -343,6 +354,7 @@ func (w *WeixinLogin) CreateUserFromWeixin(weixinInfo *WeixinUserInfo) (*User, e
 		UserID:         userID,
 		WeixinUserInfo: *weixinInfo,
 	}
+	weixinUser.HeadImgURL = avatarURL // Update the head_img_url with the new avatar URL
 
 	if err := tx.Create(weixinUser).Error; err != nil {
 		tx.Rollback()
@@ -359,6 +371,12 @@ func (w *WeixinLogin) CreateUserFromWeixin(weixinInfo *WeixinUserInfo) (*User, e
 
 // UpdateWeixinUserInfo Update WeChat user information
 func (w *WeixinLogin) UpdateWeixinUserInfo(userID string, weixinInfo *WeixinUserInfo) error {
+	// Download and upload avatar
+	avatarURL, err := w.avatarService.DownloadAndUploadAvatar(userID, weixinInfo.HeadImgURL)
+	if err != nil {
+		return fmt.Errorf("failed to process avatar: %w", err)
+	}
+
 	// Update WeChat user table information
 	result := w.db.Model(&WeixinUser{}).Where("user_id = ?", userID).Updates(map[string]interface{}{
 		"nickname":     weixinInfo.Nickname,
@@ -366,16 +384,17 @@ func (w *WeixinLogin) UpdateWeixinUserInfo(userID string, weixinInfo *WeixinUser
 		"province":     weixinInfo.Province,
 		"city":         weixinInfo.City,
 		"country":      weixinInfo.Country,
-		"head_img_url": weixinInfo.HeadImgURL,
+		"head_img_url": avatarURL,
 	})
 
 	if result.Error != nil {
 		return result.Error
 	}
 
-	// Also update user profile
+	// 更新用户数据
 	return w.db.Model(&User{}).Where("user_id = ?", userID).Updates(map[string]interface{}{
-		"nickname": weixinInfo.Nickname,
-		"avatar":   weixinInfo.HeadImgURL,
+		"nickname":   weixinInfo.Nickname,
+		"avatar":     avatarURL,
+		"last_login": time.Now(),
 	}).Error
 }
