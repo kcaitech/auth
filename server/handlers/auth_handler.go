@@ -106,7 +106,7 @@ func (h *AuthHandler) RegisterRoutes(authGroup *gin.RouterGroup, cfg *config.Con
 	// Phone login related routes
 	if h.phoneAuth != nil {
 		// Create phone handler
-		phoneHandler := NewPhoneHandler(h.phoneAuth, h.sessionMgr, h.jwtService, h.config)
+		phoneHandler := NewPhoneHandler(h.phoneAuth, h.sessionMgr, h.jwtService, h.avatarService, h.config)
 		// Register phone authentication routes
 		phoneHandler.RegisterRoutes(authGroup)
 	}

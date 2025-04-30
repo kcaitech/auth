@@ -53,6 +53,16 @@ func (h *AuthHandler) EmailLogin(c *gin.Context) {
 		return
 	}
 
+	// avata转换为url
+	if user.Avatar != "" {
+		url, err := h.avatarService.GetAvatarURL(user.Avatar)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		user.Avatar = url
+	}
+
 	c.SetCookie("refreshToken", tokenPair.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
 	c.JSON(http.StatusOK, gin.H{
 		"user_id":     user.UserID,
@@ -119,7 +129,15 @@ func (h *AuthHandler) EmailVerify(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
-
+	// avata转换为url
+	if user.Avatar != "" {
+		url, err := h.avatarService.GetAvatarURL(user.Avatar)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		user.Avatar = url
+	}
 	c.SetCookie("refreshToken", tokenPair.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
 	c.JSON(http.StatusOK, gin.H{
 		"message":     "Email verification successful, registration complete",
