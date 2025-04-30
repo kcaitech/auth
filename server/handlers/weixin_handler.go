@@ -151,7 +151,15 @@ func (h *AuthHandler) WeixinCallback(c *gin.Context) {
 		c.Redirect(http.StatusTemporaryRedirect, redirectWithToken)
 		return
 	}
-
+	// avata转换为url
+	if user.Avatar != "" {
+		url, err := h.avatarService.GetAvatarURL(user.Avatar)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		user.Avatar = url
+	}
 	// Directly return JSON response
 	c.SetCookie("refreshToken", tokenPair.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
 	c.JSON(http.StatusOK, gin.H{

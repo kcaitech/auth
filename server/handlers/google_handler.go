@@ -153,7 +153,15 @@ func (h *AuthHandler) GoogleCredential(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
-
+	// avata转换为url
+	if user.Avatar != "" {
+		url, err := h.avatarService.GetAvatarURL(user.Avatar)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		user.Avatar = url
+	}
 	// 设置cookie
 	c.SetCookie("refreshToken", tokenPair.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
 

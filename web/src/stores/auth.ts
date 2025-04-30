@@ -77,6 +77,26 @@ export const useAuthStore = defineStore('auth', {
   },
   
   actions: {
+    // 统一更新用户信息的方法
+    updateUserInfo(user_id: string, token: string, nickname: string, avatar: string) {
+      this.user = {
+        userID: user_id,
+        nickname: nickname || '',
+        avatar: avatar || '',
+      }
+      
+      this.token = token
+      
+      // 保存信息到本地存储
+      localStorage.setItem('token', token)
+      localStorage.setItem('avatar', avatar)
+      localStorage.setItem('nickname', nickname)
+      localStorage.setItem('userId', user_id)
+      
+      // 设置 axios 默认 headers
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+    },
+
     // 获取支持的登录方式和注册配置
     async fetchSupportedProviders() {
  
@@ -107,19 +127,7 @@ export const useAuthStore = defineStore('auth', {
         
         const { user_id, token, nickname, avatar } = response.data
         
-        this.user = {
-          // id: user_id,
-          userID: user_id,
-          nickname: nickname || '',
-          avatar: avatar || '',
-        }
-        this.token = token
-        
-        // 保存 token 到本地存储
-        localStorage.setItem('token', token)
-        
-        // 设置 axios 默认 headers
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+        this.updateUserInfo(user_id, token, nickname, avatar)
         
         return this.user
       } catch (error: any) {
@@ -159,19 +167,8 @@ export const useAuthStore = defineStore('auth', {
         
         const { user_id, token, nickname, avatar } = response.data
         
-        this.user = {
-          // id: user_id,
-          userID: user_id,
-          nickname: nickname || '',
-          avatar: avatar || '',
-        }
-        this.token = token
+        this.updateUserInfo(user_id, token, nickname, avatar)
         
-        // 保存 token 到本地存储
-        localStorage.setItem('token', token)
-        
-        // 设置 axios 默认 headers
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
         return this.user
       } catch (error: any) {
         this.error = error.response?.data?.message || t('errors.registerFailed')
@@ -283,15 +280,7 @@ export const useAuthStore = defineStore('auth', {
                 // 处理登录结果
                 const { user_id, token, nickname, avatar } = authResponse.data
         
-                this.user = {
-                  // id: user_id,
-                  userID: user_id,
-                  nickname: nickname || '',
-                  avatar: avatar || '',
-                }
-                this.token = token;
-                localStorage.setItem('token', token);
-                axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+                this.updateUserInfo(user_id, token, nickname, avatar)
 
                 loginSuccessCallback()
               } catch (error: any) {
@@ -362,20 +351,7 @@ export const useAuthStore = defineStore('auth', {
         
         const { user_id, token, nickname, avatar } = response.data
         
-        this.user = {
-          // id: user_id,
-          userID: user_id,
-          nickname: nickname || '',
-          avatar: avatar || '',
-        }
-        
-        this.token = token
-        
-        // 保存 token 到本地存储
-        localStorage.setItem('token', token)
-        
-        // 设置 axios 默认 headers
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+        this.updateUserInfo(user_id, token, nickname, avatar)
         
         return this.user
       } catch (error: any) {
@@ -399,20 +375,7 @@ export const useAuthStore = defineStore('auth', {
         
         const { user_id, token, nickname, avatar } = response.data
         
-        this.user = {
-          // id: user_id,
-          userID: user_id,
-          nickname: nickname || '',
-          avatar: avatar || '',
-        }
-        
-        this.token = token
-        
-        // 保存 token 到本地存储
-        localStorage.setItem('token', token)
-        
-        // 设置 axios 默认 headers
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+        this.updateUserInfo(user_id, token, nickname, avatar)
         
         return this.user
       } catch (error: any) {
@@ -508,15 +471,7 @@ export const useAuthStore = defineStore('auth', {
 
         const { user_id, token, nickname, avatar } = response.data
         
-        this.user = {
-          // id: user_id,
-          userID: user_id,
-          nickname: nickname || '',
-          avatar: avatar || '',
-        }
-
-        this.token = token
-        localStorage.setItem('token', token)
+        this.updateUserInfo(user_id, token, nickname, avatar)
         
         return this.user
       } catch (error: any) {
@@ -539,15 +494,7 @@ export const useAuthStore = defineStore('auth', {
         
         const { user_id, token, nickname, avatar } = response.data
         
-        this.user = {
-          // id: user_id,
-          userID: user_id,
-          nickname: nickname || '',
-          avatar: avatar || '',
-        }
-
-        this.token = token
-        localStorage.setItem('token', token)
+        this.updateUserInfo(user_id, token, nickname, avatar)
         
         return this.user
       } catch (error: any) {

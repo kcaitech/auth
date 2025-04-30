@@ -52,6 +52,7 @@ type PhoneHandler struct {
 	jwtService    *auth.JWTService
 	verifyCodeTTL int
 	config        *config.Config
+	avatarService *auth.AvatarService
 }
 
 // NewPhoneHandler Create phone authentication handler
@@ -59,6 +60,7 @@ func NewPhoneHandler(
 	phoneAuth *auth.PhoneAuth,
 	sessionMgr *auth.SessionManager,
 	jwtService *auth.JWTService,
+	avatarService *auth.AvatarService,
 	config *config.Config,
 ) *PhoneHandler {
 	return &PhoneHandler{
@@ -412,7 +414,15 @@ func (h *PhoneHandler) VerifyPhoneAndRegister(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
-
+	// avata转换为url
+	if user.Avatar != "" {
+		url, err := h.avatarService.GetAvatarURL(user.Avatar)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		user.Avatar = url
+	}
 	c.SetCookie("refreshToken", tokenPair.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
 	c.JSON(http.StatusOK, gin.H{
 		"message":     "Phone verification successful, registration complete",
@@ -460,6 +470,15 @@ func (h *PhoneHandler) PhoneLogin(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
+	}
+	// avata转换为url
+	if user.Avatar != "" {
+		url, err := h.avatarService.GetAvatarURL(user.Avatar)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		user.Avatar = url
 	}
 	c.SetCookie("refreshToken", token.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
 	// Login successful, return user information and token
