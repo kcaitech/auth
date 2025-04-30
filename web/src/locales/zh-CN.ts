@@ -81,6 +81,8 @@ export default {
     verificationEmailResent: '验证邮件已重新发送，请查收',
     goToLogin: '去登录',
     phoneRegisterSuccessMessage: '您的手机号注册成功，可以开始登录使用了。',
+    processingWeixinLogin: '正在处理微信登录...',
+    backToLogin: '返回登录',
   },
   validation: {
     required: '{field}不能为空',
@@ -139,6 +141,8 @@ export default {
     googleLoginProcessFailed: '谷歌登录处理失败',
     renderGoogleButtonFailed: '渲染谷歌登录按钮失败',
     googleServiceLoadFailed: '加载谷歌登录服务失败',
+    invalidWeixinCallback: '微信回调参数无效',
+    weixinLoginFailed: '微信登录失败',
   },
   email: {
     verificationTitle: '邮箱验证',

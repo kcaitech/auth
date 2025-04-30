@@ -91,20 +91,16 @@ func (h *AuthHandler) RegisterRoutes(authGroup *gin.RouterGroup, cfg *config.Con
 
 	// Google OAuth related routes
 	if h.googleOAuth != nil {
-		authGroup.GET("/google/login", h.GoogleLogin)
-		authGroup.GET("/google/callback", h.GoogleCallback)
-		authGroup.POST("/google", h.GoogleLoginPost)
 		// Get Google client ID, for frontend to use
 		authGroup.GET("/google/client_id", h.GetGoogleClientID)
-		authGroup.POST("/google/credential", h.GoogleCredential)
+		authGroup.POST("/google/callback", h.GoogleCredential)
 	}
 
 	// WeChat login related routes
 	if h.weixinLogin != nil {
 		authGroup.GET("/weixin/url", h.WeixinLoginURL)
-		authGroup.GET("/weixin/login", h.WeixinLoginHandler)
+		// authGroup.GET("/weixin/login", h.WeixinLoginHandler)
 		authGroup.GET("/weixin/callback", h.WeixinCallback)
-		authGroup.GET("/weixin/domain/verify", h.WeixinDomainVerify)
 	}
 
 	// Phone login related routes

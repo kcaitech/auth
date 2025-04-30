@@ -186,8 +186,45 @@ const hasProvider = (provider: AuthProvider) => authStore.hasProvider(provider)
 // 加载支持的登录方式
 onMounted(async () => {
   try {
+    // 保存重定向 URL
+    const redirectUrl = route.query.redirect as string
+    if (redirectUrl) {
+      authStore.setRedirectUrl(redirectUrl)
+    }
+    
     // initialLoading.value = true
     // await authStore.fetchSupportedProviders()
+    
+    // 检查是否只有社交登录方式
+    const hasAccountLogin = hasProvider('account')
+    const hasEmailLogin = hasProvider('email')
+    const hasPhoneLogin = hasProvider('phone')
+    const hasGoogleLogin = hasProvider('google')
+    const hasWeixinLogin = hasProvider('weixin')
+    
+    // 如果只有谷歌登录
+    if (!hasAccountLogin && !hasEmailLogin && !hasPhoneLogin && hasGoogleLogin && !hasWeixinLogin) {
+      // 等待谷歌登录按钮初始化完成
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      // 使用 authStore 的方法触发谷歌登录
+      try {
+        await authStore.renderGoogleButton('google-signin-button', () => {
+          handleLoginSuccess()
+        })
+      } catch (error: any) {
+        console.error(t('logs.googleInitFailed'), error.message || error)
+        errorMessage.value = t('errors.googleLoginFailed')
+      }
+    }
+    
+    // 如果只有微信登录
+    if (!hasAccountLogin && !hasEmailLogin && !hasPhoneLogin && !hasGoogleLogin && hasWeixinLogin) {
+      // 触发微信登录
+      const weixinButton = document.querySelector('.wechat-btn') as HTMLElement
+      if (weixinButton) {
+        weixinButton.click()
+      }
+    }
     
     // 设置默认登录和注册类型
     if (hasProvider('account')) {
@@ -212,7 +249,7 @@ onMounted(async () => {
 const handleLoginSuccess = () => {
   errorMessage.value = ''
   // 获取回调 URL
-  const redirectUrl = route.query.redirect as string
+  const redirectUrl = authStore.getRedirectUrl()
   if (redirectUrl) {
     // 如果有回调 URL，则重定向到回调地址
     const token = authStore.token
@@ -220,6 +257,8 @@ const handleLoginSuccess = () => {
     const fullUrl = `${redirectUrl}${separator}token=${token}`
     // 使用 window.location.href 进行完整的页面跳转
     window.location.href = fullUrl
+    // 清除重定向 URL
+    authStore.clearRedirectUrl()
   } else {
     // 否则重定向到仪表盘
     router.push('/success')

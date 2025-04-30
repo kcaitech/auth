@@ -1,9 +1,6 @@
 <template>
   <div class="app-container">
     <header class="site-header">
-      <div class="header-left">
-        <h1 class="site-title">KCAuth</h1>
-      </div>
       <div class="header-right">
         <LanguageSwitcher />
       </div>
@@ -62,16 +59,16 @@ body {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0;
+  position: relative;
 }
 
 .site-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 20px;
-  background-color: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  margin-bottom: 20px;
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 1000;
+  padding: 16px;
+  background-color: transparent;
 }
 
 .site-title {
@@ -86,12 +83,13 @@ body {
 }
 
 .main-content {
-  padding: 0 20px 20px;
+  padding: 20px;
+  margin-top: 0;
 }
 
 @media (max-width: 768px) {
   .site-header {
-    padding: 10px;
+    padding: 8px;
   }
   
   .site-title {

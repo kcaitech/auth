@@ -81,6 +81,8 @@ export default {
     verificationEmailResent: 'Verification email has been resent, please check your inbox',
     goToLogin: 'Go to Login',
     phoneRegisterSuccessMessage: 'Your phone number registration was successful. You can now login to your account.',
+    processingWeixinLogin: 'Processing WeChat login...',
+    backToLogin: 'Back to Login',
   },
   validation: {
     required: '{field} is required',
@@ -139,6 +141,8 @@ export default {
     googleLoginProcessFailed: 'Google login process failed',
     renderGoogleButtonFailed: 'Failed to render Google login button',
     googleServiceLoadFailed: 'Failed to load Google login service',
+    invalidWeixinCallback: 'Invalid WeChat callback parameters',
+    weixinLoginFailed: 'WeChat login failed',
   },
   email: {
     verificationTitle: 'Email Verification',
