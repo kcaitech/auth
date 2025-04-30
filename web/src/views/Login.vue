@@ -1,5 +1,7 @@
 <template>
-  <div class="login-container">
+  <!-- 登录表单容器 -->
+  <div v-if="shouldShowLoginForm" class="login-container">
+    <!-- 登录/注册标签页 -->
     <div class="auth-tabs">
       <button 
         :class="['tab-btn', { active: activeTab === 'login' }]" 
@@ -15,142 +17,144 @@
       </button>
     </div>
 
-    <!-- 登录表单容器 -->
+    <!-- 登录表单 -->
     <div v-if="activeTab === 'login'">
       <!-- 登录方式选择器 -->
       <div v-if="hasMultipleLoginMethods" class="login-type-selector">
         <button 
+          v-if="hasAccountLogin"
           :class="['login-type-btn', { active: loginType === 'account' }]" 
           @click="loginType = 'account'"
-          v-if="hasProvider('account')"
         >
           {{ $t('auth.accountLogin') }}
         </button>
         <button 
+          v-if="hasEmailLogin"
           :class="['login-type-btn', { active: loginType === 'email' }]" 
           @click="loginType = 'email'"
-          v-if="hasProvider('email')"
         >
           {{ $t('auth.emailLogin') }}
         </button>
         <button 
+          v-if="hasPhoneLogin"
           :class="['login-type-btn', { active: loginType === 'phone' }]" 
           @click="loginType = 'phone'"
-          v-if="hasProvider('phone')"
         >
           {{ $t('auth.phoneLogin') }}
         </button>
       </div>
     
-      <!-- 使用账号登录组件 -->
+      <!-- 登录组件 -->
       <AccountLogin
-        v-if="(loginType === 'account' || (!hasProvider('email') && !hasProvider('phone'))) && hasProvider('account')"
+        v-if="(loginType === 'account' || (!hasEmailLogin && !hasPhoneLogin)) && hasAccountLogin"
         @login-success="handleLoginSuccess"
         @login-error="handleLoginError"
       />
-
-      <!-- 使用邮箱登录组件 -->
       <EmailLogin
-        v-if="(loginType === 'email' || (!hasProvider('account') && !hasProvider('phone'))) && hasProvider('email')"
+        v-if="(loginType === 'email' || (!hasAccountLogin && !hasPhoneLogin)) && hasEmailLogin"
         @login-success="handleLoginSuccess"
         @login-error="handleLoginError"
       />
-      
-      <!-- 使用手机登录组件 -->
       <PhoneLogin
-        v-if="(loginType === 'phone' || (!hasProvider('account') && !hasProvider('email'))) && hasProvider('phone')"
+        v-if="(loginType === 'phone' || (!hasAccountLogin && !hasEmailLogin)) && hasPhoneLogin"
         @login-success="handleLoginSuccess"
         @login-error="handleLoginError"
       />
     </div>
 
-    <!-- 注册表单容器 -->
+    <!-- 注册表单 -->
     <div v-if="activeTab === 'register'">
       <!-- 注册方式选择器 -->
       <div v-if="hasMultipleRegisterMethods" class="register-type-selector">
         <button 
+          v-if="hasAccountLogin"
           :class="['register-type-btn', { active: registerType === 'account' }]" 
           @click="registerType = 'account'"
-          v-if="hasProvider('account')"
         >
           {{ $t('auth.accountRegister') }}
         </button>
         <button 
+          v-if="hasEmailLogin"
           :class="['register-type-btn', { active: registerType === 'email' }]" 
           @click="registerType = 'email'"
-          v-if="hasProvider('email')"
         >
           {{ $t('auth.emailRegister') }}
         </button>
         <button 
+          v-if="hasPhoneLogin"
           :class="['register-type-btn', { active: registerType === 'phone' }]" 
           @click="registerType = 'phone'"
-          v-if="hasProvider('phone')"
         >
           {{ $t('auth.phoneRegister') }}
         </button>
       </div>
       
-      <!-- 使用账号注册组件 -->
+      <!-- 注册组件 -->
       <AccountRegister
-        v-if="(registerType === 'account' || (!hasProvider('email') && !hasProvider('phone'))) && hasProvider('account')"
+        v-if="(registerType === 'account' || (!hasEmailLogin && !hasPhoneLogin)) && hasAccountLogin"
         @register-success="handleRegisterSuccess"
         @register-error="handleLoginError"
       />
-
-      <!-- 使用邮箱注册组件 -->
       <EmailRegister
-        v-if="(registerType === 'email' || (!hasProvider('account') && !hasProvider('phone'))) && hasProvider('email')"
+        v-if="(registerType === 'email' || (!hasAccountLogin && !hasPhoneLogin)) && hasEmailLogin"
         @register-success="handleRegisterSuccess"
         @register-error="handleLoginError"
       />
-      
-      <!-- 使用手机注册组件 -->
       <PhoneRegister
-        v-if="(registerType === 'phone' || (!hasProvider('account') && !hasProvider('email'))) && hasProvider('phone')"
+        v-if="(registerType === 'phone' || (!hasAccountLogin && !hasEmailLogin)) && hasPhoneLogin"
         @register-success="handleRegisterSuccess"
         @register-error="handleLoginError"
       />
     </div>
     
-    <!-- 只有在有社交登录方式时才显示分隔线和社交登录按钮 -->
-    <div v-if="(hasProvider('google') || hasProvider('weixin')) && (hasProvider('account') || hasProvider('email') || hasProvider('phone'))" class="divider">{{ $t('common.or') }}</div>
+    <!-- 社交登录 -->
+    <div v-if="(hasGoogleLogin || hasWeixinLogin) && (hasAccountLogin || hasEmailLogin || hasPhoneLogin)" 
+         class="divider"
+    >
+      {{ $t('common.or') }}
+    </div>
     
-    <div v-if="hasProvider('google') || hasProvider('weixin')" class="social-login">
-      <!-- 社交登录按钮容器，确保所有按钮宽度一致 -->
+    <div v-if="hasGoogleLogin || hasWeixinLogin" class="social-login">
       <div class="social-buttons">
-        <!-- 使用谷歌登录组件 -->
         <GoogleLogin 
-          v-if="hasProvider('google')" 
+          v-if="hasGoogleLogin" 
           @login-error="handleLoginError"
           @login-success="handleLoginSuccess"
         />
-        
-        <!-- 使用微信登录组件 -->
         <WeixinLogin 
-          v-if="hasProvider('weixin')" 
+          v-if="hasWeixinLogin" 
           @login-error="handleLoginError"
         />
       </div>
     </div>
 
+    <!-- 错误信息 -->
     <div v-if="errorMessage" class="error-message">
       {{ errorMessage }}
     </div>
-    
-    <!-- 加载中提示 -->
-    <!-- <div v-if="initialLoading" class="loading-container">
-      <div class="loading-spinner"></div>
-      <p>{{ $t('auth.loadingLoginOptions') }}</p>
-    </div> -->
+  </div>
+
+  <!-- 仅社交登录容器 -->
+  <div v-if="hasGoogleLogin && !shouldShowLoginForm" class="social-buttons2">
+    <GoogleLogin 
+      v-if="hasGoogleLogin" 
+      @login-error="handleLoginError"
+      @login-success="handleLoginSuccess"
+    />
+    <WeixinLogin 
+      v-if="hasWeixinLogin" 
+      @login-error="handleLoginError"
+    />
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, nextTick } from 'vue'
 import { useAuthStore, type AuthProvider } from '@/stores/auth'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+
+// 组件导入
 import AccountLogin from '@/components/auth/AccountLogin.vue'
 import EmailLogin from '@/components/auth/EmailLogin.vue'
 import PhoneLogin from '@/components/auth/PhoneLogin.vue'
@@ -160,30 +164,45 @@ import AccountRegister from '@/components/auth/AccountRegister.vue'
 import EmailRegister from '@/components/auth/EmailRegister.vue'
 import PhoneRegister from '@/components/auth/PhoneRegister.vue'
 
-interface FormErrors {
-  username?: string
-  userID?: string
-  nickname?: string
-  password?: string
-  email?: string
-  confirmPassword?: string
-}
-
+// 状态管理
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const { t } = useI18n()
+
+// 响应式状态
 const activeTab = ref<'login' | 'register'>('login')
 const loginType = ref<'account' | 'email' | 'phone'>('account')
 const registerType = ref<'account' | 'email' | 'phone'>('account')
-// const initialLoading = ref(true)
-// const isLoading = ref(false)
 const errorMessage = ref('')
+const shouldShowLoginForm = ref(false)
 
-// 直接使用auth store中的hasProvider方法
+// 登录方式检查
 const hasProvider = (provider: AuthProvider) => authStore.hasProvider(provider)
+const hasAccountLogin = hasProvider('account')
+const hasEmailLogin = hasProvider('email')
+const hasPhoneLogin = hasProvider('phone')
+const hasGoogleLogin = hasProvider('google')
+const hasWeixinLogin = hasProvider('weixin')
 
-// 加载支持的登录方式
+// 计算属性
+const hasMultipleLoginMethods = computed(() => {
+  let count = 0
+  if (hasProvider('account')) count++
+  if (hasProvider('email')) count++
+  if (hasProvider('phone')) count++
+  return count > 1
+})
+
+const hasMultipleRegisterMethods = computed(() => {
+  let count = 0
+  if (hasProvider('account')) count++
+  if (hasProvider('email')) count++
+  if (hasProvider('phone')) count++
+  return count > 1
+})
+
+// 生命周期钩子
 onMounted(async () => {
   try {
     // 保存重定向 URL
@@ -192,40 +211,21 @@ onMounted(async () => {
       authStore.setRedirectUrl(redirectUrl)
     }
     
-    // initialLoading.value = true
-    // await authStore.fetchSupportedProviders()
-    
-    // 检查是否只有社交登录方式
-    const hasAccountLogin = hasProvider('account')
-    const hasEmailLogin = hasProvider('email')
-    const hasPhoneLogin = hasProvider('phone')
-    const hasGoogleLogin = hasProvider('google')
-    const hasWeixinLogin = hasProvider('weixin')
-    
-    // 如果只有谷歌登录
-    if (!hasAccountLogin && !hasEmailLogin && !hasPhoneLogin && hasGoogleLogin && !hasWeixinLogin) {
-      // 等待谷歌登录按钮初始化完成
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      // 使用 authStore 的方法触发谷歌登录
-      try {
-        await authStore.renderGoogleButton('google-signin-button', () => {
-          handleLoginSuccess()
-        })
-      } catch (error: any) {
-        console.error(t('logs.googleInitFailed'), error.message || error)
-        errorMessage.value = t('errors.googleLoginFailed')
-      }
-    }
-    
     // 如果只有微信登录
     if (!hasAccountLogin && !hasEmailLogin && !hasPhoneLogin && !hasGoogleLogin && hasWeixinLogin) {
-      // 触发微信登录
-      const weixinButton = document.querySelector('.wechat-btn') as HTMLElement
-      if (weixinButton) {
-        weixinButton.click()
+      const weixinLoginUrl = await authStore.getWechatAuthUrl()
+      if (weixinLoginUrl) {
+        window.location.href = weixinLoginUrl
       }
+      return
     }
     
+    // 如果只有社交登录
+    if (!hasAccountLogin && !hasEmailLogin && !hasPhoneLogin) {
+      return
+    }
+    
+    shouldShowLoginForm.value = true
     // 设置默认登录和注册类型
     if (hasProvider('account')) {
       loginType.value = 'account'
@@ -240,37 +240,28 @@ onMounted(async () => {
   } catch (error) {
     console.error(t('errors.initLoginPageFailed'), error)
     errorMessage.value = t('errors.loadLoginOptionsFailed')
-  } finally {
-    // initialLoading.value = false
   }
 })
 
-// 登录成功处理
+// 事件处理
 const handleLoginSuccess = () => {
   errorMessage.value = ''
-  // 获取回调 URL
   const redirectUrl = authStore.getRedirectUrl()
   if (redirectUrl) {
-    // 如果有回调 URL，则重定向到回调地址
     const token = authStore.token
     const separator = redirectUrl.includes('?') ? '&' : '?'
     const fullUrl = `${redirectUrl}${separator}token=${token}`
-    // 使用 window.location.href 进行完整的页面跳转
     window.location.href = fullUrl
-    // 清除重定向 URL
     authStore.clearRedirectUrl()
   } else {
-    // 否则重定向到仪表盘
     router.push('/success')
   }
 }
 
-// 登录错误处理
 const handleLoginError = (message: string) => {
   errorMessage.value = message
 }
 
-// 注册成功处理
 const handleRegisterSuccess = () => {
   errorMessage.value = t('auth.registerSuccess')
   activeTab.value = 'login'
@@ -283,28 +274,12 @@ const handleRegisterSuccess = () => {
   }
   handleLoginSuccess()
 }
-
-// 计算是否有多种登录方式
-const hasMultipleLoginMethods = computed(() => {
-  let count = 0
-  if (hasProvider('account')) count++
-  if (hasProvider('email')) count++
-  if (hasProvider('phone')) count++
-  return count > 1
-})
-
-// 计算是否有多种注册方式
-const hasMultipleRegisterMethods = computed(() => {
-  let count = 0
-  if (hasProvider('account')) count++
-  if (hasProvider('email')) count++
-  if (hasProvider('phone')) count++
-  return count > 1
-})
 </script>
 
 <style scoped>
-.login-container {
+/* 容器样式 */
+.login-container,
+.social-buttons2 {
   max-width: 400px;
   margin: 40px auto;
   padding: 30px;
@@ -313,6 +288,7 @@ const hasMultipleRegisterMethods = computed(() => {
   background: white;
 }
 
+/* 标签页样式 */
 .auth-tabs {
   display: flex;
   margin-bottom: 24px;
@@ -335,7 +311,9 @@ const hasMultipleRegisterMethods = computed(() => {
   border-bottom: 2px solid #1890ff;
 }
 
-.login-type-selector {
+/* 登录方式选择器 */
+.login-type-selector,
+.register-type-selector {
   display: flex;
   margin-bottom: 20px;
   background: #f5f5f5;
@@ -343,7 +321,8 @@ const hasMultipleRegisterMethods = computed(() => {
   overflow: hidden;
 }
 
-.login-type-btn {
+.login-type-btn,
+.register-type-btn {
   flex: 1;
   padding: 10px;
   background: none;
@@ -354,11 +333,13 @@ const hasMultipleRegisterMethods = computed(() => {
   transition: all 0.3s;
 }
 
-.login-type-btn.active {
+.login-type-btn.active,
+.register-type-btn.active {
   background: #1890ff;
   color: white;
 }
 
+/* 表单样式 */
 .auth-form {
   display: flex;
   flex-direction: column;
@@ -394,6 +375,7 @@ input.error {
   font-size: 12px;
 }
 
+/* 按钮样式 */
 .submit-btn {
   padding: 12px;
   border: none;
@@ -414,6 +396,7 @@ input.error {
   cursor: not-allowed;
 }
 
+/* 分隔线样式 */
 .divider {
   margin: 24px 0;
   text-align: center;
@@ -439,18 +422,21 @@ input.error {
   right: 0;
 }
 
+/* 社交登录样式 */
 .social-login {
   margin-bottom: 16px;
   width: 100%;
 }
 
-.social-buttons {
+.social-buttons,
+.social-buttons2 {
   display: flex;
   flex-direction: column;
   gap: 16px;
   width: 100%;
 }
 
+/* 错误信息样式 */
 .error-message {
   margin-top: 16px;
   padding: 12px;
@@ -461,6 +447,7 @@ input.error {
   font-size: 14px;
 }
 
+/* 加载动画样式 */
 .loading-container {
   display: flex;
   flex-direction: column;
@@ -479,35 +466,7 @@ input.error {
 }
 
 @keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-.register-type-selector {
-  display: flex;
-  margin-bottom: 20px;
-  background: #f5f5f5;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.register-type-btn {
-  flex: 1;
-  padding: 10px;
-  background: none;
-  border: none;
-  color: #666;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.register-type-btn.active {
-  background: #1890ff;
-  color: white;
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 </style>
