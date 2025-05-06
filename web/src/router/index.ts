@@ -33,7 +33,10 @@ const routes = [
   {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
-    component: () => import('../views/NotFound.vue')
+    component: () => import('../views/NotFound.vue'),
+    beforeEnter: () => {
+      window.location.href = `/`; // 跳转到后端路由
+    }
   }
 ]
 
