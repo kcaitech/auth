@@ -73,7 +73,7 @@ func (s *AvatarService) UploadAvatar(userID string, file *multipart.FileHeader) 
 	var buf bytes.Buffer
 	switch format {
 	case "jpeg":
-		err = jpeg.Encode(&buf, resized, &jpeg.Options{Quality: 85})
+		err = jpeg.Encode(&buf, resized, &jpeg.Options{Quality: 100})
 	case "png":
 		err = png.Encode(&buf, resized)
 	case "gif":
@@ -165,7 +165,7 @@ func (s *AvatarService) DownloadAndUploadAvatar(userID string, avatarURL string)
 	var buf bytes.Buffer
 	switch format {
 	case "jpeg":
-		err = jpeg.Encode(&buf, resized, &jpeg.Options{Quality: 85})
+		err = jpeg.Encode(&buf, resized, &jpeg.Options{Quality: 100})
 	case "png":
 		err = png.Encode(&buf, resized)
 	case "gif":
