@@ -13,6 +13,7 @@ import (
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
+	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -208,7 +209,8 @@ func (s *AdminServer) registerRoutes(r *gin.Engine) {
 	// r.Static("/assets", "./admin/assets")
 
 	// 添加静态文件服务
-	r.Static("/", "./admin-web/")
+	// r.Static("/", "./admin-web/")
+	r.Use(static.Serve("/", static.LocalFile("./admin-web/", false))) // 前端工程
 
 	// All other routes redirect to admin UI entry point
 	r.NoRoute(func(c *gin.Context) {
