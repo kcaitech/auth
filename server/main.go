@@ -137,7 +137,7 @@ func main() {
 
 	// 添加静态文件服务
 	// 前端静态文件
-	r.Static("/assets", "./web/assets")
+	r.Static("/auth/assets", "./web/assets")
 	// 添加 favicon.ico 路由
 	r.StaticFile("/favicon.ico", "./web/favicon.ico")
 	// 将前端其他请求重定向到index.html以支持单页应用
