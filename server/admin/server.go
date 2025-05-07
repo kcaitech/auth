@@ -208,12 +208,12 @@ func (s *AdminServer) registerRoutes(r *gin.Engine) {
 	// r.Static("/assets", "./admin/assets")
 
 	// 添加静态文件服务
-	r.Static("/authadmin/assets", "./admin-web/assets")
+	r.Static("/", "./admin-web/")
 
 	// All other routes redirect to admin UI entry point
 	r.NoRoute(func(c *gin.Context) {
 		// If it's an API request, return 404 error
-		if strings.HasPrefix(c.Request.URL.Path, "/auth/") {
+		if strings.HasPrefix(c.Request.URL.Path, "/auth/") || strings.HasPrefix(c.Request.URL.Path, "/authapi/") {
 			c.JSON(http.StatusNotFound, gin.H{"error": "auth path does not exist"})
 			return
 		}

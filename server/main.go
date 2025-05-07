@@ -137,13 +137,13 @@ func main() {
 
 	// 添加静态文件服务
 	// 前端静态文件
-	r.Static("/auth/assets", "./web/assets")
+	r.Static("/auth/", "./web/")
 	// 添加 favicon.ico 路由
-	r.StaticFile("/favicon.ico", "./web/favicon.ico")
+	// r.StaticFile("/favicon.ico", "./web/favicon.ico")
 	// 将前端其他请求重定向到index.html以支持单页应用
 	r.NoRoute(func(c *gin.Context) {
 		// 如果是API请求，返回404
-		if c.Request.URL.Path == "/auth" || strings.HasPrefix(c.Request.URL.Path, "/auth/") {
+		if c.Request.URL.Path == "/authapi" || strings.HasPrefix(c.Request.URL.Path, "/authapi/") {
 			c.JSON(http.StatusNotFound, gin.H{"error": "auth endpoint not found"})
 			return
 		}
