@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -275,9 +276,30 @@ func (s *AdminServer) ipRestrictionMiddleware() gin.HandlerFunc {
 			allowed := false
 
 			for _, ip := range s.config.AllowedIPs {
-				if ip == clientIP {
+				// 检查是否是通配符
+				if ip == "*" {
 					allowed = true
 					break
+				}
+
+				// 检查是否是CIDR格式
+				if strings.Contains(ip, "/") {
+					_, ipnet, err := net.ParseCIDR(ip)
+					if err != nil {
+						c.JSON(http.StatusInternalServerError, gin.H{"error": "无效的CIDR格式"})
+						c.Abort()
+						return
+					}
+					if ipnet.Contains(net.ParseIP(clientIP)) {
+						allowed = true
+						break
+					}
+				} else {
+					// 普通IP地址匹配
+					if ip == clientIP {
+						allowed = true
+						break
+					}
 				}
 			}
 
