@@ -123,6 +123,15 @@ func main() {
 	// Add rate limiting middleware
 	rateLimiter := middleware.RateLimiter{}
 	r.Use(rateLimiter.RateLimitMiddleware())
+
+	// Add health check endpoint
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"status": "healthy",
+			"time":   time.Now().Format(time.RFC3339),
+		})
+	})
+
 	// Register routes
 	authHandler.RegisterRoutes(r.Group("/authapi"), cfg)
 
