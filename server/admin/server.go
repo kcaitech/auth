@@ -208,7 +208,7 @@ func (s *AdminServer) registerRoutes(r *gin.Engine) {
 	// r.Static("/assets", "./admin/assets")
 
 	// 添加静态文件服务
-	r.Static("/admin/assets", "/app/admin-web/dist/assets")
+	r.Static("/admin/assets", "./admin-web/assets")
 
 	// All other routes redirect to admin UI entry point
 	r.NoRoute(func(c *gin.Context) {
@@ -219,7 +219,7 @@ func (s *AdminServer) registerRoutes(r *gin.Engine) {
 		}
 
 		// Otherwise, return admin UI entry point
-		c.File("/app/admin-web/dist/index.html")
+		c.File("./admin-web/index.html")
 	})
 }
 

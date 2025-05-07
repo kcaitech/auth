@@ -137,9 +137,9 @@ func main() {
 
 	// 添加静态文件服务
 	// 前端静态文件
-	r.Static("/assets", "/app/web/assets")
+	r.Static("/assets", "./web/assets")
 	// 添加 favicon.ico 路由
-	r.StaticFile("/favicon.ico", "/app/web/favicon.ico")
+	r.StaticFile("/favicon.ico", "./web/favicon.ico")
 	// 将前端其他请求重定向到index.html以支持单页应用
 	r.NoRoute(func(c *gin.Context) {
 		// 如果是API请求，返回404
@@ -153,9 +153,9 @@ func main() {
 			c.Status(http.StatusNotFound)
 			return
 		}
-		log.Println("Redirecting to index.html")
+		// log.Println("Redirecting to index.html")
 		// 其他所有请求返回前端index.html
-		c.File("/app/web/dist/index.html")
+		c.File("./web/index.html")
 	})
 
 	// Create main HTTP server
