@@ -220,6 +220,11 @@ func (s *AdminServer) registerRoutes(r *gin.Engine) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "auth path does not exist"})
 			return
 		}
+		// api authadmin
+		if strings.HasPrefix(c.Request.URL.Path, "/authadmin/") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "authadmin path does not exist"})
+			return
+		}
 
 		// Otherwise, return admin UI entry point
 		c.File("./admin-web/index.html")
