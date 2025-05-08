@@ -67,7 +67,7 @@ export const useAuthStore = defineStore('auth', {
     loading: false,
     error: undefined as string | undefined,
     supportedProviders: [] as AuthProvider[],
-    // providersLoaded: false
+    redirectUrl: localStorage.getItem('redirect_url') || '',
   }),
   
   getters: {
@@ -77,6 +77,26 @@ export const useAuthStore = defineStore('auth', {
   },
   
   actions: {
+    // 统一更新用户信息的方法
+    updateUserInfo(user_id: string, token: string, nickname: string, avatar: string) {
+      this.user = {
+        userID: user_id,
+        nickname: nickname || '',
+        avatar: avatar || '',
+      }
+      
+      this.token = token
+      
+      // 保存信息到本地存储
+      localStorage.setItem('token', token)
+      localStorage.setItem('avatar', avatar)
+      localStorage.setItem('nickname', nickname)
+      localStorage.setItem('userId', user_id)
+      
+      // 设置 axios 默认 headers
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+    },
+
     // 获取支持的登录方式和注册配置
     async fetchSupportedProviders() {
  
@@ -107,19 +127,7 @@ export const useAuthStore = defineStore('auth', {
         
         const { user_id, token, nickname, avatar } = response.data
         
-        this.user = {
-          // id: user_id,
-          userID: user_id,
-          nickname: nickname || '',
-          avatar: avatar || '',
-        }
-        this.token = token
-        
-        // 保存 token 到本地存储
-        localStorage.setItem('token', token)
-        
-        // 设置 axios 默认 headers
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+        this.updateUserInfo(user_id, token, nickname, avatar)
         
         return this.user
       } catch (error: any) {
@@ -159,19 +167,8 @@ export const useAuthStore = defineStore('auth', {
         
         const { user_id, token, nickname, avatar } = response.data
         
-        this.user = {
-          // id: user_id,
-          userID: user_id,
-          nickname: nickname || '',
-          avatar: avatar || '',
-        }
-        this.token = token
+        this.updateUserInfo(user_id, token, nickname, avatar)
         
-        // 保存 token 到本地存储
-        localStorage.setItem('token', token)
-        
-        // 设置 axios 默认 headers
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
         return this.user
       } catch (error: any) {
         this.error = error.response?.data?.message || t('errors.registerFailed')
@@ -276,22 +273,14 @@ export const useAuthStore = defineStore('auth', {
                 
                 // 获取JWT令牌并发送到后端验证
                 const credential = response.credential;
-                const authResponse = await axios.post('/google/credential', {
+                const authResponse = await axios.post('/google/callback', {
                   credential: credential
                 });
                 
                 // 处理登录结果
                 const { user_id, token, nickname, avatar } = authResponse.data
         
-                this.user = {
-                  // id: user_id,
-                  userID: user_id,
-                  nickname: nickname || '',
-                  avatar: avatar || '',
-                }
-                this.token = token;
-                localStorage.setItem('token', token);
-                axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+                this.updateUserInfo(user_id, token, nickname, avatar)
 
                 loginSuccessCallback()
               } catch (error: any) {
@@ -333,35 +322,6 @@ export const useAuthStore = defineStore('auth', {
       }
     },
     
-    async handleWechatLogin(code: string) {
-      try {
-        this.loading = true
-        this.error = undefined
-        
-        const response = await axios.post('/weixin', { code })
-        
-        const { user_id, token, nickname, avatar } = response.data
-        
-        this.user = {
-          // id: user_id,
-          userID: user_id,
-          nickname: nickname || '',
-          avatar: avatar || '',
-        }
-
-        this.token = token
-        localStorage.setItem('token', token)
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
-        
-        return this.user
-      } catch (error: any) {
-        this.error = error.response?.data?.message || t('errors.wechatLoginFailed')
-        throw new Error(this.error || t('errors.wechatLoginFailed'))
-      } finally {
-        this.loading = false
-      }
-    },
-    
     // 发送手机验证码
     async sendPhoneVerificationCode(phone: string) {
       try {
@@ -391,20 +351,7 @@ export const useAuthStore = defineStore('auth', {
         
         const { user_id, token, nickname, avatar } = response.data
         
-        this.user = {
-          // id: user_id,
-          userID: user_id,
-          nickname: nickname || '',
-          avatar: avatar || '',
-        }
-        
-        this.token = token
-        
-        // 保存 token 到本地存储
-        localStorage.setItem('token', token)
-        
-        // 设置 axios 默认 headers
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+        this.updateUserInfo(user_id, token, nickname, avatar)
         
         return this.user
       } catch (error: any) {
@@ -428,20 +375,7 @@ export const useAuthStore = defineStore('auth', {
         
         const { user_id, token, nickname, avatar } = response.data
         
-        this.user = {
-          // id: user_id,
-          userID: user_id,
-          nickname: nickname || '',
-          avatar: avatar || '',
-        }
-        
-        this.token = token
-        
-        // 保存 token 到本地存储
-        localStorage.setItem('token', token)
-        
-        // 设置 axios 默认 headers
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+        this.updateUserInfo(user_id, token, nickname, avatar)
         
         return this.user
       } catch (error: any) {
@@ -537,15 +471,7 @@ export const useAuthStore = defineStore('auth', {
 
         const { user_id, token, nickname, avatar } = response.data
         
-        this.user = {
-          // id: user_id,
-          userID: user_id,
-          nickname: nickname || '',
-          avatar: avatar || '',
-        }
-
-        this.token = token
-        localStorage.setItem('token', token)
+        this.updateUserInfo(user_id, token, nickname, avatar)
         
         return this.user
       } catch (error: any) {
@@ -554,6 +480,43 @@ export const useAuthStore = defineStore('auth', {
       } finally {
         this.loading = false
       }
+    },
+
+    // 处理微信登录回调
+    async handleWeixinCallback(code: string, state: string) {
+      try {
+        const response = await axios.get('/weixin/callback', {
+          params: {
+            code,
+            state
+          }
+        })
+        
+        const { user_id, token, nickname, avatar } = response.data
+        
+        this.updateUserInfo(user_id, token, nickname, avatar)
+        
+        return this.user
+      } catch (error: any) {
+        throw new Error(error.response?.data?.message || '微信登录失败')
+      }
+    },
+    
+    // 设置重定向 URL
+    setRedirectUrl(url: string) {
+      this.redirectUrl = url
+      localStorage.setItem('redirect_url', url)
+    },
+    
+    // 获取重定向 URL
+    getRedirectUrl(): string {
+      return this.redirectUrl
+    },
+    
+    // 清除重定向 URL
+    clearRedirectUrl() {
+      this.redirectUrl = ''
+      localStorage.removeItem('redirect_url')
     },
   }
 }) 

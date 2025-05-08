@@ -1,12 +1,7 @@
 package handlers
 
 import (
-	"crypto/sha1"
-	"encoding/hex"
-	"log"
 	"net/http"
-	"sort"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -127,7 +122,7 @@ func (h *AuthHandler) WeixinCallback(c *gin.Context) {
 	}
 
 	// Use WeChat login service to directly handle login or registration
-	user, loginResp, err := h.weixinLogin.RegisterOrLoginWithWeixin(code)
+	user, _, err := h.weixinLogin.RegisterOrLoginWithWeixin(code)
 	if err != nil {
 		h.logger.Printf("WeChat login processing failed: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "WeChat login processing failed"})
@@ -156,7 +151,15 @@ func (h *AuthHandler) WeixinCallback(c *gin.Context) {
 		c.Redirect(http.StatusTemporaryRedirect, redirectWithToken)
 		return
 	}
-
+	// avata转换为url
+	if user.Avatar != "" {
+		url, err := h.avatarService.GetAvatarURL(user.Avatar)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		user.Avatar = url
+	}
 	// Directly return JSON response
 	c.SetCookie("refreshToken", tokenPair.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
 	c.JSON(http.StatusOK, gin.H{
@@ -165,126 +168,6 @@ func (h *AuthHandler) WeixinCallback(c *gin.Context) {
 		"nickname":    user.Nickname,
 		"avatar":      user.Avatar,
 		"expire_time": auth.TokenExpiration,
-		"weixin":      loginResp, // Keep WeChat login response information
+		// "weixin":      loginResp, // Keep WeChat login response information
 	})
-}
-
-// WeixinLoginPost WeChat login POST request
-func (h *AuthHandler) WeixinLoginPost(c *gin.Context) {
-	if h.weixinLogin == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "WeChat login is not enabled"})
-		return
-	}
-
-	// Parse request
-	var req struct {
-		Code  string `json:"code" binding:"required"`
-		State string `json:"state"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request parameters"})
-		return
-	}
-
-	// Use WeChat login service to directly handle login or registration
-	user, loginResp, err := h.weixinLogin.RegisterOrLoginWithWeixin(req.Code)
-	if err != nil {
-		h.logger.Printf("WeChat login processing failed: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "WeChat login processing failed"})
-		return
-	}
-
-	// Create session
-	clientIP := c.ClientIP()
-	session, err := h.sessionMgr.CreateUserSession(user.UserID, clientIP, c.Request.UserAgent(), auth.RefreshTokenExpiration+time.Hour)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
-		return
-	}
-
-	tokenPair, err := h.jwtService.GenerateTokenPair(user.UserID, session.ID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
-		return
-	}
-
-	c.SetCookie("refreshToken", tokenPair.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
-	c.JSON(http.StatusOK, gin.H{
-		"user_id":     user.UserID,
-		"token":       tokenPair.AccessToken,
-		"nickname":    user.Nickname,
-		"avatar":      user.Avatar,
-		"expire_time": auth.TokenExpiration,
-		"weixin":      loginResp, // Keep WeChat login response information
-	})
-}
-
-// WeixinLogin WeChat login
-func (h *AuthHandler) WeixinLogin(c *gin.Context) {
-	if h.weixinLogin == nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "WeChat login is not enabled"})
-		return
-	}
-
-	// Generate random state
-	state := uuid.New().String()
-
-	// Generate unique client identifier
-	clientID := c.ClientIP() + "-" + c.Request.UserAgent()
-	stateKey := "weixin_oauth_state:" + clientID
-
-	// Store state in Redis with a reasonable expiration time (e.g., 15 minutes)
-	if err := h.redisStore.Set(stateKey, state, time.Minute*15); err != nil {
-		h.logger.Printf("Failed to save OAuth state to Redis: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
-		return
-	}
-
-	// Set cookie to store client identifier for subsequent callback
-	c.SetCookie("weixin_client_id", clientID, int(time.Minute*15/time.Second), "/", "", false, true)
-
-	// Redirect to WeChat login page
-	c.Redirect(http.StatusTemporaryRedirect, h.weixinLogin.GetAuthURL(state))
-}
-
-// 验证微信签名
-func checkSignature(token, signature, timestamp, nonce string) bool {
-	// 1. 将token、timestamp、nonce三个参数进行字典序排序
-	strs := []string{token, timestamp, nonce}
-	sort.Strings(strs)
-
-	// 2. 将三个参数字符串拼接成一个字符串
-	str := strings.Join(strs, "")
-
-	// 3. 进行sha1加密
-	h := sha1.New()
-	h.Write([]byte(str))
-	sha1Hash := hex.EncodeToString(h.Sum(nil))
-
-	// 4. 开发者获得加密后的字符串可与signature对比
-	return sha1Hash == signature
-}
-
-func (h *AuthHandler) WeixinDomainVerify(c *gin.Context) {
-	signature := c.Query("signature")
-	timestamp := c.Query("timestamp")
-	nonce := c.Query("nonce")
-	echostr := c.Query("echostr")
-
-	// 替换为你在微信公众平台设置的Token
-	token := h.weixinLogin.Config.DomainVerifyToken
-
-	// 验证签名
-	if checkSignature(token, signature, timestamp, nonce) {
-		// 验证成功，返回echostr
-		c.Writer.WriteHeader(http.StatusOK)
-		c.Writer.Write([]byte(echostr))
-		log.Println("微信验证成功")
-	} else {
-		// 验证失败
-		c.Writer.WriteHeader(http.StatusForbidden)
-		// c.Writer.Write([]byte("验证失败"))
-		log.Println("微信验证失败")
-	}
 }

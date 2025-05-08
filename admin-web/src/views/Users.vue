@@ -152,7 +152,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, reactive, ref, onMounted, computed } from 'vue'
+import { defineComponent, reactive, ref, onMounted } from 'vue'
 import api, { User } from '@/api'
 import { ElMessage } from 'element-plus'
 import UserDetail from '@/components/UserDetail.vue'
@@ -191,7 +191,6 @@ export default defineComponent({
     const selectedUser = ref<User | null>(null)
     
     // 用户会话管理对话框
-    const userSessionsVisible = ref(false)
     const sessionTabSelected = ref(false)
     
     // 获取用户数据

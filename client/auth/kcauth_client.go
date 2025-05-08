@@ -43,8 +43,8 @@ type UserInfo struct {
 	Avatar   string `json:"avatar" gorm:"size:255"`    // Avatar URL
 }
 
-// NewJWTClient 创建新的JWT客户端
-func NewJWTClient(authServerURL string, clientID string, clientSecret string) *KCAuthClient {
+// NewAuthClient 创建新的JWT客户端
+func NewAuthClient(authServerURL string, clientID string, clientSecret string) *KCAuthClient {
 	return &KCAuthClient{
 		AuthServerURL: authServerURL,
 		HTTPClient: &http.Client{
@@ -79,6 +79,7 @@ func (c *KCAuthClient) remoteValidateToken(accessToken string) (bool, error) {
 	// 创建请求
 	req, err := http.NewRequest("POST", c.AuthServerURL+"/authapi/token/validate", nil)
 	if err != nil {
+		log.Println("创建请求失败", err)
 		return false, err
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
@@ -267,6 +268,7 @@ func (c *KCAuthClient) getUserInfo(accessToken string, url string) (*UserInfo, e
 	// 创建请求
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
+		log.Println("创建请求失败", err)
 		return nil, err
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
@@ -329,6 +331,7 @@ func (c *KCAuthClient) UpdateUserInfo(accessToken string, userInfo *UserInfo) er
 	// 创建请求
 	req, err := http.NewRequest("PUT", c.AuthServerURL+"/authapi/user", bytes.NewBuffer(jsonData))
 	if err != nil {
+		log.Println("创建请求失败", err)
 		return err
 	}
 	req.Header.Set("Authorization", "Bearer "+accessToken)
@@ -381,6 +384,7 @@ func (c *KCAuthClient) UpdateAvatar(accessToken string, fileData []byte, fileNam
 	// 创建请求
 	req, err := http.NewRequest("POST", c.AuthServerURL+"/authapi/avatar/upload", body)
 	if err != nil {
+		log.Println("创建请求失败", err)
 		return "", fmt.Errorf("创建请求失败: %v", err)
 	}
 
@@ -421,6 +425,7 @@ func (c *KCAuthClient) DeleteAvatar(accessToken string) error {
 	// 创建请求
 	req, err := http.NewRequest("DELETE", c.AuthServerURL+"/authapi/avatar", nil)
 	if err != nil {
+		log.Println("创建请求失败", err)
 		return fmt.Errorf("创建请求失败: %v", err)
 	}
 
@@ -453,6 +458,7 @@ func (c *KCAuthClient) RefreshToken(refreshToken string, gin *gin.Context) (stri
 	// 创建请求
 	req, err := http.NewRequest("POST", c.AuthServerURL+"/authapi/token/refresh", nil)
 	if err != nil {
+		log.Println("创建请求失败", err)
 		return "", 0, fmt.Errorf("创建请求失败: %v", err)
 	}
 	// 设置请求头
@@ -533,6 +539,7 @@ func (c *KCAuthClient) GetUsersInfo(accessToken string, userIDs []string) ([]Use
 	// 创建请求
 	req, err := http.NewRequest("POST", c.AuthServerURL+"/authapi/users", bytes.NewBuffer(jsonData))
 	if err != nil {
+		log.Println("创建请求失败", err)
 		return nil, fmt.Errorf("创建请求失败: %v", err)
 	}
 
