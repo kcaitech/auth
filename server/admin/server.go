@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
+	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -208,18 +210,24 @@ func (s *AdminServer) registerRoutes(r *gin.Engine) {
 	// r.Static("/assets", "./admin/assets")
 
 	// 添加静态文件服务
-	r.Static("/admin/assets", "./admin-web/dist/assets")
+	// r.Static("/", "./admin-web/")
+	r.Use(static.Serve("/", static.LocalFile("./admin-web/", false))) // 前端工程
 
 	// All other routes redirect to admin UI entry point
 	r.NoRoute(func(c *gin.Context) {
 		// If it's an API request, return 404 error
-		if strings.HasPrefix(c.Request.URL.Path, "/auth/") {
+		if strings.HasPrefix(c.Request.URL.Path, "/auth/") || strings.HasPrefix(c.Request.URL.Path, "/authapi/") {
 			c.JSON(http.StatusNotFound, gin.H{"error": "auth path does not exist"})
+			return
+		}
+		// api authadmin
+		if strings.HasPrefix(c.Request.URL.Path, "/authadmin/") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "authadmin path does not exist"})
 			return
 		}
 
 		// Otherwise, return admin UI entry point
-		c.File("./admin-web/dist/index.html")
+		c.File("./admin-web/index.html")
 	})
 }
 
@@ -273,9 +281,30 @@ func (s *AdminServer) ipRestrictionMiddleware() gin.HandlerFunc {
 			allowed := false
 
 			for _, ip := range s.config.AllowedIPs {
-				if ip == clientIP {
+				// 检查是否是通配符
+				if ip == "*" {
 					allowed = true
 					break
+				}
+
+				// 检查是否是CIDR格式
+				if strings.Contains(ip, "/") {
+					_, ipnet, err := net.ParseCIDR(ip)
+					if err != nil {
+						c.JSON(http.StatusInternalServerError, gin.H{"error": "无效的CIDR格式"})
+						c.Abort()
+						return
+					}
+					if ipnet.Contains(net.ParseIP(clientIP)) {
+						allowed = true
+						break
+					}
+				} else {
+					// 普通IP地址匹配
+					if ip == clientIP {
+						allowed = true
+						break
+					}
 				}
 			}
 

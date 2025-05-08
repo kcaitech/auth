@@ -172,7 +172,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, PropType, computed, onMounted, watch } from 'vue'
+import { defineComponent, ref, PropType, onMounted, watch } from 'vue'
 import { User, SessionData, JWTSessionData } from '@/api'
 import api from '@/api'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -191,8 +191,7 @@ export default defineComponent({
       default: 'basic'
     }
   },
-  emits: ['update:user', 'close'],
-  setup(props, { emit }) {
+  setup(props) {
     const { t } = i18n.global
     const activeTab = ref(props.initialTab)
     
