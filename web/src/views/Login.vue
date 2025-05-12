@@ -149,7 +149,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, onMounted, computed, nextTick } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useAuthStore, type AuthProvider } from '@/stores/auth'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
