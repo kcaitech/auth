@@ -67,7 +67,7 @@ export const useAuthStore = defineStore('auth', {
     loading: false,
     error: undefined as string | undefined,
     supportedProviders: [] as AuthProvider[],
-    redirectUrl: localStorage.getItem('redirect_url') || '',
+    redirectUrl: sessionStorage.getItem('kc_redirect_url') || '',
   }),
   
   getters: {
@@ -505,7 +505,7 @@ export const useAuthStore = defineStore('auth', {
     // 设置重定向 URL
     setRedirectUrl(url: string) {
       this.redirectUrl = url
-      localStorage.setItem('redirect_url', url)
+      sessionStorage.setItem('kc_redirect_url', url)
     },
     
     // 获取重定向 URL
@@ -516,7 +516,7 @@ export const useAuthStore = defineStore('auth', {
     // 清除重定向 URL
     clearRedirectUrl() {
       this.redirectUrl = ''
-      localStorage.removeItem('redirect_url')
+      sessionStorage.removeItem('kc_redirect_url')
     },
   }
 }) 
