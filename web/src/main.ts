@@ -4,7 +4,6 @@ import App from './App.vue'
 import router from './router'
 import axios from 'axios'
 import i18n, { getPreferredLanguage, setLanguage } from './locales'
-import { context } from './context'
 import { serverApi } from './api/serverApi'
 
 // 设置 axios 默认值
@@ -29,25 +28,22 @@ document.documentElement.setAttribute('lang', preferredLanguage)
 
 // 初始化认证状态
 const initAuth = async () => {
-
+  
+  // 获取支持的登录方式
+  try {
+    await serverApi.fetchSupportedProviders()
+  } catch (error) {
+    console.error('获取支持的登录方式失败:', error)
+  }
+  
   // 如果有token，尝试获取当前用户信息
   if (token) {
     try {
-      const user = await serverApi.fetchCurrentUser()
-      // 当前已经登陆，直接回调
-      if (user) await serverApi.handleLoginCallback()
+      await serverApi.fetchCurrentUser()
     } catch (error) {
       console.error('获取用户信息失败:', error)
     }
   }
-
-  // 获取支持的登录方式
-  try {
-    await context.fetchSupportedProviders()
-  } catch (error) {
-    console.error('获取支持的登录方式失败:', error)
-  }
-
 }
 
 // 挂载应用前初始化认证

@@ -31,12 +31,12 @@
 
 <script lang="ts" setup>
 import { reactive, ref, defineEmits } from 'vue'
-import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { context } from '@/context'
+import { serverApi } from '@/api/serverApi';
 
 const emit = defineEmits<{
-  (e: 'login-success'): void
   (e: 'login-error', message: string): void
 }>()
 
@@ -50,7 +50,6 @@ interface FormErrors {
   password?: string
 }
 
-const authStore = useAuthStore()
 const router = useRouter()
 const { t } = useI18n()
 const isLoading = ref(false)
@@ -87,10 +86,8 @@ const handleLogin = async () => {
     isLoading.value = true
     
     // 调用登录函数
-    await authStore.login(formData.username, formData.password)
-    
-    // 登录成功，通知父组件
-    emit('login-success')
+    await serverApi.login(formData.username, formData.password)
+
 
   } catch (error: any) {
     // 登录失败，通知父组件

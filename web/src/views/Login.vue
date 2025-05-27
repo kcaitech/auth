@@ -149,9 +149,8 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, onMounted, computed, nextTick } from 'vue'
-import { useAuthStore, type AuthProvider } from '@/stores/auth'
-import { useRouter, useRoute } from 'vue-router'
+import { ref, onMounted, computed } from 'vue'
+import { context } from '@/context'
 import { useI18n } from 'vue-i18n'
 
 // 组件导入
@@ -163,11 +162,9 @@ import WeixinLogin from '@/components/auth/WeixinLogin.vue'
 import AccountRegister from '@/components/auth/AccountRegister.vue'
 import EmailRegister from '@/components/auth/EmailRegister.vue'
 import PhoneRegister from '@/components/auth/PhoneRegister.vue'
+import { AuthProvider, serverApi } from '@/api/serverApi'
 
-// 状态管理
-const router = useRouter()
-const route = useRoute()
-const authStore = useAuthStore()
+
 const { t } = useI18n()
 
 // 响应式状态
@@ -178,7 +175,7 @@ const errorMessage = ref('')
 const shouldShowLoginForm = ref(false)
 
 // 登录方式检查
-const hasProvider = (provider: AuthProvider) => authStore.hasProvider(provider)
+const hasProvider = (provider: AuthProvider) => context.hasProvider(provider)
 const hasAccountLogin = hasProvider('account')
 const hasEmailLogin = hasProvider('email')
 const hasPhoneLogin = hasProvider('phone')
@@ -205,15 +202,9 @@ const hasMultipleRegisterMethods = computed(() => {
 // 生命周期钩子
 onMounted(async () => {
   try {
-    // 保存重定向 URL
-    const redirectUrl = route.query.redirect as string
-    if (redirectUrl) {
-      authStore.setRedirectUrl(redirectUrl)
-    }
-    
     // 如果只有微信登录
     if (!hasAccountLogin && !hasEmailLogin && !hasPhoneLogin && !hasGoogleLogin && hasWeixinLogin) {
-      const weixinLoginUrl = await authStore.getWechatAuthUrl()
+      const weixinLoginUrl = await serverApi.getWechatAuthUrl()
       if (weixinLoginUrl) {
         window.location.href = weixinLoginUrl
       }
@@ -246,16 +237,7 @@ onMounted(async () => {
 // 事件处理
 const handleLoginSuccess = () => {
   errorMessage.value = ''
-  const redirectUrl = authStore.getRedirectUrl()
-  if (redirectUrl) {
-    const token = authStore.token
-    const separator = redirectUrl.includes('?') ? '&' : '?'
-    const fullUrl = `${redirectUrl}${separator}token=${token}`
-    window.location.href = fullUrl
-    authStore.clearRedirectUrl()
-  } else {
-    router.push('/success')
-  }
+
 }
 
 const handleLoginError = (message: string) => {

@@ -142,7 +142,6 @@ export default {
     renderGoogleButtonFailed: 'Failed to render Google login button',
     googleServiceLoadFailed: 'Failed to load Google login service',
     invalidWeixinCallback: 'Invalid WeChat callback parameters',
-    weixinLoginFailed: 'WeChat login failed',
   },
   email: {
     verificationTitle: 'Email Verification',

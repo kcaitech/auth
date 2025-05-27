@@ -18,7 +18,7 @@
         "weixin": {
             "app_id": "wx0b6902b93a2bd8c9",
             "app_secret": "a9ef7e339d3723bcc4056120556e2403",
-            "redirect_url": "http://vextra.cn/auth/weixin/callback",
+            "redirect_url": "http://test.vextra.cn/wechat/callback",
             "domain_verify_token": "b3eac26e-ce72-4268-a7fa-d71a2c628f39"
         },
         "sms": {

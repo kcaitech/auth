@@ -40,12 +40,11 @@
 </template>
 
 <script lang="ts" setup>
+import { serverApi } from '@/api/serverApi';
 import { reactive, ref, defineEmits } from 'vue'
-import { useAuthStore } from '@/stores/auth'
 import { useI18n } from 'vue-i18n'
 
 const emit = defineEmits<{
-  (e: 'register-success'): void
   (e: 'register-error', message: string): void
 }>()
 
@@ -61,7 +60,6 @@ interface FormErrors {
   confirmPassword?: string
 }
 
-const authStore = useAuthStore()
 const { t } = useI18n()
 const isLoading = ref(false)
 const formData = reactive<FormData>({
@@ -109,14 +107,11 @@ const handleRegister = async () => {
     isLoading.value = true
     
     // 调用注册函数
-    await authStore.registerAccount({
+    await serverApi.registerAccount({
       username: formData.username,
       password: formData.password,
-      confirmPassword: formData.confirmPassword
     })
-    
-    // 注册成功，通知父组件
-    emit('register-success')
+
   } catch (error: any) {
     // 注册失败，通知父组件
     emit('register-error', error.message || t('errors.registerFailed'))

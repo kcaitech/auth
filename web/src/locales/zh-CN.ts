@@ -142,7 +142,6 @@ export default {
     renderGoogleButtonFailed: '渲染谷歌登录按钮失败',
     googleServiceLoadFailed: '加载谷歌登录服务失败',
     invalidWeixinCallback: '微信回调参数无效',
-    weixinLoginFailed: '微信登录失败',
   },
   email: {
     verificationTitle: '邮箱验证',
