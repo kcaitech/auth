@@ -199,15 +199,32 @@ const hasMultipleRegisterMethods = computed(() => {
   return count > 1
 })
 
+const handleWechatLogin = async () => {
+  try {
+    // 获取微信登录的URL
+    const url = await serverApi.getWechatAuthUrl()
+
+    // 获取url中的state
+    const cleanUrl = url.split('#')[0]
+    const state = cleanUrl.split('state=')[1]
+    if (!state) {
+      throw new Error(t('errors.wechatLoginFailed'))
+    }
+    // 使用state存储client_id
+    sessionStorage.setItem(state, serverApi.clientId)
+    // 重定向到微信登录页面
+    window.location.href = url
+  } catch (error: any) {
+    console.error(t('errors.wechatLoginFailed'), error)
+  }
+}
+
 // 生命周期钩子
 onMounted(async () => {
   try {
     // 如果只有微信登录
     if (!hasAccountLogin && !hasEmailLogin && !hasPhoneLogin && !hasGoogleLogin && hasWeixinLogin) {
-      const weixinLoginUrl = await serverApi.getWechatAuthUrl()
-      if (weixinLoginUrl) {
-        window.location.href = weixinLoginUrl
-      }
+      handleWechatLogin()
       return
     }
     
