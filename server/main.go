@@ -15,6 +15,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/redis"
+	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
 	"github.com/pquerna/otp"
 	"gorm.io/driver/mysql"
@@ -137,7 +138,7 @@ func main() {
 
 	// 添加静态文件服务
 	// 前端静态文件
-	r.Static("/auth/", "./web/")
+	r.Use(static.Serve("/", static.LocalFile("./web/", false))) // 前端工程
 	// 添加 favicon.ico 路由
 	// r.StaticFile("/favicon.ico", "./web/favicon.ico")
 	// 将前端其他请求重定向到index.html以支持单页应用
