@@ -10,29 +10,45 @@ interface AuthResponse {
 
 export type AuthProvider = 'account' | 'email' | 'google' | 'weixin' | 'phone'
 
-function updateUserInfo(response: AuthResponse) {
-    const { user_id, token, nickname, avatar } = response
 
-    // 保存信息到本地存储
-    localStorage.setItem('token', token)
-    localStorage.setItem('avatar', avatar)
-    localStorage.setItem('nickname', nickname)
-    localStorage.setItem('userId', user_id)
-
-    // 设置 axios 默认 headers
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
-}
-
-interface User {
-    userID: string
-    nickname: string
-    avatar: string
-}
+// 响应拦截器：处理重定向响应
+// axios.interceptors.response.use(
+//     (response) => {
+//         return response
+//     },
+//     (error) => {
+//         // 处理307重定向或其他重定向状态码
+//         if (error.response && [301, 302, 307, 308].includes(error.response.status)) {
+//             const redirectUrl = error.response.headers.location
+//             if (redirectUrl) {
+//                 // 如果是登录重定向，直接跳转到新地址
+//                 window.location.href = redirectUrl
+//                 return Promise.resolve({ redirected: true, url: redirectUrl })
+//             }
+//         }
+//         return Promise.reject(error)
+//     }
+// )
 
 class ServerApi {
 
     clientId: string = ''
     redirectUri: string = ''
+
+    updateUserInfo(response: AuthResponse) {
+        const { user_id, token, nickname, avatar } = response
+    
+        // 保存信息到本地存储
+        localStorage.setItem('token', token)
+        localStorage.setItem('avatar', avatar)
+        localStorage.setItem('nickname', nickname)
+        localStorage.setItem('userId', user_id)
+    
+        // 设置 axios 默认 headers
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+
+        this.handleLoginRedirect() // 重定向到应用
+    }
 
     updateAuthData(clientId: string, redirectUri?: string) {
         serverApi.clientId = clientId
@@ -44,6 +60,15 @@ class ServerApi {
         }
     }
 
+    async refreshToken() {
+        const response = await axios.post('/token/refresh', { client_id: this.clientId, redirect_uri: this.redirectUri })
+        const token = response.data.token
+        const expireTime = response.data.expire_time
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+        localStorage.setItem('token', token)
+        return { token, expireTime }
+    }
+
     // 获取支持的登录方式
     async fetchSupportedProviders(): Promise<{ providers: AuthProvider[] }> {
         const response = await axios.get('/providers')
@@ -53,14 +78,14 @@ class ServerApi {
     // 账号密码登录
     async login(username: string, password: string): Promise<AuthResponse> {
         const response = await axios.post('/account/login', { username, password, client_id: this.clientId, redirect_uri: this.redirectUri })
-        updateUserInfo(response.data)
+        this.updateUserInfo(response.data)
         return response.data
     }
 
     // 账号注册
     async registerAccount(username: string, password: string): Promise<AuthResponse> {
         const response = await axios.post('/account/register', { username, password, client_id: this.clientId, redirect_uri: this.redirectUri })
-        updateUserInfo(response.data)
+        this.updateUserInfo(response.data)
         return response.data
     }
 
@@ -87,7 +112,7 @@ class ServerApi {
 
     async handleGoogleCallback(credential: string): Promise<AuthResponse> {
         const response = await axios.post('/google/callback', { credential, client_id: this.clientId, redirect_uri: this.redirectUri })
-        updateUserInfo(response.data)
+        this.updateUserInfo(response.data)
         return response.data
     }
 
@@ -99,15 +124,18 @@ class ServerApi {
 
     async handleWeixinCallback(code: string, state: string): Promise<AuthResponse> {
         const response = await axios.get('/weixin/callback', { params: { code, state, client_id: this.clientId, redirect_uri: this.redirectUri } })
-        updateUserInfo(response.data)
+        this.updateUserInfo(response.data)
         return response.data
     }
 
     // 当前已经登陆，直接回调
-    async handleLoginCallback(): Promise<AuthResponse> {
-        const response = await axios.get('/login/callback', { params: { client_id: this.clientId, redirect_uri: this.redirectUri } })
-        updateUserInfo(response.data)
-        return response.data
+    async handleLoginRedirect(): Promise<void> {
+        const response = await axios.get('/login/redirect', { params: { client_id: this.clientId, redirect_uri: this.redirectUri } })
+        const url = response.data.url as string
+        if (url) {
+            window.location.href = url
+        }
+        // return response.data
     }
 
     // 手机相关
@@ -118,19 +146,19 @@ class ServerApi {
 
     async phoneLogin(phone: string, password: string): Promise<AuthResponse> {
         const response = await axios.post('/phone/login', { phone, password, client_id: this.clientId, redirect_uri: this.redirectUri })
-        updateUserInfo(response.data)
+        this.updateUserInfo(response.data)
         return response.data
     }
 
     async phoneCodeLogin(phone: string, code: string): Promise<AuthResponse> {
         const response = await axios.post('/phone/code-login', { phone, code, client_id: this.clientId, redirect_uri: this.redirectUri })
-        updateUserInfo(response.data)
+        this.updateUserInfo(response.data)
         return response.data
     }
 
     async registerPhone(phone: string, code: string, password: string, nickname: string): Promise<AuthResponse> {
         const response = await axios.post('/phone/register', { phone, code, password, nickname })
-        updateUserInfo(response.data)
+        this.updateUserInfo(response.data)
         return response.data
     }
 

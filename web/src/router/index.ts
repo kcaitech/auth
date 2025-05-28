@@ -5,18 +5,18 @@ const routes = [
   {
     path: '/',
     redirect: '/login',
-    // 记录client_id和redirect_uri
-    beforeEnter: () => {
-      const urlParams = new URLSearchParams(window.location.search)
-      const client_id = urlParams.get('client_id') || ''
-      const redirect_uri = urlParams.get('redirect_uri') || undefined
-      serverApi.updateAuthData(client_id, redirect_uri)
-    }
   },
   {
     path: '/login',
     name: 'Login',
-    component: () => import('../views/Login.vue')
+    component: () => import('../views/Login.vue'),
+    // 记录client_id和redirect_uri
+    beforeEnter: () => {
+      const urlParams = new URLSearchParams(window.location.search)
+      const client_id = urlParams.get('client_id') || ''
+      const redirect_uri = urlParams.get('redirect_url') || undefined
+      serverApi.updateAuthData(client_id, redirect_uri)
+    }
   },
   {
     path: '/verify-email',

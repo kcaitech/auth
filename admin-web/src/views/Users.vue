@@ -19,21 +19,6 @@
             </el-select>
           </el-form-item>
           
-          <!-- <el-form-item :label="$t('user.provider')">
-            <el-select v-model="filter.provider" :placeholder="$t('user.select_provider')" clearable>
-              <el-option :label="$t('user.provider_local')" value="local" />
-              <el-option label="Google" value="google" />
-              <el-option :label="$t('user.provider_weixin')" value="weixin" />
-            </el-select>
-          </el-form-item> -->
-          
-          <!-- <el-form-item :label="$t('user.verification_status')">
-            <el-select v-model="filter.verified" :placeholder="$t('user.verification_status')" clearable>
-              <el-option :label="$t('user.verified')" value="true" />
-              <el-option :label="$t('user.not_verified')" value="false" />
-            </el-select>
-          </el-form-item> -->
-          
           <el-form-item :label="$t('user.search')">
             <el-input v-model="filter.search" :placeholder="$t('user.username_email')" clearable />
           </el-form-item>

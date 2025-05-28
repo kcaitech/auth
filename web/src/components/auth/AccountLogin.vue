@@ -31,9 +31,7 @@
 
 <script lang="ts" setup>
 import { reactive, ref, defineEmits } from 'vue'
-import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { context } from '@/context'
 import { serverApi } from '@/api/serverApi';
 
 const emit = defineEmits<{
@@ -50,7 +48,6 @@ interface FormErrors {
   password?: string
 }
 
-const router = useRouter()
 const { t } = useI18n()
 const isLoading = ref(false)
 const formData = reactive<FormData>({

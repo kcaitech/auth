@@ -216,7 +216,7 @@ func (s *AdminServer) registerRoutes(r *gin.Engine) {
 	// All other routes redirect to admin UI entry point
 	r.NoRoute(func(c *gin.Context) {
 		// If it's an API request, return 404 error
-		if strings.HasPrefix(c.Request.URL.Path, "/auth/") || strings.HasPrefix(c.Request.URL.Path, "/authapi/") {
+		if strings.HasPrefix(c.Request.URL.Path, "/auth/") || strings.HasPrefix(c.Request.URL.Path, "/api/") {
 			c.JSON(http.StatusNotFound, gin.H{"error": "auth path does not exist"})
 			return
 		}

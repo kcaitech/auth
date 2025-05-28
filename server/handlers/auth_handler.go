@@ -79,6 +79,12 @@ func (h *AuthHandler) RegisterRoutes(authGroup *gin.RouterGroup, cfg *config.Con
 	authGroup.POST("/token/refresh", h.RefreshToken)
 	authGroup.POST("/token/validate", h.ValidateToken)
 
+	// 已经登陆，直接回调到应用
+	authGroup.GET("/login/redirect", h.AuthRequired(), h.LoginRedirect)
+
+	trustedClient := middleware.TrustedClient(cfg)
+	authGroup.GET("/login/verify", trustedClient, h.LoginVerify)
+
 	// Email login related routes
 	if h.emailAuth != nil {
 		authGroup.POST("/email/login", h.EmailLogin)
@@ -119,7 +125,6 @@ func (h *AuthHandler) RegisterRoutes(authGroup *gin.RouterGroup, cfg *config.Con
 		authGroup.POST("/2fa/recovery", h.AuthRequired(), h.GenerateRecoveryCodes)
 	}
 
-	trustedClient := middleware.TrustedClient(cfg)
 	// User information related routes
 	authGroup.GET("/user", h.AuthRequired(), h.GetUserInfo)
 	authGroup.GET("/user/:id", h.AuthRequired(), trustedClient, h.GetUserInfoById)

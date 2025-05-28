@@ -32,12 +32,22 @@ const initAuth = async () => {
 
   // 如果有token，尝试获取当前用户信息
   if (token) {
+    let user = null
     try {
-      const user = await serverApi.fetchCurrentUser()
+      user = await serverApi.fetchCurrentUser()
       // 当前已经登陆，直接回调
-      if (user) await serverApi.handleLoginCallback()
+      if (user) await serverApi.handleLoginRedirect()
     } catch (error) {
       console.error('获取用户信息失败:', error)
+    }
+    if (!user) {
+      // refreshToken
+      try {
+        const { token } = await serverApi.refreshToken()
+        if (token) await serverApi.handleLoginRedirect()
+      } catch (error) {
+        console.error('刷新token失败:', error)
+      }
     }
   }
 

@@ -133,7 +133,7 @@ func main() {
 	})
 
 	// Register routes
-	authHandler.RegisterRoutes(r.Group("/authapi"), cfg)
+	authHandler.RegisterRoutes(r.Group("/api"), cfg)
 
 	// 添加静态文件服务
 	// 前端静态文件
@@ -143,7 +143,7 @@ func main() {
 	// 将前端其他请求重定向到index.html以支持单页应用
 	r.NoRoute(func(c *gin.Context) {
 		// 如果是API请求，返回404
-		if c.Request.URL.Path == "/authapi" || strings.HasPrefix(c.Request.URL.Path, "/authapi/") {
+		if c.Request.URL.Path == "/api" || strings.HasPrefix(c.Request.URL.Path, "/api/") {
 			c.JSON(http.StatusNotFound, gin.H{"error": "auth endpoint not found"})
 			return
 		}
