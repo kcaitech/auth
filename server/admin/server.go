@@ -182,7 +182,7 @@ func (s *AdminServer) registerRoutes(r *gin.Engine) {
 	})
 
 	// API routes group (requires authentication)
-	admin := r.Group("/authadmin")
+	admin := r.Group("/api")
 	// Login route
 	admin.POST("/login", s.handleLogin)
 
@@ -216,16 +216,10 @@ func (s *AdminServer) registerRoutes(r *gin.Engine) {
 	// All other routes redirect to admin UI entry point
 	r.NoRoute(func(c *gin.Context) {
 		// If it's an API request, return 404 error
-		if strings.HasPrefix(c.Request.URL.Path, "/auth/") || strings.HasPrefix(c.Request.URL.Path, "/api/") {
-			c.JSON(http.StatusNotFound, gin.H{"error": "auth path does not exist"})
+		if c.Request.URL.Path == "/api" || strings.HasPrefix(c.Request.URL.Path, "/api/") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "auth endpoint not found"})
 			return
 		}
-		// api authadmin
-		if strings.HasPrefix(c.Request.URL.Path, "/authadmin/") {
-			c.JSON(http.StatusNotFound, gin.H{"error": "authadmin path does not exist"})
-			return
-		}
-
 		// Otherwise, return admin UI entry point
 		c.File("./admin-web/index.html")
 	})

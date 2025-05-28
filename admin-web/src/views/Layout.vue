@@ -8,7 +8,7 @@
         </div>
         <div class="user-info">
           <language-switcher class="language-switcher" />
-          <span>{{ authStore.username }}</span>
+          <span>{{ context.username }}</span>
           <el-dropdown trigger="click" @command="handleCommand">
             <el-avatar size="small" icon="el-icon-user" />
             <template #dropdown>
@@ -69,64 +69,54 @@
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent, computed } from 'vue'
+<script setup lang="ts">
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useAuthStore } from '@/store/auth'
+import { context } from '@/context'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
+import { serverApi } from '@/api'
 
-export default defineComponent({
-  name: 'LayoutView',
-  components: {
-    LanguageSwitcher
-  },
-  setup() {
-    const route = useRoute()
-    const router = useRouter()
-    const authStore = useAuthStore()
-    
-    // 计算当前活动菜单
-    const activeMenu = computed(() => {
-      return route.path
-    })
-    
-    // 计算当前页面标题
-    const currentPageTitle = computed(() => {
-      return route.meta.title || '未知页面'
-    })
-    
-    // 处理下拉菜单命令
-    const handleCommand = (command: string) => {
-      if (command === 'logout') {
-        ElMessageBox.confirm(
-          '确定要退出登录吗？',
-          '提示',
-          {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning'
-          }
-        ).then(() => {
-          authStore.logout()
-          ElMessage({
-            type: 'success',
-            message: '已成功退出登录'
-          })
-        }).catch(() => {})
-      } else if (command === 'sessions') {
-        router.push('/sessions')
-      }
-    }
-    
-    return {
-      activeMenu,
-      currentPageTitle,
-      authStore,
-      handleCommand
-    }
-  }
+
+const route = useRoute()
+const router = useRouter()
+
+// 计算当前活动菜单
+const activeMenu = computed(() => {
+  return route.path
 })
+
+// 计算当前页面标题
+const currentPageTitle = computed(() => {
+  return route.meta.title || '未知页面'
+})
+
+// 处理下拉菜单命令
+const handleCommand = (command: string) => {
+  if (command === 'logout') {
+    ElMessageBox.confirm(
+      '确定要退出登录吗？',
+      '提示',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    ).then(() => {
+      serverApi.logout()
+      ElMessage({
+        type: 'success',
+        message: '已成功退出登录'
+      })
+      localStorage.removeItem('admin_session')
+      router.push('/login')
+    }).catch(() => {})
+  } else if (command === 'sessions') {
+    router.push('/sessions')
+  }
+}
+
+
 </script>
 
 <style lang="scss" scoped>

@@ -19,21 +19,13 @@
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue'
+<script setup lang="ts">
 import { Setting } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
 
-export default defineComponent({
-  name: 'SettingsView',
-  components: {
-    Setting
-  },
-  setup() {
-    const { t } = useI18n()
-    return { t }
-  }
-})
+const { t } = useI18n()
+
+
 </script>
 
 <style lang="scss" scoped>

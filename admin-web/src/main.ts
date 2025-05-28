@@ -6,7 +6,7 @@ import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import en from 'element-plus/es/locale/lang/en'
 import App from './App.vue'
 import router from './router'
-import i18n, { getPreferredLanguage } from './locales'
+import i18n, { getPreferredLanguage } from './lang'
 
 // 创建应用实例
 const app = createApp(App)

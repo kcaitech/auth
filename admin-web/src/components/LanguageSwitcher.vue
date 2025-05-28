@@ -26,7 +26,7 @@
 <script lang="ts" setup>
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { SUPPORTED_LOCALES, setLanguage } from '@/locales'
+import { SUPPORTED_LOCALES, setLanguage } from '@/lang'
 import { ArrowDown } from '@element-plus/icons-vue'
 
 const { locale } = useI18n()

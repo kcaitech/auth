@@ -38,15 +38,26 @@ api.interceptors.response.use(
       localStorage.removeItem('admin_session')
       window.location.href = '/login'
     }
-    
+
     // 调试日志，记录请求错误
     console.error(`API错误 [${error.config?.url}]:`, error.response?.data || error.message)
-    
+
     return Promise.reject(error)
   }
 )
 
-// 接口定义
+// ===================== 认证相关接口定义 =====================
+export interface LoginCredentials {
+  username: string
+  password: string
+}
+
+export interface UserInfo {
+  username: string
+  roles: string[]
+}
+
+// ===================== 其他接口定义 =====================
 export interface StatsData {
   total_users: number
   active_users: number
@@ -128,35 +139,61 @@ export interface UserSessionsResponse {
   jwt_sessions: JWTSessionData[]
 }
 
-// API 方法
-export default {
+// ===================== 其他 API 方法 =====================
+class ServerApi {
+  /**
+ * 登录
+ */
+  async login(credentials: LoginCredentials): Promise<UserInfo> {
+    const response = await api.post<UserInfo>('/login', credentials)
+    // save the response to localStorage
+    localStorage.setItem('admin_session', JSON.stringify(response.data))
+    return response.data
+  }
+
+  /**
+   * 注销
+   */
+  async logout(): Promise<void> {
+    await api.post('/logout')
+  }
+
+  /**
+   * 验证会话
+   */
+  async verifySession(): Promise<void> {
+    await api.get('/verify')
+  }
+
   // 获取统计数据
   getStats(): Promise<StatsData> {
     return api.get('/stats').then(res => res.data)
-  },
+  }
 
   // 获取用户列表
   getUsers(params: { page?: number, size?: number, status?: string, provider?: string, verified?: string, search?: string }): Promise<UserListResponse> {
     return api.get('/users', { params }).then(res => res.data)
-  },
+  }
 
   // 获取活跃情况
   getActivity(days: number): Promise<ActivityData[]> {
     return api.get('/activity', { params: { days } }).then(res => res.data)
-  },
+  }
 
   // 获取用户会话列表
   getUserSessions(userId: string): Promise<UserSessionsResponse> {
     return api.get(`/user/${userId}/sessions`).then(res => res.data)
-  },
+  }
 
   // 终止用户特定会话
   terminateUserSession(userId: string, sessionId: string): Promise<{ message: string }> {
     return api.delete(`/user/${userId}/sessions/${sessionId}`).then(res => res.data)
-  },
+  }
 
   // 终止用户所有会话
   terminateAllUserSessions(userId: string): Promise<{ message: string }> {
     return api.delete(`/user/${userId}/sessions`).then(res => res.data)
   }
-} 
+}
+
+export const serverApi = new ServerApi()

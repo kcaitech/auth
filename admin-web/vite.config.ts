@@ -12,7 +12,7 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/authadmin': 'http://localhost:8081',
+      '/api': 'http://localhost:8081',
     }
   },
   build: {

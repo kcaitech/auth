@@ -148,12 +148,6 @@ func main() {
 			c.JSON(http.StatusNotFound, gin.H{"error": "auth endpoint not found"})
 			return
 		}
-
-		// 如果是admin请求，由admin服务器处理
-		if strings.HasPrefix(c.Request.URL.Path, "/admin") {
-			c.Status(http.StatusNotFound)
-			return
-		}
 		// log.Println("Redirecting to index.html")
 		// 其他所有请求返回前端index.html
 		c.File("./web/index.html")
