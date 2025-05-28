@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2023-2024 KCai Technology (https://kcaitech.com)
+ * Licensed under the MIT License.
+ */
+
 <template>
   <!-- 登录表单容器 -->
   <div v-if="shouldShowLoginForm" class="login-container">

@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2023-2024 KCai Technology (https://kcaitech.com)
+ * Licensed under the MIT License.
+ */
+
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import ElementPlus from 'element-plus'

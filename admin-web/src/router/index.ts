@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2023-2024 KCai Technology (https://kcaitech.com)
+ * Licensed under the MIT License.
+ */
+
 import { isAuthenticated } from '@/utils'
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
 

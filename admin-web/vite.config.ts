@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2023-2024 KCai Technology (https://kcaitech.com)
+ * Licensed under the MIT License.
+ */
+
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
