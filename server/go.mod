@@ -5,6 +5,7 @@ go 1.23.1
 require (
 	github.com/gin-contrib/cors v1.7.4
 	github.com/gin-contrib/sessions v0.0.5
+	github.com/gin-contrib/static v1.1.5
 	github.com/gin-gonic/gin v1.10.0
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/golang-jwt/jwt/v5 v5.2.1
@@ -19,7 +20,6 @@ require (
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/gin-contrib/static v1.1.5 // indirect
 	github.com/go-ini/ini v1.67.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
