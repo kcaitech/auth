@@ -5,7 +5,7 @@ const readFile = promisify(fs.readFile);
 const writeFile = promisify(fs.writeFile);
 
 const copyright = `/*
- * Copyright (c) 2023-2024 KCai Technology (https://kcaitech.com)
+ * Copyright (c) 2025 KCai Technology (https://kcaitech.com)
  * Licensed under the MIT License.
  */
 
