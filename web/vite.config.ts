@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025 KCai Technology (https://kcaitech.com)
+ * Licensed under the MIT License.
+ */
+
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
@@ -18,9 +23,11 @@ export default defineConfig(({ mode }) => {
       }
     },
     server: {
+      host: '0.0.0.0',
       port: 3000,
+      allowedHosts: true,
       proxy: {
-        '/authapi': {
+        '/api': {
           target: 'http://localhost:8080',
           changeOrigin: true,
         }

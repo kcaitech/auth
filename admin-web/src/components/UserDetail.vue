@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025 KCai Technology (https://kcaitech.com)
+ * Licensed under the MIT License.
+ */
+
 <template>
   <div class="user-detail">
     <el-tabs v-model="activeTab">
@@ -171,16 +176,14 @@
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent, ref, PropType, onMounted, watch } from 'vue'
+<script setup lang="ts">
+import { ref, PropType, onMounted, watch } from 'vue'
 import { User, SessionData, JWTSessionData } from '@/api'
-import api from '@/api'
+import { serverApi as api } from '@/api/index'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import i18n from '@/locales'
+import i18n from '@/lang'
 
-export default defineComponent({
-  name: 'UserDetail',
-  props: {
+const props = defineProps({
     user: {
       type: Object as PropType<User>,
       required: true
@@ -190,289 +193,260 @@ export default defineComponent({
       type: String,
       default: 'basic'
     }
-  },
-  setup(props) {
-    const { t } = i18n.global
-    const activeTab = ref(props.initialTab)
-    
-    // 监听 initialTab 变化
-    watch(() => props.initialTab, (newVal) => {
-      activeTab.value = newVal
-    })
+  })
 
-    const sessions = ref<SessionData[]>([])
-    const jwtSessions = ref<JWTSessionData[]>([])
-    const loadingSessions = ref(false)
-    const loadingError = ref('')
-    const terminatingSessionId = ref('')
-    const terminatingAll = ref(false)
 
-    // 获取用户会话
-    const fetchSessions = async () => {
-      console.log('fetchSessions', props.user.user_id)
-      if (!props.user.user_id) return
-      
-      loadingSessions.value = true
-      loadingError.value = ''
-      
-      try {
-        const userId = (getUserId(props.user))
-        const response = await api.getUserSessions(userId)
-        sessions.value = response.sessions || []
-        jwtSessions.value = response.jwt_sessions || []
-        
-        // 如果获取会话成功但会话列表为空，显示友好提示
-        if (sessions.value.length === 0 && jwtSessions.value.length === 0) {
-          console.log(t('userDetail.no_active_sessions'))
-        }
-      } catch (error: any) {
-        console.error(t('userDetail.fetch_sessions_error'), error)
-        // 提取详细错误信息
-        const errorResponse = error.response?.data
-        const errorMsg = 
-          errorResponse?.error || 
-          error.message || 
-          t('userDetail.server_connection_error')
-        
-        loadingError.value = `${t('userDetail.fetch_sessions_failed')}: ${errorMsg}`
-        
-        if (errorMsg.includes('Redis连接未初始化')) {
-          loadingError.value = t('userDetail.redis_not_initialized')
-        }
-        
-        ElMessage.error(loadingError.value)
-      } finally {
-        loadingSessions.value = false
-      }
-    }
+const { t } = i18n.global
+const activeTab = ref(props.initialTab)
 
-    // 终止单个会话
-    const handleTerminateSession = async (sessionId: string, isJwt: boolean) => {
-      try {
-        terminatingSessionId.value = sessionId
-        
-        await ElMessageBox.confirm(
-          t('userDetail.terminate_session_confirm'),
-          t('userDetail.confirm_operation'),
-          {
-            confirmButtonText: t('userDetail.confirm_terminate'),
-            cancelButtonText: t('common.cancel'),
-            type: 'warning'
-          }
-        )
-        
-        const userId = (getUserId(props.user))
-        await api.terminateUserSession(userId, sessionId)
-        ElMessage.success(t('userDetail.session_terminated_success'))
-        
-        // 从列表中移除终止的会话
-        if (isJwt) {
-          const keyId = sessionId.replace('jwt:', '')
-          jwtSessions.value = jwtSessions.value.filter(s => s.key_id !== keyId)
-        } else {
-          sessions.value = sessions.value.filter(s => s.id !== sessionId)
-        }
-      } catch (error: any) {
-        if (error !== 'cancel') {
-          console.error(t('userDetail.terminate_session_error'), error)
-          
-          // 提取详细错误信息
-          const errorResponse = error.response?.data
-          const errorMsg = 
-            errorResponse?.error || 
-            error.message || 
-            t('userDetail.unknown_error')
-          
-          ElMessage.error(`${t('userDetail.terminate_session_failed')}: ${errorMsg}`)
-        }
-      } finally {
-        terminatingSessionId.value = ''
-      }
-    }
-
-    // 终止所有会话
-    const handleTerminateAll = async () => {
-      try {
-        terminatingAll.value = true
-        
-        await ElMessageBox.confirm(
-          t('userDetail.terminate_all_sessions_confirm'),
-          t('userDetail.confirm_operation'),
-          {
-            confirmButtonText: t('userDetail.confirm_terminate_all'),
-            cancelButtonText: t('common.cancel'),
-            type: 'warning'
-          }
-        )
-        
-        const userId = (getUserId(props.user))
-        await api.terminateAllUserSessions(userId)
-        ElMessage.success(t('userDetail.all_sessions_terminated'))
-        
-        // 清空会话列表
-        sessions.value = []
-        jwtSessions.value = []
-      } catch (error: any) {
-        if (error !== 'cancel') {
-          console.error(t('userDetail.terminate_all_sessions_error'), error)
-          ElMessage.error(t('userDetail.terminate_all_sessions_failed'))
-        }
-      } finally {
-        terminatingAll.value = false
-      }
-    }
-
-    // 刷新会话信息
-    const refreshSessions = () => {
-      fetchSessions()
-    }
-
-    // 编辑用户
-    const handleEditUser = () => {
-      ElMessage.info(t('userDetail.edit_user_not_implemented'))
-    }
-
-    // 切换用户状态
-    const handleToggleStatus = () => {
-      ElMessage.info(t('userDetail.toggle_status_not_implemented'))
-    }
-
-    // 切换验证状态
-    const handleToggleVerified = () => {
-      ElMessage.info(t('userDetail.toggle_verification_not_implemented'))
-    }
-
-    // 辅助函数：获取用户ID
-    const getUserId = (user: User): string => {
-      return String(user.user_id || t('userDetail.unknown_id'))
-    }
-    
-    // 辅助函数：获取用户名
-    const getUserName = (user: User): string => {
-      return user.nickname || t('userDetail.unknown_username')
-    }
-    
-    // 辅助函数：获取状态
-    // const getStatus = (user: User): string => {
-    //   return user.status || 'inactive'
-    // }
-    
-    // 辅助函数：获取提供商
-    // const getProvider = (user: User): string => {
-    //   return user.provider || user.auth_provider || 'local'
-    // }
-    
-    // 辅助函数：检查是否已验证
-    // const isVerified = (user: User): boolean => {
-    //   return user.verified === true || user.is_verified === true
-    // }
-    
-    // 辅助函数：获取创建时间
-    const getCreatedAt = (user: User): string => {
-      return user.created_at || user.register_time || ''
-    }
-    
-    // 辅助函数：获取最后登录时间
-    const getLastLogin = (user: User): string | null => {
-      return user.last_login || user.last_login_time || null
-    }
-
-    // 格式化日期时间
-    const formatDateTime = (dateStr: string | null) => {
-      if (!dateStr) return t('userDetail.none')
-      return new Date(dateStr).toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      })
-    }
-
-    // 获取状态类型
-    const getStatusType = (status: string) => {
-      const map: Record<string, string> = {
-        active: 'success',
-        inactive: 'info',
-        locked: 'warning',
-        banned: 'danger'
-      }
-      return map[status] || 'info'
-    }
-
-    // 获取状态文本
-    const getStatusText = (status: string) => {
-      const map: Record<string, string> = {
-        active: t('userDetail.status_active'),
-        inactive: t('userDetail.status_inactive'),
-        locked: t('userDetail.status_locked'),
-        banned: t('userDetail.status_banned')
-      }
-      return map[status] || status
-    }
-
-    // 获取提供商文本
-    const getProviderText = (provider: string) => {
-      const map: Record<string, string> = {
-        local: t('userDetail.provider_local'),
-        google: 'Google',
-        weixin: t('userDetail.provider_weixin')
-      }
-      return map[provider] || provider
-    }
-
-    // 获取操作按钮类型
-    const getActionButtonType = (status: string) => {
-      if (status === 'active') return 'warning'
-      if (status === 'locked') return 'warning'
-      if (status === 'banned') return 'danger'
-      return 'success'
-    }
-
-    // 获取操作按钮文本
-    const getActionButtonText = (status: string) => {
-      if (status === 'active') return t('userDetail.lock_account')
-      if (status === 'inactive') return t('userDetail.activate_account')
-      if (status === 'locked') return t('userDetail.unlock_account')
-      if (status === 'banned') return t('userDetail.unban_account')
-      return t('userDetail.change_status')
-    }
-
-    onMounted(() => {
-      fetchSessions()
-    })
-
-    return {
-      activeTab,
-      sessions,
-      jwtSessions,
-      loadingSessions,
-      loadingError,
-      terminatingSessionId,
-      terminatingAll,
-      handleTerminateSession,
-      handleTerminateAll,
-      refreshSessions,
-      handleEditUser,
-      handleToggleStatus,
-      handleToggleVerified,
-      formatDateTime,
-      getStatusType,
-      getStatusText,
-      getProviderText,
-      getActionButtonType,
-      getActionButtonText,
-      getUserId,
-      getUserName,
-      // getStatus,
-      // getProvider,
-      // isVerified,
-      getCreatedAt,
-      getLastLogin
-    }
-  }
+// 监听 initialTab 变化
+watch(() => props.initialTab, (newVal) => {
+  activeTab.value = newVal
 })
+
+const sessions = ref<SessionData[]>([])
+const jwtSessions = ref<JWTSessionData[]>([])
+const loadingSessions = ref(false)
+const loadingError = ref('')
+const terminatingSessionId = ref('')
+const terminatingAll = ref(false)
+
+// 获取用户会话
+const fetchSessions = async () => {
+  console.log('fetchSessions', props.user.user_id)
+  if (!props.user.user_id) return
+  
+  loadingSessions.value = true
+  loadingError.value = ''
+  
+  try {
+    const userId = (getUserId(props.user))
+    const response = await api.getUserSessions(userId)
+    sessions.value = response.sessions || []
+    jwtSessions.value = response.jwt_sessions || []
+    
+    // 如果获取会话成功但会话列表为空，显示友好提示
+    if (sessions.value.length === 0 && jwtSessions.value.length === 0) {
+      console.log(t('userDetail.no_active_sessions'))
+    }
+  } catch (error: any) {
+    console.error(t('userDetail.fetch_sessions_error'), error)
+    // 提取详细错误信息
+    const errorResponse = error.response?.data
+    const errorMsg = 
+      errorResponse?.error || 
+      error.message || 
+      t('userDetail.server_connection_error')
+    
+    loadingError.value = `${t('userDetail.fetch_sessions_failed')}: ${errorMsg}`
+    
+    if (errorMsg.includes('Redis连接未初始化')) {
+      loadingError.value = t('userDetail.redis_not_initialized')
+    }
+    
+    ElMessage.error(loadingError.value)
+  } finally {
+    loadingSessions.value = false
+  }
+}
+
+// 终止单个会话
+const handleTerminateSession = async (sessionId: string, isJwt: boolean) => {
+  try {
+    terminatingSessionId.value = sessionId
+    
+    await ElMessageBox.confirm(
+      t('userDetail.terminate_session_confirm'),
+      t('userDetail.confirm_operation'),
+      {
+        confirmButtonText: t('userDetail.confirm_terminate'),
+        cancelButtonText: t('common.cancel'),
+        type: 'warning'
+      }
+    )
+    
+    const userId = (getUserId(props.user))
+    await api.terminateUserSession(userId, sessionId)
+    ElMessage.success(t('userDetail.session_terminated_success'))
+    
+    // 从列表中移除终止的会话
+    if (isJwt) {
+      const keyId = sessionId.replace('jwt:', '')
+      jwtSessions.value = jwtSessions.value.filter(s => s.key_id !== keyId)
+    } else {
+      sessions.value = sessions.value.filter(s => s.id !== sessionId)
+    }
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error(t('userDetail.terminate_session_error'), error)
+      
+      // 提取详细错误信息
+      const errorResponse = error.response?.data
+      const errorMsg = 
+        errorResponse?.error || 
+        error.message || 
+        t('userDetail.unknown_error')
+      
+      ElMessage.error(`${t('userDetail.terminate_session_failed')}: ${errorMsg}`)
+    }
+  } finally {
+    terminatingSessionId.value = ''
+  }
+}
+
+// 终止所有会话
+const handleTerminateAll = async () => {
+  try {
+    terminatingAll.value = true
+    
+    await ElMessageBox.confirm(
+      t('userDetail.terminate_all_sessions_confirm'),
+      t('userDetail.confirm_operation'),
+      {
+        confirmButtonText: t('userDetail.confirm_terminate_all'),
+        cancelButtonText: t('common.cancel'),
+        type: 'warning'
+      }
+    )
+    
+    const userId = (getUserId(props.user))
+    await api.terminateAllUserSessions(userId)
+    ElMessage.success(t('userDetail.all_sessions_terminated'))
+    
+    // 清空会话列表
+    sessions.value = []
+    jwtSessions.value = []
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      console.error(t('userDetail.terminate_all_sessions_error'), error)
+      ElMessage.error(t('userDetail.terminate_all_sessions_failed'))
+    }
+  } finally {
+    terminatingAll.value = false
+  }
+}
+
+// 刷新会话信息
+const refreshSessions = () => {
+  fetchSessions()
+}
+
+// 编辑用户
+const handleEditUser = () => {
+  ElMessage.info(t('userDetail.edit_user_not_implemented'))
+}
+
+// 切换用户状态
+const handleToggleStatus = () => {
+  ElMessage.info(t('userDetail.toggle_status_not_implemented'))
+}
+
+// 切换验证状态
+const handleToggleVerified = () => {
+  ElMessage.info(t('userDetail.toggle_verification_not_implemented'))
+}
+
+// 辅助函数：获取用户ID
+const getUserId = (user: User): string => {
+  return String(user.user_id || t('userDetail.unknown_id'))
+}
+
+// 辅助函数：获取用户名
+const getUserName = (user: User): string => {
+  return user.nickname || t('userDetail.unknown_username')
+}
+
+// 辅助函数：获取状态
+// const getStatus = (user: User): string => {
+//   return user.status || 'inactive'
+// }
+
+// 辅助函数：获取提供商
+// const getProvider = (user: User): string => {
+//   return user.provider || user.auth_provider || 'local'
+// }
+
+// 辅助函数：检查是否已验证
+// const isVerified = (user: User): boolean => {
+//   return user.verified === true || user.is_verified === true
+// }
+
+// 辅助函数：获取创建时间
+const getCreatedAt = (user: User): string => {
+  return user.created_at || user.register_time || ''
+}
+
+// 辅助函数：获取最后登录时间
+const getLastLogin = (user: User): string | null => {
+  return user.last_login || user.last_login_time || null
+}
+
+// 格式化日期时间
+const formatDateTime = (dateStr: string | null) => {
+  if (!dateStr) return t('userDetail.none')
+  return new Date(dateStr).toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  })
+}
+
+// 获取状态类型
+const getStatusType = (status: string) => {
+  const map: Record<string, string> = {
+    active: 'success',
+    inactive: 'info',
+    locked: 'warning',
+    banned: 'danger'
+  }
+  return map[status] || 'info'
+}
+
+// 获取状态文本
+const getStatusText = (status: string) => {
+  const map: Record<string, string> = {
+    active: t('userDetail.status_active'),
+    inactive: t('userDetail.status_inactive'),
+    locked: t('userDetail.status_locked'),
+    banned: t('userDetail.status_banned')
+  }
+  return map[status] || status
+}
+
+// 获取提供商文本
+const getProviderText = (provider: string) => {
+  const map: Record<string, string> = {
+    local: t('userDetail.provider_local'),
+    google: 'Google',
+    weixin: t('userDetail.provider_weixin')
+  }
+  return map[provider] || provider
+}
+
+// 获取操作按钮类型
+const getActionButtonType = (status: string) => {
+  if (status === 'active') return 'warning'
+  if (status === 'locked') return 'warning'
+  if (status === 'banned') return 'danger'
+  return 'success'
+}
+
+// 获取操作按钮文本
+const getActionButtonText = (status: string) => {
+  if (status === 'active') return t('userDetail.lock_account')
+  if (status === 'inactive') return t('userDetail.activate_account')
+  if (status === 'locked') return t('userDetail.unlock_account')
+  if (status === 'banned') return t('userDetail.unban_account')
+  return t('userDetail.change_status')
+}
+
+onMounted(() => {
+  fetchSessions()
+})
+
 </script>
 
 <style lang="scss" scoped>

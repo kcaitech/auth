@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025 KCai Technology (https://kcaitech.com)
+ * Licensed under the MIT License.
+ */
+
 <template>
   <div class="dashboard-container">
     <el-card class="dashboard-card">
@@ -128,69 +133,58 @@
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent, onMounted, reactive, ref } from 'vue'
-import api, { StatsData } from '@/api'
+<script setup lang="ts">
+import { onMounted, reactive, ref } from 'vue'
+import { StatsData, serverApi as api } from '@/api/index'
 import { useI18n } from 'vue-i18n'
 
-export default defineComponent({
-  name: 'DashboardView',
-  setup() {
-    const { t } = useI18n()
-    const loading = ref(true)
-    const error = ref('')
-    
-    // 初始化统计数据
-    const stats = reactive<StatsData>({
-      total_users: 0,
-      active_users: 0,
-      inactive_users: 0,
-      locked_users: 0,
-      banned_users: 0,
-      new_today: 0,
-      new_this_week: 0,
-      new_this_month: 0,
-      login_today: 0,
-      login_this_week: 0,
-      login_this_month: 0,
-      verified_users: 0,
-      unverified_users: 0,
-      two_factor_enabled: 0,
-      social_users: 0,
-      local_users: 0
-    })
-    
-    // 获取统计数据
-    const fetchStats = async () => {
-      loading.value = true
-      error.value = ''
-      
-      try {
-        const data = await api.getStats()
-        
-        // 更新统计数据
-        Object.assign(stats, data)
-      } catch (e: any) {
-        error.value = e.response?.data?.error || t('dashboard.load_failed')
-        console.error(t('dashboard.get_stats_failed'), e)
-      } finally {
-        loading.value = false
-      }
-    }
-    
-    // 组件挂载时获取数据
-    onMounted(() => {
-      fetchStats()
-    })
-    
-    return {
-      stats,
-      loading,
-      error,
-      fetchStats
-    }
-  }
+const { t } = useI18n()
+const loading = ref(true)
+const error = ref('')
+
+// 初始化统计数据
+const stats = reactive<StatsData>({
+  total_users: 0,
+  active_users: 0,
+  inactive_users: 0,
+  locked_users: 0,
+  banned_users: 0,
+  new_today: 0,
+  new_this_week: 0,
+  new_this_month: 0,
+  login_today: 0,
+  login_this_week: 0,
+  login_this_month: 0,
+  verified_users: 0,
+  unverified_users: 0,
+  two_factor_enabled: 0,
+  social_users: 0,
+  local_users: 0
 })
+
+// 获取统计数据
+const fetchStats = async () => {
+  loading.value = true
+  error.value = ''
+  
+  try {
+    const data = await api.getStats()
+    
+    // 更新统计数据
+    Object.assign(stats, data)
+  } catch (e: any) {
+    error.value = e.response?.data?.error || t('dashboard.load_failed')
+    console.error(t('dashboard.get_stats_failed'), e)
+  } finally {
+    loading.value = false
+  }
+}
+
+// 组件挂载时获取数据
+onMounted(() => {
+  fetchStats()
+})
+
 </script>
 
 <style lang="scss" scoped>

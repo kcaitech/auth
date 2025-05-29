@@ -16,9 +16,9 @@
             ]
         },
         "weixin": {
-            "app_id": "wx0b6902b93a2bd8c9",
-            "app_secret": "a9ef7e339d3723bcc4056120556e2403",
-            "redirect_url": "http://test.vextra.cn/auth/weixin/callback",
+            "app_id": "wxa4d79433f9b381f3",
+            "app_secret": "5f0ecd9a9e0bd48f9965e867314942a1",
+            "redirect_url": "https://account.test.vextra.cn/wechat/callback",
             "domain_verify_token": "b3eac26e-ce72-4268-a7fa-d71a2c628f39"
         },
         "sms": {
@@ -65,7 +65,7 @@
     "storage": {
         "provider": "minio",
         "minio": {
-            "endpoint": "localhost:9002",
+            "endpoint": "localhost:9000",
             "region": "zhuhai-1",
             "accessKeyID": "59L3pDWuk9oLQWIgytCI",
             "secretAccessKey": "GmwAzetY1L0jU4pUAqpO7RJGIsG7k3gozVH6whoJ",
@@ -75,7 +75,7 @@
         }
     },
     "storage_url": {
-        "attatch": "http://localhost:9002/attatch"
+        "attatch": "http://localhost:9000/attatch"
     },
     "admin": {
         "enabled": true,

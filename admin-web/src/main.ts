@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025 KCai Technology (https://kcaitech.com)
+ * Licensed under the MIT License.
+ */
+
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import ElementPlus from 'element-plus'
@@ -6,7 +11,7 @@ import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import en from 'element-plus/es/locale/lang/en'
 import App from './App.vue'
 import router from './router'
-import i18n, { getPreferredLanguage } from './locales'
+import i18n, { getPreferredLanguage } from './lang'
 
 // 创建应用实例
 const app = createApp(App)

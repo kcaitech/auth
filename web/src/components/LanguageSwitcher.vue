@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025 KCai Technology (https://kcaitech.com)
+ * Licensed under the MIT License.
+ */
+
 <template>
   <div class="language-switcher">
     <div class="language-icon" @click="toggleDropdown">

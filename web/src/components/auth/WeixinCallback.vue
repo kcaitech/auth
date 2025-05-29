@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025 KCai Technology (https://kcaitech.com)
+ * Licensed under the MIT License.
+ */
+
 <template>
   <div class="weixin-callback-container">
     <div v-if="loading" class="loading">
@@ -14,12 +19,10 @@
 <script lang="ts" setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
 import { useI18n } from 'vue-i18n'
-
+import { serverApi } from '@/api/serverApi'
 const route = useRoute()
 const router = useRouter()
-const authStore = useAuthStore()
 const { t } = useI18n()
 
 const loading = ref(true)
@@ -33,26 +36,24 @@ const handleWeixinCallback = async () => {
     if (!code || !state) {
       throw new Error(t('errors.invalidWeixinCallback'))
     }
+
+    // 获取client_id
+    const client_id = sessionStorage.getItem(state)
+    if (!client_id) {
+      throw new Error(t('errors.invalidWeixinCallback'))
+    }
+
+    serverApi.updateAuthData(client_id, undefined)
     
     // 调用后端 API 处理微信登录
-    await authStore.handleWeixinCallback(code, state)
-    
-    // 获取回调 URL
-    const redirectUrl = authStore.getRedirectUrl()
-    if (redirectUrl) {
-      // 如果有回调 URL，则重定向到回调地址
-      const token = authStore.token
-      const separator = redirectUrl.includes('?') ? '&' : '?'
-      const fullUrl = `${redirectUrl}${separator}token=${token}`
-      window.location.href = fullUrl
-      // 清除重定向 URL
-      authStore.clearRedirectUrl()
-    } else {
-      // 否则重定向到成功页面
-      router.push('/success')
+    // 如果成功后端直接302跳转，否则是登陆失败了
+    const res = await serverApi.handleWeixinCallback(code, state)
+    if (!res) { // 登陆失败
+      goToLogin()
     }
   } catch (err: any) {
-    error.value = err.message || t('errors.weixinLoginFailed')
+    error.value = err.message || t('errors.wechatLoginFailed')
+    goToLogin()
   } finally {
     loading.value = false
   }

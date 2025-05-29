@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025 KCai Technology (https://kcaitech.com)
+ * Licensed under the MIT License.
+ */
+
 <template>
   <div class="activity-container">
     <el-card class="activity-card">
@@ -81,70 +86,54 @@
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent, ref, computed, onMounted } from 'vue'
-import api, { ActivityData } from '@/api'
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { ActivityData, serverApi as api } from '@/api/index'
 import { ElMessage } from 'element-plus'
 import ActivityChart from './ActivityChart.vue'
 import { useI18n } from 'vue-i18n'
 
-export default defineComponent({
-  name: 'ActivityView',
-  components: {
-    ActivityChart
-  },
-  setup() {
-    const { t } = useI18n()
-    const loading = ref(true)
-    const error = ref('')
-    const activityData = ref<ActivityData[]>([])
-    const daysFilter = ref(30)
-    
-    // 获取活跃数据
-    const fetchActivity = async () => {
-      loading.value = true
-      error.value = ''
-      
-      try {
-        const data = await api.getActivity(daysFilter.value)
-        activityData.value = data
-      } catch (e: any) {
-        error.value = e.response?.data?.error || t('activity.load_failed')
-        ElMessage.error(error.value)
-        console.error(t('activity.get_activity_failed'), e)
-      } finally {
-        loading.value = false
-      }
-    }
-    
-    // 计算成功率
-    const calculateSuccessRate = (row: ActivityData) => {
-      if (row.login_attempts === 0) return '0'
-      const rate = (row.successful_auth / row.login_attempts) * 100
-      return rate.toFixed(2)
-    }
-    
-    // 表格展示数据（倒序排列，最近日期在前）
-    const sortedActivityData = computed(() => {
-      return [...activityData.value].reverse()
-    })
-    
-    // 组件挂载时获取数据
-    onMounted(() => {
-      fetchActivity()
-    })
-    
-    return {
-      loading,
-      error,
-      activityData,
-      daysFilter,
-      sortedActivityData,
-      fetchActivity,
-      calculateSuccessRate
-    }
+const { t } = useI18n()
+const loading = ref(true)
+const error = ref('')
+const activityData = ref<ActivityData[]>([])
+const daysFilter = ref(30)
+
+// 获取活跃数据
+const fetchActivity = async () => {
+  loading.value = true
+  error.value = ''
+  
+  try {
+    const data = await api.getActivity(daysFilter.value)
+    activityData.value = data
+  } catch (e: any) {
+    error.value = e.response?.data?.error || t('activity.load_failed')
+    ElMessage.error(error.value)
+    console.error(t('activity.get_activity_failed'), e)
+  } finally {
+    loading.value = false
   }
+}
+
+// 计算成功率
+const calculateSuccessRate = (row: ActivityData) => {
+  if (row.login_attempts === 0) return '0'
+  const rate = (row.successful_auth / row.login_attempts) * 100
+  return rate.toFixed(2)
+}
+
+// 表格展示数据（倒序排列，最近日期在前）
+const sortedActivityData = computed(() => {
+  return [...activityData.value].reverse()
 })
+
+// 组件挂载时获取数据
+onMounted(() => {
+  fetchActivity()
+})
+
+
 </script>
 
 <style lang="scss" scoped>

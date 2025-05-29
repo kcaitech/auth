@@ -1,5 +1,11 @@
+/*
+ * Copyright (c) 2025 KCai Technology (https://kcaitech.com)
+ * Licensed under the MIT License.
+ */
+
+import { isAuthenticated } from '@/utils'
 import { createRouter, createWebHistory, RouteRecordRaw } from 'vue-router'
-import { useAuthStore } from '@/store/auth'
+
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -53,10 +59,9 @@ const router = createRouter({
 
 // 路由守卫
 router.beforeEach((to, _, next) => {
-  const authStore = useAuthStore()
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth !== false)
 
-  if (requiresAuth && !authStore.isAuthenticated) {
+  if (requiresAuth && !isAuthenticated()) {
     next('/login')
   } else {
     next()

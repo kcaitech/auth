@@ -1,51 +1,55 @@
-FROM node:18-alpine AS web-builder
+FROM golang:1.23-alpine3.20 AS builder
+# FROM kcserver-builder_image:latest as builder
 
-WORKDIR /app/web
-COPY web/package*.json ./
-RUN npm install
-COPY web/ ./
-RUN npm run build
+ENV GO111MODULE=on \
+    CGO_ENABLED=0 \
+    GOOS=linux \
+    GOARCH=amd64 \
+    GOPROXY=https://goproxy.cn,direct
 
-FROM node:18-alpine AS admin-builder
+RUN set -ex \
+    && sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
+    && apk --update add tzdata \
+    && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && apk --no-cache add ca-certificates
 
-WORKDIR /app/admin-web
-COPY admin-web/package*.json ./
-RUN npm install
-COPY admin-web/ ./
-RUN npm run build
+WORKDIR /app
+COPY server .
+RUN go mod download && go mod tidy -v && go build -ldflags "-s -w" -o kcauth ./main.go
 
-FROM golang:1.20-alpine AS server-builder
 
-WORKDIR /app/server
-COPY server/ ./
-RUN go mod download
-RUN go build -o kcauth-server .
-
-FROM alpine:latest
-
-RUN apk add --no-cache ca-certificates tzdata
+# Node.js 构建阶段
+FROM node:22-alpine AS web-builder
 
 WORKDIR /app
 
-# 复制前端构建结果
-COPY --from=web-builder /app/web/dist /app/web/dist
-# 复制管理后台构建结果
-COPY --from=admin-builder /app/admin-web/dist /app/admin-web/dist
-# 复制后端构建结果
-COPY --from=server-builder /app/server/kcauth-server /app/server/kcauth-server
-# 复制服务器配置
-COPY server/config /app/server/config
-# 复制入口点脚本
-COPY entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
+# 构建 web 项目
+COPY web ./web/
+WORKDIR /app/web
+RUN npm i && npm run build
 
-# 默认环境变量
-ENV GIN_MODE=release
-# 创建必要的目录
-RUN mkdir -p /app/logs
+# 构建 admin-web 项目
+WORKDIR /app
+COPY admin-web ./admin-web/
+WORKDIR /app/admin-web
+RUN npm i && npm run build
 
-EXPOSE 8080
-EXPOSE 8081
 
-ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["/app/server/kcauth-server", "--config", "/app/server/config/config.json"] 
+FROM golang:1.23-alpine3.20
+WORKDIR /app
+
+ENV TZ=Asia/Shanghai
+RUN set -ex \
+    && sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories \
+    && apk upgrade --no-cache --available \
+    && apk add --no-cache fontconfig
+
+COPY --from=builder /app/kcauth /app/
+COPY --from=builder /usr/share/zoneinfo/Asia/Shanghai /usr/share/zoneinfo/Asia/Shanghai
+
+# 从web-builder阶段复制构建好的前端资源
+COPY --from=web-builder /app/web/dist /app/web/
+COPY --from=web-builder /app/admin-web/dist /app/admin-web/
+
+EXPOSE 80 81
+ENTRYPOINT [ "/app/kcauth" ]

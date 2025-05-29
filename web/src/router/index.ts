@@ -1,23 +1,26 @@
+/*
+ * Copyright (c) 2025 KCai Technology (https://kcaitech.com)
+ * Licensed under the MIT License.
+ */
+
+import { serverApi } from '@/api/serverApi'
 import { createRouter, createWebHistory } from 'vue-router'
-import { useAuthStore } from '../stores/auth'
 
 const routes = [
   {
     path: '/',
-    redirect: '/login'
+    redirect: '/login',
   },
   {
     path: '/login',
     name: 'Login',
-    component: () => import('../views/Login.vue')
-  },
-  {
-    path: '/success',
-    name: 'Success',
-    component: () => import('../views/LoginSuccess.vue'),
-    meta: { requiresAuth: true },
-    beforeEnter: () => { // 正式环境，如果没有redirect，强制跳转到根路径
-      window.location.href = `/`; // 跳转到后端路由
+    component: () => import('../views/Login.vue'),
+    // 记录client_id和redirect_uri
+    beforeEnter: () => {
+      const urlParams = new URLSearchParams(window.location.search)
+      const client_id = urlParams.get('client_id') || ''
+      const redirect_uri = urlParams.get('redirect_url') || undefined
+      serverApi.updateAuthData(client_id, redirect_uri)
     }
   },
   {
@@ -26,9 +29,9 @@ const routes = [
     component: () => import('../components/auth/EmailVerify.vue')
   },
   {
-    path: '/weixin/callback',
+    path: '/wechat/callback',
     name: 'WeixinCallback',
-    component: () => import('../views/WeixinCallback.vue')
+    component: () => import('../components/auth/WeixinCallback.vue'),
   },
   {
     path: '/:pathMatch(.*)*',
@@ -43,33 +46,6 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(import.meta.env.VITE_BASE_URL),
   routes
-})
-
-// 导航守卫
-router.beforeEach(async (to, from, next) => {
-  const authStore = useAuthStore()
-
-  // 如果路由需要认证
-  if (to.meta.requiresAuth) {
-    // 检查用户是否已登录
-    if (authStore.isAuthenticated) {
-      // 如果已登录但没有用户信息，尝试获取用户信息
-      if (!authStore.currentUser) {
-        try {
-          await authStore.fetchCurrentUser()
-        } catch (error) {
-          // 如果获取用户信息失败，重定向到登录页
-          return next('/login')
-        }
-      }
-      return next()
-    } else {
-      // 未登录，重定向到登录页
-      return next('/login')
-    }
-  }
-
-  next()
 })
 
 export default router 

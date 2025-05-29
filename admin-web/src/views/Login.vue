@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025 KCai Technology (https://kcaitech.com)
+ * Licensed under the MIT License.
+ */
+
 <template>
   <div class="login-container">
     <el-card class="login-card">
@@ -32,9 +37,9 @@
           />
         </el-form-item>
         
-        <el-form-item v-if="authStore.error">
+        <el-form-item v-if="context.error">
           <el-alert
-            :title="authStore.error"
+            :title="context.error"
             type="error"
             show-icon
             :closable="false"
@@ -44,11 +49,11 @@
         <el-form-item>
           <el-button
             type="primary"
-            :loading="authStore.loading"
+            :loading="context.loading"
             @click="handleLogin"
             style="width: 100%"
           >
-            {{ authStore.loading ? $t('auth.login_loading') : $t('auth.login') }}
+            {{ context.loading ? $t('auth.login_loading') : $t('auth.login') }}
           </el-button>
         </el-form-item>
       </el-form>
@@ -56,65 +61,56 @@
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent, reactive, ref, onMounted } from 'vue'
+<script setup lang="ts">
+import { reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/store/auth'
+import { context } from '@/context'
 import { useI18n } from 'vue-i18n'
 import type { FormInstance, FormRules } from 'element-plus'
+import { serverApi } from '@/api'
+import { isAuthenticated } from '@/utils'
 
-export default defineComponent({
-  name: 'LoginView',
-  setup() {
-    const router = useRouter()
-    const authStore = useAuthStore()
-    const formRef = ref<FormInstance>()
-    const { t } = useI18n()
-    
-    // 表单数据
-    const loginForm = reactive({
-      username: '',
-      password: ''
-    })
-    
-    // 表单验证规则
-    const rules = reactive<FormRules>({
-      username: [
-        { required: true, message: t('auth.error_username_required'), trigger: 'blur' }
-      ],
-      password: [
-        { required: true, message: t('auth.error_password_required'), trigger: 'blur' }
-      ]
-    })
-    
-    // 如果已经登录，重定向到首页
-    onMounted(() => {
-      if (authStore.isAuthenticated) {
-        router.push('/')
-      }
-    })
-    
-    // 登录处理
-    const handleLogin = () => {
-      formRef.value?.validate((valid: boolean) => {
-        if (valid) {
-          authStore.login({
-            username: loginForm.username,
-            password: loginForm.password
-          })
-        }
-      })
-    }
-    
-    return {
-      formRef,
-      loginForm,
-      rules,
-      authStore,
-      handleLogin
-    }
+const router = useRouter()
+const formRef = ref<FormInstance>()
+const { t } = useI18n()
+
+// 表单数据
+const loginForm = reactive({
+  username: '',
+  password: ''
+})
+
+// 表单验证规则
+const rules = reactive<FormRules>({
+  username: [
+    { required: true, message: t('auth.error_username_required'), trigger: 'blur' }
+  ],
+  password: [
+    { required: true, message: t('auth.error_password_required'), trigger: 'blur' }
+  ]
+})
+
+// 如果已经登录，重定向到首页
+onMounted(() => {
+  if (isAuthenticated()) {
+    router.push('/')
   }
 })
+
+// 登录处理
+const handleLogin = () => {
+  formRef.value?.validate((valid: boolean) => {
+    if (valid) {
+      serverApi.login({
+        username: loginForm.username,
+        password: loginForm.password
+      }).then(() => {
+        router.push('/')
+      })
+    }
+  })
+}
+
 </script>
 
 <style lang="scss" scoped>
