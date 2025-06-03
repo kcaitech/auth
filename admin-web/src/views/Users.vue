@@ -327,14 +327,14 @@ const getStatusText = (status: string) => {
 }
 
 // 获取提供商文本
-const getProviderText = (provider: string) => {
-  const map: Record<string, string> = {
-    local: t('user.provider_local'),
-    google: 'Google',
-    weixin: t('user.provider_weixin')
-  }
-  return map[provider] || provider
-}
+// const getProviderText = (provider: string) => {
+//   const map: Record<string, string> = {
+//     local: t('user.provider_local'),
+//     google: 'Google',
+//     weixin: t('user.provider_weixin')
+//   }
+//   return map[provider] || provider
+// }
 
 // 辅助函数：获取用户ID
 const getUserId = (user: User): string => {
@@ -357,9 +357,9 @@ const getStatus = (user: User): string => {
 // }
 
 // 辅助函数：检查是否已验证
-const isVerified = (user: User): boolean => {
-  return user.verified === true || user.is_verified === true
-}
+// const isVerified = (user: User): boolean => {
+//   return user.verified === true || user.is_verified === true
+// }
 
 // 辅助函数：获取创建时间
 const getCreatedAt = (user: User): string => {

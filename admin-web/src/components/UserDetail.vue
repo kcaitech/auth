@@ -337,14 +337,14 @@ const handleEditUser = () => {
 }
 
 // 切换用户状态
-const handleToggleStatus = () => {
-  ElMessage.info(t('userDetail.toggle_status_not_implemented'))
-}
+// const handleToggleStatus = () => {
+//   ElMessage.info(t('userDetail.toggle_status_not_implemented'))
+// }
 
-// 切换验证状态
-const handleToggleVerified = () => {
-  ElMessage.info(t('userDetail.toggle_verification_not_implemented'))
-}
+// // 切换验证状态
+// const handleToggleVerified = () => {
+//   ElMessage.info(t('userDetail.toggle_verification_not_implemented'))
+// }
 
 // 辅助函数：获取用户ID
 const getUserId = (user: User): string => {
@@ -395,53 +395,53 @@ const formatDateTime = (dateStr: string | null) => {
 }
 
 // 获取状态类型
-const getStatusType = (status: string) => {
-  const map: Record<string, string> = {
-    active: 'success',
-    inactive: 'info',
-    locked: 'warning',
-    banned: 'danger'
-  }
-  return map[status] || 'info'
-}
+// const getStatusType = (status: string) => {
+//   const map: Record<string, string> = {
+//     active: 'success',
+//     inactive: 'info',
+//     locked: 'warning',
+//     banned: 'danger'
+//   }
+//   return map[status] || 'info'
+// }
 
-// 获取状态文本
-const getStatusText = (status: string) => {
-  const map: Record<string, string> = {
-    active: t('userDetail.status_active'),
-    inactive: t('userDetail.status_inactive'),
-    locked: t('userDetail.status_locked'),
-    banned: t('userDetail.status_banned')
-  }
-  return map[status] || status
-}
+// // 获取状态文本
+// const getStatusText = (status: string) => {
+//   const map: Record<string, string> = {
+//     active: t('userDetail.status_active'),
+//     inactive: t('userDetail.status_inactive'),
+//     locked: t('userDetail.status_locked'),
+//     banned: t('userDetail.status_banned')
+//   }
+//   return map[status] || status
+// }
 
-// 获取提供商文本
-const getProviderText = (provider: string) => {
-  const map: Record<string, string> = {
-    local: t('userDetail.provider_local'),
-    google: 'Google',
-    weixin: t('userDetail.provider_weixin')
-  }
-  return map[provider] || provider
-}
+// // 获取提供商文本
+// const getProviderText = (provider: string) => {
+//   const map: Record<string, string> = {
+//     local: t('userDetail.provider_local'),
+//     google: 'Google',
+//     weixin: t('userDetail.provider_weixin')
+//   }
+//   return map[provider] || provider
+// }
 
-// 获取操作按钮类型
-const getActionButtonType = (status: string) => {
-  if (status === 'active') return 'warning'
-  if (status === 'locked') return 'warning'
-  if (status === 'banned') return 'danger'
-  return 'success'
-}
+// // 获取操作按钮类型
+// const getActionButtonType = (status: string) => {
+//   if (status === 'active') return 'warning'
+//   if (status === 'locked') return 'warning'
+//   if (status === 'banned') return 'danger'
+//   return 'success'
+// }
 
-// 获取操作按钮文本
-const getActionButtonText = (status: string) => {
-  if (status === 'active') return t('userDetail.lock_account')
-  if (status === 'inactive') return t('userDetail.activate_account')
-  if (status === 'locked') return t('userDetail.unlock_account')
-  if (status === 'banned') return t('userDetail.unban_account')
-  return t('userDetail.change_status')
-}
+// // 获取操作按钮文本
+// const getActionButtonText = (status: string) => {
+//   if (status === 'active') return t('userDetail.lock_account')
+//   if (status === 'inactive') return t('userDetail.activate_account')
+//   if (status === 'locked') return t('userDetail.unlock_account')
+//   if (status === 'banned') return t('userDetail.unban_account')
+//   return t('userDetail.change_status')
+// }
 
 onMounted(() => {
   fetchSessions()
