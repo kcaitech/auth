@@ -1,7 +1,13 @@
+/*
+ * Copyright (c) 2025 KCai Technology (https://kcaitech.com)
+ * Licensed under the MIT License.
+ */
+
 package auth
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -43,11 +49,24 @@ type UserInfo struct {
 	Avatar   string `json:"avatar" gorm:"size:255"`    // Avatar URL
 }
 
+// LoginVerifyResponse 登录验证响应
+type LoginVerifyResponse struct {
+	UserID     string        `json:"user_id"`
+	Token      string        `json:"token"`
+	Nickname   string        `json:"nickname"`
+	Avatar     string        `json:"avatar"`
+	ExpireTime time.Duration `json:"expire_time"`
+}
+
 // NewAuthClient 创建新的JWT客户端
 func NewAuthClient(authServerURL string, clientID string, clientSecret string) *KCAuthClient {
 	return &KCAuthClient{
 		AuthServerURL: authServerURL,
 		HTTPClient: &http.Client{
+			// 在测试环境中跳过SSL证书验证
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			},
 			Timeout: 10 * time.Second,
 		},
 		Timeout:      10 * time.Second,
@@ -77,7 +96,7 @@ func getJWTClaims(accessToken string) (*CustomClaims, error) {
 // remoteValidateToken 验证令牌
 func (c *KCAuthClient) remoteValidateToken(accessToken string) (bool, error) {
 	// 创建请求
-	req, err := http.NewRequest("POST", c.AuthServerURL+"/authapi/token/validate", nil)
+	req, err := http.NewRequest("POST", c.AuthServerURL+"/api/token/validate", nil)
 	if err != nil {
 		log.Println("创建请求失败", err)
 		return false, err
@@ -312,12 +331,12 @@ func (c *KCAuthClient) getUserInfo(accessToken string, url string) (*UserInfo, e
 
 // GetUserInfo 获取用户信息
 func (c *KCAuthClient) GetUserInfo(accessToken string) (*UserInfo, error) {
-	return c.getUserInfo(accessToken, c.AuthServerURL+"/authapi/user")
+	return c.getUserInfo(accessToken, c.AuthServerURL+"/api/user")
 }
 
 // GetUserInfo 获取用户信息
 func (c *KCAuthClient) GetUserInfoById(accessToken string, userId string) (*UserInfo, error) {
-	return c.getUserInfo(accessToken, fmt.Sprintf("%s/authapi/user/%s", c.AuthServerURL, userId))
+	return c.getUserInfo(accessToken, fmt.Sprintf("%s/api/user/%s", c.AuthServerURL, userId))
 }
 
 // UpdateUserInfo 更新用户信息
@@ -329,7 +348,7 @@ func (c *KCAuthClient) UpdateUserInfo(accessToken string, userInfo *UserInfo) er
 	}
 
 	// 创建请求
-	req, err := http.NewRequest("PUT", c.AuthServerURL+"/authapi/user", bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("PUT", c.AuthServerURL+"/api/user", bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Println("创建请求失败", err)
 		return err
@@ -382,7 +401,7 @@ func (c *KCAuthClient) UpdateAvatar(accessToken string, fileData []byte, fileNam
 	}
 
 	// 创建请求
-	req, err := http.NewRequest("POST", c.AuthServerURL+"/authapi/avatar/upload", body)
+	req, err := http.NewRequest("POST", c.AuthServerURL+"/api/avatar/upload", body)
 	if err != nil {
 		log.Println("创建请求失败", err)
 		return "", fmt.Errorf("创建请求失败: %v", err)
@@ -423,7 +442,7 @@ func (c *KCAuthClient) UpdateAvatar(accessToken string, fileData []byte, fileNam
 // DeleteAvatar 删除用户头像
 func (c *KCAuthClient) DeleteAvatar(accessToken string) error {
 	// 创建请求
-	req, err := http.NewRequest("DELETE", c.AuthServerURL+"/authapi/avatar", nil)
+	req, err := http.NewRequest("DELETE", c.AuthServerURL+"/api/avatar", nil)
 	if err != nil {
 		log.Println("创建请求失败", err)
 		return fmt.Errorf("创建请求失败: %v", err)
@@ -456,7 +475,7 @@ func (c *KCAuthClient) DeleteAvatar(accessToken string) error {
 // RefreshToken 刷新访问令牌
 func (c *KCAuthClient) RefreshToken(refreshToken string, gin *gin.Context) (string, int, error) {
 	// 创建请求
-	req, err := http.NewRequest("POST", c.AuthServerURL+"/authapi/token/refresh", nil)
+	req, err := http.NewRequest("POST", c.AuthServerURL+"/api/token/refresh", nil)
 	if err != nil {
 		log.Println("创建请求失败", err)
 		return "", 0, fmt.Errorf("创建请求失败: %v", err)
@@ -521,6 +540,64 @@ func (c *KCAuthClient) RefreshToken(refreshToken string, gin *gin.Context) (stri
 	return result.AccessToken, resp.StatusCode, nil
 }
 
+// LoginVerify 验证登录code
+func (c *KCAuthClient) LoginVerify(code string, gin *gin.Context) (*LoginVerifyResponse, error) {
+	// 创建请求URL
+	url := fmt.Sprintf("%s/api/login/verify?client_id=%s&code=%s",
+		c.AuthServerURL,
+		c.ClientID,
+		code,
+	)
+
+	// 创建请求
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("创建请求失败: %v", err)
+	}
+
+	// 设置请求头
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Client-ID", c.ClientID)
+	req.Header.Set("X-Client-Secret", c.ClientSecret)
+
+	// 发送请求
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("发送请求失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// 检查响应状态
+	if resp.StatusCode != http.StatusOK {
+		var errResp struct {
+			Error string `json:"error"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&errResp); err != nil {
+			return nil, fmt.Errorf("验证code失败: %d", resp.StatusCode)
+		}
+		return nil, errors.New(errResp.Error)
+	}
+
+	// 解析响应
+	var response LoginVerifyResponse
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("解析响应失败: %v", err)
+	}
+
+	// 将resp里的refreshToken转存到gin
+	for _, cookie := range resp.Cookies() {
+		if cookie.Name == "refreshToken" {
+			gin.SetCookie("refreshToken", cookie.Value, cookie.MaxAge, cookie.Path, cookie.Domain, cookie.Secure, cookie.HttpOnly)
+			break
+		}
+	}
+
+	// 缓存token
+	c.cacheToken(response.Token)
+
+	return &response, nil
+}
+
 // GetUsersInfo 批量获取用户信息
 func (c *KCAuthClient) GetUsersInfo(accessToken string, userIDs []string) ([]UserInfo, error) {
 	// 创建请求体
@@ -537,7 +614,7 @@ func (c *KCAuthClient) GetUsersInfo(accessToken string, userIDs []string) ([]Use
 	}
 
 	// 创建请求
-	req, err := http.NewRequest("POST", c.AuthServerURL+"/authapi/users", bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("POST", c.AuthServerURL+"/api/users", bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Println("创建请求失败", err)
 		return nil, fmt.Errorf("创建请求失败: %v", err)
@@ -579,4 +656,31 @@ func (c *KCAuthClient) GetUsersInfo(accessToken string, userIDs []string) ([]Use
 	}
 
 	return result.Users, nil
+}
+
+// logout
+func (c *KCAuthClient) Logout(accessToken string) error {
+	// 创建请求
+	req, err := http.NewRequest("POST", c.AuthServerURL+"/api/logout", nil)
+	if err != nil {
+		return fmt.Errorf("创建请求失败: %v", err)
+	}
+
+	// 设置请求头
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("X-Client-ID", c.ClientID)
+	req.Header.Set("X-Client-Secret", c.ClientSecret)
+
+	// 发送请求
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("发送请求失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("退出失败: %d", resp.StatusCode)
+	}
+
+	return nil
 }

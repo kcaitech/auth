@@ -14,10 +14,10 @@
 ### 源数据库配置
 ```bash
 export SOURCE_DB_HOST="localhost"
-export SOURCE_DB_PORT="3306"
+export SOURCE_DB_PORT="3806"
 export SOURCE_DB_USER="root"
-export SOURCE_DB_PASSWORD="your_password"
-export SOURCE_DB_NAME="source_database"
+export SOURCE_DB_PASSWORD="kKEIjksvnOOIjdZ6rtzE"
+export SOURCE_DB_NAME="kcserver"
 ```
 
 ### 目标数据库配置

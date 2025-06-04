@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025 KCai Technology (https://kcaitech.com)
+ * Licensed under the MIT License.
+ */
+
 <template>
   <div class="weixin-login-container">
     <button @click="handleWechatLogin" :disabled="isLoading" class="social-btn wechat-btn">
@@ -10,21 +15,29 @@
 <script lang="ts" setup>
 import { ref, defineEmits } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useAuthStore } from '@/stores/auth'
+import { serverApi } from '@/api/serverApi';
+
 const emit = defineEmits<{
   (e: 'login-error', message: string): void
 }>()
 
 const { t } = useI18n()
 const isLoading = ref(false)
-const authStore = useAuthStore()
 const handleWechatLogin = async () => {
   try {
     isLoading.value = true
-    
+
     // 获取微信登录的URL
-    const url = await authStore.getWechatAuthUrl()
-    
+    const url = await serverApi.getWechatAuthUrl()
+
+    // 获取url中的state
+    const cleanUrl = url.split('#')[0]
+    const state = cleanUrl.split('state=')[1]
+    if (!state) {
+      throw new Error(t('errors.wechatLoginFailed'))
+    }
+    // 使用state存储client_id
+    sessionStorage.setItem(state, serverApi.clientId)
     // 重定向到微信登录页面
     window.location.href = url
   } catch (error: any) {

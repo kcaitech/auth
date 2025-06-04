@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025 KCai Technology (https://kcaitech.com)
+ * Licensed under the MIT License.
+ */
+
 export default {
   common: {
     loading: 'Loading...',
@@ -142,7 +147,6 @@ export default {
     renderGoogleButtonFailed: 'Failed to render Google login button',
     googleServiceLoadFailed: 'Failed to load Google login service',
     invalidWeixinCallback: 'Invalid WeChat callback parameters',
-    weixinLoginFailed: 'WeChat login failed',
   },
   email: {
     verificationTitle: 'Email Verification',

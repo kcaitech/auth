@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025 KCai Technology (https://kcaitech.com)
+ * Licensed under the MIT License.
+ */
+
 package main
 
 import (
@@ -15,6 +20,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/redis"
+	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
 	"github.com/pquerna/otp"
 	"gorm.io/driver/mysql"
@@ -133,24 +139,18 @@ func main() {
 	})
 
 	// Register routes
-	authHandler.RegisterRoutes(r.Group("/authapi"), cfg)
+	authHandler.RegisterRoutes(r.Group("/api"), cfg)
 
 	// 添加静态文件服务
 	// 前端静态文件
-	r.Static("/auth/", "./web/")
+	r.Use(static.Serve("/", static.LocalFile("./web/", false))) // 前端工程
 	// 添加 favicon.ico 路由
 	// r.StaticFile("/favicon.ico", "./web/favicon.ico")
 	// 将前端其他请求重定向到index.html以支持单页应用
 	r.NoRoute(func(c *gin.Context) {
 		// 如果是API请求，返回404
-		if c.Request.URL.Path == "/authapi" || strings.HasPrefix(c.Request.URL.Path, "/authapi/") {
+		if c.Request.URL.Path == "/api" || strings.HasPrefix(c.Request.URL.Path, "/api/") {
 			c.JSON(http.StatusNotFound, gin.H{"error": "auth endpoint not found"})
-			return
-		}
-
-		// 如果是admin请求，由admin服务器处理
-		if strings.HasPrefix(c.Request.URL.Path, "/admin") {
-			c.Status(http.StatusNotFound)
 			return
 		}
 		// log.Println("Redirecting to index.html")

@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025 KCai Technology (https://kcaitech.com)
+ * Licensed under the MIT License.
+ */
+
 <template>
   <div class="language-switcher">
     <el-dropdown @command="switchLanguage">
@@ -26,7 +31,7 @@
 <script lang="ts" setup>
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { SUPPORTED_LOCALES, setLanguage } from '@/locales'
+import { SUPPORTED_LOCALES, setLanguage } from '@/lang'
 import { ArrowDown } from '@element-plus/icons-vue'
 
 const { locale } = useI18n()

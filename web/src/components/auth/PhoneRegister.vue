@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025 KCai Technology (https://kcaitech.com)
+ * Licensed under the MIT License.
+ */
+
 <template>
   <div>
     <!-- 手机注册表单 -->
@@ -78,18 +83,14 @@
 </template>
 
 <script lang="ts" setup>
+import { serverApi } from '@/api/serverApi';
 import { reactive, ref, defineEmits } from 'vue'
-import { useAuthStore } from '@/stores/auth'
-import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
 const emit = defineEmits<{
-  (e: 'register-success'): void
   (e: 'register-error', message: string): void
 }>()
 
-const authStore = useAuthStore()
-const router = useRouter()
 const { t } = useI18n()
 
 // 注册表单数据
@@ -230,7 +231,7 @@ async function sendVerificationCode() {
     isSendingCode.value = true
     
     // 发送验证码的API调用
-    await authStore.sendPhoneVerificationCode(formData.phone)
+    await serverApi.sendPhoneVerificationCode(formData.phone)
     
     // 开始倒计时
     cooldown.value = 60
@@ -271,17 +272,15 @@ async function handleRegister() {
     isLoading.value = true
     
     // 注册API调用
-    await authStore.registerPhone({
-      phone: formData.phone,
-      // 使用 as any 临时绕过类型检查问题，后续可以更新 auth store 中的接口定义
-      code: formData.code as any,
-      nickname: formData.nickname,
-      password: formData.password
-    })
+    await serverApi.registerPhone(
+      formData.phone,
+      formData.code,
+      formData.password,
+      formData.nickname,
+    )
     
     // 注册成功
     registerSuccess.value = true
-    emit('register-success')
   } catch (error: any) {
     emit('register-error', error.message || t('errors.phoneRegisterFailed'))
   } finally {
@@ -294,8 +293,6 @@ function goToLogin() {
   // 清除注册成功状态
   registerSuccess.value = false
   
-  // 发出注册成功的事件，让父组件切换到登录选项卡
-  emit('register-success')
 }
 </script>
 

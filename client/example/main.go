@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025 KCai Technology (https://kcaitech.com)
+ * Licensed under the MIT License.
+ */
+
 package main
 
 import (
@@ -11,7 +16,7 @@ import (
 
 func main() {
 	// 创建JWT客户端
-	jwtClient := auth.NewJWTClient("http://auth-service:8080/auth/token/validate", "", "")
+	jwtClient := auth.NewAuthClient("http://auth-service:8080/auth/token/validate", "", "")
 
 	// 创建JWT中间件
 	// jwtMiddleware := auth.NewJWTMiddleware(jwtClient)

@@ -5,7 +5,7 @@
 ## 认证相关API
 
 ### 1. 令牌验证
-- **路由**: `/authapi/token/validate`
+- **路由**: `/api/token/validate`
 - **方法**: POST
 - **请求头**:
   - `Authorization: Bearer <access_token>`
@@ -14,7 +14,7 @@
   - 失败: 401 Unauthorized
 
 ### 2. 令牌刷新
-- **路由**: `/authapi/token/refresh`
+- **路由**: `/api/token/refresh`
 - **方法**: POST
 - **请求头**:
   - Cookie: `refreshToken=<refresh_token>`
@@ -30,7 +30,7 @@
 ## 用户信息相关API
 
 ### 1. 获取当前用户信息
-- **路由**: `/authapi/user`
+- **路由**: `/api/user`
 - **方法**: GET
 - **请求头**:
   - `Authorization: Bearer <access_token>`
@@ -46,7 +46,7 @@
   ```
 
 ### 2. 获取指定用户信息
-- **路由**: `/authapi/user/{user_id}`
+- **路由**: `/api/user/{user_id}`
 - **方法**: GET
 - **请求头**:
   - `Authorization: Bearer <access_token>`
@@ -55,7 +55,7 @@
 - **响应**: 同上
 
 ### 3. 更新用户信息
-- **路由**: `/authapi/user`
+- **路由**: `/api/user`
 - **方法**: PUT
 - **请求头**:
   - `Authorization: Bearer <access_token>`
@@ -73,7 +73,7 @@
   - 失败: 401 Unauthorized
 
 ### 4. 批量获取用户信息
-- **路由**: `/authapi/users`
+- **路由**: `/api/users`
 - **方法**: POST
 - **请求头**:
   - `Authorization: Bearer <access_token>`
@@ -107,7 +107,7 @@
 ## 头像相关API
 
 ### 1. 上传头像
-- **路由**: `/authapi/avatar/upload`
+- **路由**: `/api/avatar/upload`
 - **方法**: POST
 - **请求头**:
   - `Authorization: Bearer <access_token>`
@@ -122,7 +122,7 @@
   ```
 
 ### 2. 删除头像
-- **路由**: `/authapi/avatar`
+- **路由**: `/api/avatar`
 - **方法**: DELETE
 - **请求头**:
   - `Authorization: Bearer <access_token>`

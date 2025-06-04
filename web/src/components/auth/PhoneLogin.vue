@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025 KCai Technology (https://kcaitech.com)
+ * Licensed under the MIT License.
+ */
+
 <template>
   <div>
     <!-- 手机登录类型切换 -->
@@ -83,16 +88,14 @@
 
 <script lang="ts" setup>
 import { reactive, ref, defineEmits } from 'vue'
-import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { serverApi } from '@/api/serverApi';
 
 const emit = defineEmits<{
-  (e: 'login-success'): void
   (e: 'login-error', message: string): void
 }>()
 
-const authStore = useAuthStore()
 const router = useRouter()
 const { t } = useI18n()
 
@@ -185,7 +188,7 @@ async function sendVerificationCode() {
   
   try {
     isSendingCode.value = true
-    await authStore.sendPhoneVerificationCode(codeForm.phone)
+    await serverApi.sendPhoneVerificationCode(codeForm.phone)
     
     // 开始倒计时
     cooldown.value = 60
@@ -218,8 +221,7 @@ async function handlePasswordLogin() {
   
   try {
     isLoading.value = true
-    const user = await authStore.phoneLogin(passwordForm.phone, passwordForm.password)
-    emit('login-success')
+    const user = await serverApi.phoneLogin(passwordForm.phone, passwordForm.password)
   } catch (error: any) {
     emit('login-error', error.message)
   } finally {
@@ -241,9 +243,7 @@ async function handleCodeLogin() {
   
   try {
     isLoading.value = true
-    const user = await authStore.phoneCodeLogin(codeForm.phone, codeForm.code)
-    emit('login-success')
-    router.push('/dashboard')
+    const user = await serverApi.phoneCodeLogin(codeForm.phone, codeForm.code)
   } catch (error: any) {
     emit('login-error', error.message)
   } finally {

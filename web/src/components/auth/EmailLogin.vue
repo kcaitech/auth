@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025 KCai Technology (https://kcaitech.com)
+ * Licensed under the MIT License.
+ */
+
 <template>
   <div>
     <!-- 邮箱登录表单 -->
@@ -31,10 +36,9 @@
 
 <script lang="ts" setup>
 import { reactive, ref, defineEmits } from 'vue'
-import axios from 'axios'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { useAuthStore } from '@/stores/auth';
+import { serverApi } from '@/api/serverApi';
 
 const emit = defineEmits<{
   (e: 'login-success'): void
@@ -51,7 +55,6 @@ interface FormErrors {
   password?: string
 }
 
-const router = useRouter()
 const { t } = useI18n()
 const isLoading = ref(false)
 const formData = reactive<FormData>({
@@ -81,7 +84,6 @@ const validateForm = () => {
   
   return isValid
 }
-const authStore = useAuthStore()
 const handleEmailLogin = async () => {
   try {
     // 表单验证
@@ -90,14 +92,11 @@ const handleEmailLogin = async () => {
     isLoading.value = true
     
     // 实际实现邮箱登录逻辑
-    const response = await authStore.emailLogin(formData.email, formData.password)
+    const response = await serverApi.emailLogin(formData.email, formData.password)
     // const response = await axios.post('/email/login', {
     //   email: formData.email,
     //   password: formData.password
     // })
-    
-    // 登录成功，通知父组件
-    emit('login-success')
 
   } catch (error: any) {
     // 登录失败，通知父组件
