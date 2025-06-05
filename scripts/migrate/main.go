@@ -8,24 +8,31 @@ import (
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
+	"gopkg.in/yaml.v3"
 )
+
+// 配置结构体
+type Config struct {
+	SourceDB SourceDBConfig `yaml:"source_db"`
+	TargetDB TargetDBConfig `yaml:"target_db"`
+}
 
 // 源数据库配置
 type SourceDBConfig struct {
-	Host     string
-	Port     int
-	User     string
-	Password string
-	Database string
+	Host     string `yaml:"host"`
+	Port     int    `yaml:"port"`
+	User     string `yaml:"user"`
+	Password string `yaml:"password"`
+	Database string `yaml:"database"`
 }
 
 // 目标数据库配置
 type TargetDBConfig struct {
-	Host     string
-	Port     int
-	User     string
-	Password string
-	Database string
+	Host     string `yaml:"host"`
+	Port     int    `yaml:"port"`
+	User     string `yaml:"user"`
+	Password string `yaml:"password"`
+	Database string `yaml:"database"`
 }
 
 // 旧数据库用户模型
@@ -86,36 +93,39 @@ type NewWeixinUser struct {
 	UpdatedAt  time.Time `json:"updated_at"`
 }
 
-func main() {
-	// 源数据库配置
-	sourceConfig := SourceDBConfig{
-		Host:     getEnv("SOURCE_DB_HOST", "localhost"),
-		Port:     getEnvInt("SOURCE_DB_PORT", 3806),
-		User:     getEnv("SOURCE_DB_USER", "root"),
-		Password: getEnv("SOURCE_DB_PASSWORD", "kKEIjksvnOOIjdZ6rtzE"),
-		Database: getEnv("SOURCE_DB_NAME", "kcserver"),
+// 加载配置文件
+func loadConfig(filename string) (*Config, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("读取配置文件失败: %v", err)
 	}
 
-	// 目标数据库配置
-	targetConfig := TargetDBConfig{
-		Host:     getEnv("TARGET_DB_HOST", "localhost"),
-		Port:     getEnvInt("TARGET_DB_PORT", 3306),
-		User:     getEnv("TARGET_DB_USER", "root"),
-		Password: getEnv("TARGET_DB_PASSWORD", "password"),
-		Database: getEnv("TARGET_DB_NAME", "kcauth"),
+	var config Config
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("解析配置文件失败: %v", err)
+	}
+
+	return &config, nil
+}
+
+func main() {
+	// 加载配置文件
+	config, err := loadConfig("config.yaml")
+	if err != nil {
+		log.Fatalf("加载配置文件失败: %v", err)
 	}
 
 	// 连接源数据库
-	sourceDB, err := connectDB(sourceConfig)
+	sourceDB, err := connectDB(config.SourceDB)
 	if err != nil {
-		log.Fatalf("Failed to connect to source database: %v", err)
+		log.Fatalf("连接源数据库失败: %v", err)
 	}
 	defer sourceDB.Close()
 
 	// 连接目标数据库
-	targetDB, err := connectDB(targetConfig)
+	targetDB, err := connectDB(config.TargetDB)
 	if err != nil {
-		log.Fatalf("Failed to connect to target database: %v", err)
+		log.Fatalf("连接目标数据库失败: %v", err)
 	}
 	defer targetDB.Close()
 

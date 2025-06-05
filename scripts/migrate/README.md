@@ -1,4 +1,4 @@
-# 用户数据迁移工具
+# 用户数据迁移工具(moss.design->vextra.cn)
 
 这个工具用于将用户数据从一个数据库迁移到另一个数据库。
 
@@ -9,31 +9,35 @@
 
 ## 配置
 
-通过环境变量配置源数据库和目标数据库的连接信息：
+通过 `config.yaml` 配置源数据库和目标数据库的连接信息：
 
-### 源数据库配置
-```bash
-export SOURCE_DB_HOST="localhost"
-export SOURCE_DB_PORT="3806"
-export SOURCE_DB_USER="root"
-export SOURCE_DB_PASSWORD="kKEIjksvnOOIjdZ6rtzE"
-export SOURCE_DB_NAME="kcserver"
+在项目根目录创建 `config.yaml` 文件，内容如下：
+
+```yaml
+source_db:
+  host: localhost
+  port: 3806
+  user: root
+  password: kKEIjksvnOOIjdZ6rtzE
+  database: kcserver
+
+target_db:
+  host: localhost
+  port: 3306
+  user: root
+  password: password
+  database: kcauth
 ```
 
-### 目标数据库配置
-```bash
-export TARGET_DB_HOST="localhost"
-export TARGET_DB_PORT="3306"
-export TARGET_DB_USER="root"
-export TARGET_DB_PASSWORD="password"
-export TARGET_DB_NAME="kcauth"
-```
+请根据实际环境修改配置文件中的数据库连接信息。
 
 ## 运行迁移
 
 ```bash
-cd server
-go run cmd/migrate/main.go
+cd server/scripts/migrate
+go mod tidy
+go build
+./migrate
 ```
 
 ## 注意事项
