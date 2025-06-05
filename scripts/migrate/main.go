@@ -1,14 +1,16 @@
 package main
 
 import (
-	"database/sql"
+	"crypto/rand"
 	"fmt"
 	"log"
 	"os"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
+	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/yaml.v3"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 )
 
 // 配置结构体
@@ -64,13 +66,19 @@ type OldUser struct {
 	WxUnionId string `gorm:"unique;uniqueIndex:wx_union_id;size:64"`
 }
 
+func (u *OldUser) TableName() string {
+	return "user"
+}
+
+type UserStatus string
+
 // 新数据库用户模型
-type NewUser struct {
-	UserID        string     `json:"user_id" gorm:"primarykey"`
-	Password      string     `json:"password" gorm:"not null"`
-	Status        string     `json:"status" gorm:"not null;default:'active'"`
-	Nickname      string     `json:"nickname" gorm:"size:50"`
-	Avatar        string     `json:"avatar" gorm:"size:255"`
+type User struct { // Automatically generated ID
+	UserID        string     `json:"user_id" gorm:"primarykey"` // Login identifier, for normal accounts this is the login account, for email accounts it's automatically generated
+	Password      string     `json:"-" gorm:"not null"`
+	Status        UserStatus `json:"status" gorm:"not null;default:'active'"`
+	Nickname      string     `json:"nickname" gorm:"size:50"` // Nickname
+	Avatar        string     `json:"avatar" gorm:"size:255"`  // Avatar URL
 	LastLogin     *time.Time `json:"last_login"`
 	LoginAttempts int        `json:"login_attempts" gorm:"default:0"`
 	LastAttempt   *time.Time `json:"last_attempt"`
@@ -78,19 +86,29 @@ type NewUser struct {
 	UpdatedAt     time.Time  `json:"updated_at"`
 }
 
-// 新数据库微信用户模型
-type NewWeixinUser struct {
-	UserID     string    `json:"user_id" gorm:"primarykey"`
-	OpenID     string    `json:"open_id" gorm:"unique"`
-	Nickname   string    `json:"nickname"`
-	Sex        int       `json:"sex"`
-	Province   string    `json:"province"`
-	City       string    `json:"city"`
-	Country    string    `json:"country"`
-	HeadImgURL string    `json:"head_img_url"`
-	UnionID    string    `json:"union_id" gorm:"unique"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+// WeixinUserInfo WeChat user information
+type WeixinUserInfo struct {
+	OpenID     string `json:"openid" gorm:"unique"`
+	Nickname   string `json:"nickname"`
+	Sex        int    `json:"sex"`
+	Province   string `json:"province"`
+	City       string `json:"city"`
+	Country    string `json:"country"`
+	HeadImgURL string `json:"headimgurl"`
+	UnionID    string `json:"unionid" gorm:"unique"`
+}
+
+// WeixinErrorResponse WeChat error response
+type WeixinErrorResponse struct {
+	ErrCode int    `json:"errcode"`
+	ErrMsg  string `json:"errmsg"`
+}
+
+type WeixinUser struct {
+	UserID string `json:"user_id" gorm:"primarykey"`
+	WeixinUserInfo
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // 加载配置文件
@@ -108,6 +126,28 @@ func loadConfig(filename string) (*Config, error) {
 	return &config, nil
 }
 
+// 连接数据库
+func connectDB(config interface{}) (*gorm.DB, error) {
+	var dsn string
+	switch c := config.(type) {
+	case SourceDBConfig:
+		dsn = fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+			c.User, c.Password, c.Host, c.Port, c.Database)
+	case TargetDBConfig:
+		dsn = fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+			c.User, c.Password, c.Host, c.Port, c.Database)
+	default:
+		return nil, fmt.Errorf("不支持的配置类型")
+	}
+
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	if err != nil {
+		return nil, err
+	}
+
+	return db, nil
+}
+
 func main() {
 	// 加载配置文件
 	config, err := loadConfig("config.yaml")
@@ -120,427 +160,87 @@ func main() {
 	if err != nil {
 		log.Fatalf("连接源数据库失败: %v", err)
 	}
-	defer sourceDB.Close()
 
 	// 连接目标数据库
 	targetDB, err := connectDB(config.TargetDB)
 	if err != nil {
 		log.Fatalf("连接目标数据库失败: %v", err)
 	}
-	defer targetDB.Close()
 
 	// 从源数据库读取用户数据
-	users, err := readUsers(sourceDB)
-	if err != nil {
-		log.Fatalf("Failed to read users from source database: %v", err)
-	}
-	// 迁移用户数据到目标数据库
-	if err := migrateUsers(targetDB, users); err != nil {
-		log.Fatalf("Failed to migrate users: %v", err)
+	var oldUsers []OldUser
+	if err := sourceDB.Find(&oldUsers).Error; err != nil {
+		log.Fatalf("读取源数据库用户失败: %v", err)
 	}
 
-	log.Printf("Successfully migrated %d users", len(users))
-}
-
-// 连接数据库
-func connectDB(config interface{}) (*sql.DB, error) {
-	var dsn string
-	switch c := config.(type) {
-	case SourceDBConfig:
-		dsn = fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-			c.User, c.Password, c.Host, c.Port, c.Database)
-	case TargetDBConfig:
-		dsn = fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-			c.User, c.Password, c.Host, c.Port, c.Database)
-	default:
-		return nil, fmt.Errorf("unsupported config type")
-	}
-
-	db, err := sql.Open("mysql", dsn)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := db.Ping(); err != nil {
-		return nil, err
-	}
-
-	return db, nil
-}
-
-// 从源数据库读取用户数据
-func readUsers(db *sql.DB) ([]OldUser, error) {
-	// 读取用户信息
-	query := `SELECT * FROM user`
-
-	rows, err := db.Query(query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var users []OldUser
-	for rows.Next() {
-		var user OldUser
-		err := rows.Scan(
-			&user.ID,
-			&user.CreatedAt,
-			&user.UpdatedAt,
-			&user.DeletedAt,
-			&user.Nickname,
-			&user.Avatar,
-			&user.Uid,
-			&user.IsActivated,
-			&user.WxOpenId,
-			&user.WxAccessToken,
-			&user.WxAccessTokenCreateTime,
-			&user.WxRefreshToken,
-			&user.WxRefreshTokenCreateTime,
-			&user.WxLoginCode,
-			&user.WxMpOpenId,
-			&user.WxMpSessionKey,
-			&user.WxMpSessionKeyCreateTime,
-			&user.WxMpLoginCode,
-			&user.WxUnionId,
-		)
-		if err != nil {
-			return nil, err
-		}
-		users = append(users, user)
-	}
-
-	return users, nil
-}
-
-// 迁移用户数据到目标数据库
-func migrateUsers(db *sql.DB, oldUsers []OldUser) error {
 	// 开始事务
-	tx, err := db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	// 准备用户更新语句
-	userStmt, err := tx.Prepare(`
-		UPDATE users SET 
-			password = ?,
-			status = ?,
-			nickname = ?,
-			avatar = ?,
-			last_login = ?,
-			login_attempts = ?,
-			last_attempt = ?,
-			created_at = ?,
-			updated_at = ?
-		WHERE user_id = ?
-	`)
-	if err != nil {
-		return err
-	}
-	defer userStmt.Close()
-
-	// 准备微信用户更新语句
-	weixinStmt, err := tx.Prepare(`
-		UPDATE weixin_users SET 
-			open_id = ?,
-			nickname = ?,
-			sex = ?,
-			province = ?,
-			city = ?,
-			country = ?,
-			head_img_url = ?,
-			union_id = ?,
-			created_at = ?,
-			updated_at = ?
-		WHERE user_id = ?
-	`)
-	if err != nil {
-		return err
-	}
-	defer weixinStmt.Close()
-
-	// 准备用户插入语句
-	userInsertStmt, err := tx.Prepare(`
-		INSERT INTO users (
-			user_id, password, status, nickname, avatar, 
-			last_login, login_attempts, last_attempt, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`)
-	if err != nil {
-		return err
-	}
-	defer userInsertStmt.Close()
-
-	// 准备微信用户插入语句
-	weixinInsertStmt, err := tx.Prepare(`
-		INSERT INTO weixin_users (
-			user_id, open_id, nickname, sex, province, 
-			city, country, head_img_url, union_id, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`)
-	if err != nil {
-		return err
-	}
-	defer weixinInsertStmt.Close()
-
-	// 先查询新数据库中的用户数据
-	newUsers, err := getNewUsers(db)
-	if err != nil {
-		return err
+	tx := targetDB.Begin()
+	if tx.Error != nil {
+		log.Fatalf("开始事务失败: %v", tx.Error)
 	}
 
-	// 先查询新数据库中的微信用户数据
-	newWeixinUsers, err := getNewWeixinUsers(db)
-	if err != nil {
-		return err
-	}
-
-	// 创建UnionID到NewWeixinUser的映射
-	unionIDMap := make(map[string]NewWeixinUser)
-	for _, wu := range newWeixinUsers {
-		if wu.UnionID != "" {
-			unionIDMap[wu.UnionID] = wu
-		}
-	}
-
-	// 创建UserID到NewUser的映射
-	userIDMap := make(map[string]NewUser)
-	for _, u := range newUsers {
-		userIDMap[u.UserID] = u
-	}
-
-	// 更新用户数据
+	// 迁移用户数据
 	for _, oldUser := range oldUsers {
-		// 准备用户数据
-		nickname := oldUser.Nickname
-		avatar := oldUser.Avatar
-		status := "active"
-		password := "123456"
-		last_login := oldUser.WxRefreshTokenCreateTime
-		newUserId := ""
 
-		// 检查是否需要从NewWeixinUser更新数据
-		if oldUser.WxUnionId != "" {
-			if newWeixinUser, exists := unionIDMap[oldUser.WxUnionId]; exists {
-				if nickname == "" {
-					nickname = newWeixinUser.Nickname
-				}
-				if avatar == "" {
-					avatar = newWeixinUser.HeadImgURL
-				}
-				newUserId = newWeixinUser.UserID
+		randomPassword := make([]byte, 16)
+		if _, err := rand.Read(randomPassword); err != nil {
+			tx.Rollback()
+			log.Fatalf("failed to generate random password: %v", err)
+		}
+		hashedPassword, err := bcrypt.GenerateFromPassword(randomPassword, bcrypt.DefaultCost)
+		if err != nil {
+			tx.Rollback()
+			log.Fatalf("failed to encrypt password: %v", err)
+		}
 
-				// 如果NewWeixinUser的UserID对应的NewUser存在，也更新数据
-				if newUser, exists := userIDMap[newWeixinUser.UserID]; exists {
-					if nickname == "" {
-						nickname = newUser.Nickname
-					}
-					if avatar == "" {
-						avatar = newUser.Avatar
-					}
-					status = newUser.Status
-					password = newUser.Password
-					last_login = newUser.LastLogin
-				}
+		// 准备新用户数据
+		newUser := User{
+			UserID:    fmt.Sprintf("%d", oldUser.ID),
+			Password:  string(hashedPassword), // 默认密码
+			Status:    "active",
+			Nickname:  oldUser.Nickname,
+			Avatar:    oldUser.Avatar,
+			LastLogin: oldUser.WxRefreshTokenCreateTime,
+			CreatedAt: oldUser.CreatedAt,
+			UpdatedAt: time.Now(),
+		}
 
-				// 更新基本用户信息
-				_, err = userStmt.Exec(
-					password,
-					status,
-					nickname,
-					avatar,
-					last_login,
-					0,
-					nil,
-					oldUser.CreatedAt,
-					time.Now(),
-					newUserId,
-				)
-				if err != nil {
-					return err
-				}
+		// 更新或创建用户
+		if err := tx.Save(&newUser).Error; err != nil {
+			tx.Rollback()
+			log.Fatalf("保存用户数据失败: %v", err)
+		}
 
-				// 如果有微信信息，更新微信用户表
-				if oldUser.WxOpenId != "" || oldUser.WxMpOpenId != "" || oldUser.WxUnionId != "" {
-					// 优先使用开放平台的OpenId，如果没有则使用小程序的OpenId
-					openId := oldUser.WxOpenId
-					if openId == "" {
-						openId = oldUser.WxMpOpenId
-					}
+		// 如果有微信信息，创建或更新微信用户
+		if oldUser.WxOpenId != "" || oldUser.WxMpOpenId != "" || oldUser.WxUnionId != "" {
+			openID := oldUser.WxOpenId
+			if openID == "" {
+				openID = oldUser.WxMpOpenId
+			}
 
-					// 准备微信用户数据
-					weixinNickname := nickname
-					weixinHeadImgURL := avatar
-					sex := 0
-					province := ""
-					city := ""
-					country := ""
+			weixinUser := WeixinUser{
+				UserID: newUser.UserID,
+				WeixinUserInfo: WeixinUserInfo{
+					OpenID:     openID,
+					Nickname:   oldUser.Nickname,
+					HeadImgURL: oldUser.Avatar,
+					UnionID:    oldUser.WxUnionId,
+				},
+				CreatedAt: oldUser.CreatedAt,
+				UpdatedAt: time.Now(),
+			}
 
-					// 检查是否需要从NewWeixinUser更新数据
-					if weixinNickname == "" {
-						weixinNickname = newWeixinUser.Nickname
-					}
-					if weixinHeadImgURL == "" {
-						weixinHeadImgURL = newWeixinUser.HeadImgURL
-					}
-					sex = newWeixinUser.Sex
-					province = newWeixinUser.Province
-					city = newWeixinUser.City
-					country = newWeixinUser.Country
-
-					if newUserId != "" {
-						_, err = weixinStmt.Exec(
-							openId,
-							weixinNickname,
-							sex,
-							province,
-							city,
-							country,
-							weixinHeadImgURL,
-							oldUser.WxUnionId,
-							oldUser.CreatedAt,
-							time.Now(),
-							newUserId,
-						)
-						if err != nil {
-							return err
-						}
-					}
-				}
-			} else {
-				// 没有匹配到UnionID，执行插入操作
-				_, err = userInsertStmt.Exec(
-					oldUser.ID,
-					password,
-					status,
-					nickname,
-					avatar,
-					last_login,
-					0,
-					nil,
-					time.Now(),
-					time.Now(),
-				)
-				if err != nil {
-					return err
-				}
-
-				// 如果有微信信息，插入微信用户表
-				if oldUser.WxOpenId != "" || oldUser.WxMpOpenId != "" || oldUser.WxUnionId != "" {
-					openId := oldUser.WxOpenId
-					if openId == "" {
-						openId = oldUser.WxMpOpenId
-					}
-
-					_, err = weixinInsertStmt.Exec(
-						oldUser.ID,
-						openId,
-						nickname,
-						0,
-						"",
-						"",
-						"",
-						avatar,
-						oldUser.WxUnionId,
-						time.Now(),
-						time.Now(),
-					)
-					if err != nil {
-						return err
-					}
-				}
+			if err := tx.Save(&weixinUser).Error; err != nil {
+				tx.Rollback()
+				log.Fatalf("保存微信用户数据失败: %v", err)
 			}
 		}
 	}
 
 	// 提交事务
-	return tx.Commit()
-}
-
-// 获取新数据库中的用户数据
-func getNewUsers(db *sql.DB) ([]NewUser, error) {
-	query := `SELECT user_id, password, status, nickname, avatar, last_login, 
-	login_attempts, last_attempt, created_at, updated_at FROM users`
-	rows, err := db.Query(query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var users []NewUser
-	for rows.Next() {
-		var user NewUser
-		err := rows.Scan(
-			&user.UserID,
-			&user.Password,
-			&user.Status,
-			&user.Nickname,
-			&user.Avatar,
-			&user.LastLogin,
-			&user.LoginAttempts,
-			&user.LastAttempt,
-			&user.CreatedAt,
-			&user.UpdatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-		users = append(users, user)
+	if err := tx.Commit().Error; err != nil {
+		log.Fatalf("提交事务失败: %v", err)
 	}
 
-	return users, nil
-}
-
-// 获取新数据库中的微信用户数据
-func getNewWeixinUsers(db *sql.DB) ([]NewWeixinUser, error) {
-	query := `SELECT * FROM weixin_users`
-	rows, err := db.Query(query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var users []NewWeixinUser
-	for rows.Next() {
-		var user NewWeixinUser
-		err := rows.Scan(
-			&user.UserID,
-			&user.OpenID,
-			&user.Nickname,
-			&user.Sex,
-			&user.Province,
-			&user.City,
-			&user.Country,
-			&user.HeadImgURL,
-			&user.UnionID,
-			&user.CreatedAt,
-			&user.UpdatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-		users = append(users, user)
-	}
-
-	return users, nil
-}
-
-// 获取环境变量，如果不存在则返回默认值
-func getEnv(key, defaultValue string) string {
-	if value, exists := os.LookupEnv(key); exists {
-		return value
-	}
-	return defaultValue
-}
-
-// 获取整数环境变量，如果不存在则返回默认值
-func getEnvInt(key string, defaultValue int) int {
-	if value, exists := os.LookupEnv(key); exists {
-		var result int
-		if _, err := fmt.Sscanf(value, "%d", &result); err == nil {
-			return result
-		}
-	}
-	return defaultValue
+	log.Printf("成功迁移 %d 个用户", len(oldUsers))
 }

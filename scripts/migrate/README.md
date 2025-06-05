@@ -1,4 +1,4 @@
-# 用户数据迁移工具(moss.design->vextra.cn)
+# 用户数据迁移工具(moss.design->vextra.cn, 2025.6.5)
 
 这个工具用于将用户数据从一个数据库迁移到另一个数据库。
 
