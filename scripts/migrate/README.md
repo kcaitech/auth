@@ -16,7 +16,7 @@
 ```yaml
 source_db:
   host: localhost
-  port: 3806
+  port: 3306
   user: root
   password: kKEIjksvnOOIjdZ6rtzE
   database: kcserver
