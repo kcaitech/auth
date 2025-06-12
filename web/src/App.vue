@@ -1,11 +1,9 @@
-/*
- * Copyright (c) 2025 KCai Technology (https://kcaitech.com)
- * Licensed under the MIT License.
- */
+/* * Copyright (c) 2025 KCai Technology (https://kcaitech.com) * Licensed under
+the MIT License. */
 
 <template>
   <div class="app-container">
-    <header class="site-header">
+    <header v-if="!isLanguage" class="site-header">
       <div class="header-right">
         <LanguageSwitcher />
       </div>
@@ -17,7 +15,24 @@
 </template>
 
 <script lang="ts" setup>
-import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
+import LanguageSwitcher from "@/components/LanguageSwitcher.vue";
+import { ref, watch } from "vue";
+import { useRoute } from "vue-router";
+
+const route = useRoute();
+const isLanguage = ref(false);
+
+watch(
+  () => route.path,
+  (newVal) => {
+    console.log(newVal,'newVal');
+    if (newVal.includes("miniprogram")) {
+      isLanguage.value = true;
+    }
+  }
+,{
+  immediate: true
+});
 </script>
 
 <style>
@@ -52,7 +67,7 @@ html {
 }
 
 body {
-  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color: #2c3e50;
@@ -82,7 +97,8 @@ body {
   margin: 0;
 }
 
-.header-left, .header-right {
+.header-left,
+.header-right {
   display: flex;
   align-items: center;
 }
@@ -96,9 +112,9 @@ body {
   .site-header {
     padding: 8px;
   }
-  
+
   .site-title {
     font-size: 1.2rem;
   }
 }
-</style> 
+</style>

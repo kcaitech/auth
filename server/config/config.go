@@ -43,13 +43,14 @@ type JWTConfig struct {
 
 // AuthConfig Authentication configuration
 type AuthConfig struct {
-	EnabledProviders []string        `json:"enabled_providers"` // "account", "email", "weixin", "google", "phone"
-	JWT              JWTConfig       `json:"jwt"`
-	Google           GoogleConfig    `json:"google"`
-	Weixin           WeixinConfig    `json:"weixin"`
-	TwoFactor        TwoFactorConfig `json:"two_factor"`
-	Smtp             SmtpConfig      `json:"smtp"`
-	SMS              SMSConfig       `json:"sms"` // New: SMS configuration
+	EnabledProviders []string         `json:"enabled_providers"` // "account", "email", "weixin", "google", "phone"
+	JWT              JWTConfig        `json:"jwt"`
+	Google           GoogleConfig     `json:"google"`
+	Weixin           WeixinConfig     `json:"weixin"`
+	WeixinMini       WeixinMiniConfig `json:"weixin_mini"`
+	TwoFactor        TwoFactorConfig  `json:"two_factor"`
+	Smtp             SmtpConfig       `json:"smtp"`
+	SMS              SMSConfig        `json:"sms"` // New: SMS configuration
 }
 
 // JWTConfig JWT configuration
@@ -72,6 +73,13 @@ type WeixinConfig struct {
 	AppSecret         string `json:"app_secret"`
 	RedirectURL       string `json:"redirect_url"`
 	DomainVerifyToken string `json:"domain_verify_token"`
+}
+
+// WeixinMiniConfig WeChat mini login configuration
+type WeixinMiniConfig struct {
+	AppID     string `json:"app_id"`
+	AppSecret string `json:"app_secret"`
+	GrantType string `json:"grant_type"`
 }
 
 // SMSConfig SMS configuration

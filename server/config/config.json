@@ -5,7 +5,7 @@
         "write_timeout": "15s"
     },
     "auth": {
-        "enabled_providers": ["weixin"],
+        "enabled_providers": ["weixin","weixin_mini"],
         "google": {
             "client_id": "804389849149-c0molmbgt1c2ipp1k2ipa3cu92cte5d8.apps.googleusercontent.com",
             "client_secret": "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",
@@ -20,6 +20,11 @@
             "app_secret": "5f0ecd9a9e0bd48f9965e867314942a1",
             "redirect_url": "https://account.test.vextra.cn/wechat/callback",
             "domain_verify_token": "b3eac26e-ce72-4268-a7fa-d71a2c628f39"
+        },
+        "weixin_mini": {
+            "app_id": "wx4006b3fc2a0a4c57",
+            "app_secret": "f0dbaf70575a184a14ed7f6b233c9c40",
+            "grant_type": "authorization_code"
         },
         "sms": {
             "provider": "aliyun",
@@ -49,7 +54,7 @@
     },
     "database": {
         "driver": "mysql",
-        "host": "localhost",
+        "host": "192.168.0.125",
         "port": 3306,
         "username": "root",
         "password": "password",
@@ -57,7 +62,7 @@
         "charset": "utf8mb4"
     },
     "redis": {
-        "host": "localhost",
+        "host": "192.168.0.125",
         "port": 6379,
         "password": "",
         "db": 0
@@ -65,7 +70,7 @@
     "storage": {
         "provider": "minio",
         "minio": {
-            "endpoint": "localhost:9000",
+            "endpoint": "192.168.0.125:9000",
             "region": "zhuhai-1",
             "accessKeyID": "59L3pDWuk9oLQWIgytCI",
             "secretAccessKey": "GmwAzetY1L0jU4pUAqpO7RJGIsG7k3gozVH6whoJ",
@@ -75,7 +80,7 @@
         }
     },
     "storage_url": {
-        "attatch": "http://localhost:9000/attatch"
+        "attatch": "http://attatch.test.vextra.cn"
     },
     "admin": {
         "enabled": true,

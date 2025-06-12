@@ -298,6 +298,24 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 		}
 	}
 
+	// Initialize WeChat Mini Program login
+	var weixinMiniLogin *auth.WeixinMiniLogin
+	if containsProvider(cfg.Auth.EnabledProviders, "weixin_mini") {
+		weixinMiniLogin, err = auth.NewWeixinMiniLogin(globalDB, auth.WeixinMiniConfig{
+			AppID:     cfg.Auth.WeixinMini.AppID,
+			AppSecret: cfg.Auth.WeixinMini.AppSecret,
+			GrantType: "authorization_code",
+		}, avatarService)
+		if err != nil {
+			return fmt.Errorf("failed to initialize WeChat mini program login: %v", err)
+		}
+
+		// Execute table structure migration
+		if err := weixinMiniLogin.AutoMigrate(); err != nil {
+			return fmt.Errorf("WeChat mini program login table migration failed: %v", err)
+		}
+	}
+
 	// Initialize phone authentication
 	var phoneAuth *auth.PhoneAuth
 	if containsProvider(cfg.Auth.EnabledProviders, "phone") {
@@ -350,6 +368,7 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 		emailAuth,
 		googleOAuth,
 		weixinLogin,
+		weixinMiniLogin,
 		phoneAuth,
 		twoFactor,
 		jwtService,

@@ -13,7 +13,7 @@ interface AuthResponse {
     avatar: string
 }
 
-export type AuthProvider = 'account' | 'email' | 'google' | 'weixin' | 'phone'
+export type AuthProvider = 'account' | 'email' | 'google' | 'weixin' | 'phone' | 'weixin_mini'
 
 
 // 响应拦截器：处理重定向响应
@@ -129,6 +129,13 @@ class ServerApi {
 
     async handleWeixinCallback(code: string, state: string): Promise<AuthResponse> {
         const response = await axios.get('/weixin/callback', { params: { code, state, client_id: this.clientId, redirect_uri: this.redirectUri } })
+        this.updateUserInfo(response.data)
+        return response.data
+    }
+
+    // 微信小程序登录
+    async weixinMiniLogin(code: string): Promise<AuthResponse> {
+        const response = await axios.get('/weixin/miniprogram', { params: { code, client_id: this.clientId, redirect_uri: this.redirectUri } })
         this.updateUserInfo(response.data)
         return response.data
     }

@@ -157,6 +157,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { context } from '@/context'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 
 // 组件导入
 import AccountLogin from '@/components/auth/AccountLogin.vue'
@@ -171,6 +172,7 @@ import { AuthProvider, serverApi } from '@/api/serverApi'
 
 
 const { t } = useI18n()
+const route = useRoute()
 
 // 响应式状态
 const activeTab = ref<'login' | 'register'>('login')
@@ -186,6 +188,7 @@ const hasEmailLogin = hasProvider('email')
 const hasPhoneLogin = hasProvider('phone')
 const hasGoogleLogin = hasProvider('google')
 const hasWeixinLogin = hasProvider('weixin')
+const hasWeixinMiniLogin = hasProvider('weixin_mini')
 
 // 计算属性
 const hasMultipleLoginMethods = computed(() => {
@@ -218,18 +221,35 @@ const handleWechatLogin = async () => {
     // 使用state存储client_id
     sessionStorage.setItem(state, serverApi.clientId)
     // 重定向到微信登录页面
+    // https://open.weixin.qq.com/connect/qrconnect?appid=xxxxx&redirect_uri=https://account.vextra.cn/wechat/callback&response_type=code&scope=snsapi_login&state=123#wechat_redirect
+    // 上述地址授权完成后，调转到https://account.vextra.cn/wechat/callback?code=xxx&state=123
     window.location.href = url
   } catch (error: any) {
     console.error(t('errors.wechatLoginFailed'), error)
   }
 }
 
+const handleWeixinMiniLogin = async () => {
+  try {
+    const code = route.query.code as string;
+    const url = await serverApi.weixinMiniLogin(code);
+  } catch (error: any) {
+    console.error(t('errors.wechatMiniLoginFailed'), error)
+  }
+}
+
 // 生命周期钩子
 onMounted(async () => {
+  const isMiniProgram = navigator.userAgent.includes("miniProgram");
   try {
     // 如果只有微信登录
-    if (!hasAccountLogin && !hasEmailLogin && !hasPhoneLogin && !hasGoogleLogin && hasWeixinLogin) {
+    if (!hasAccountLogin && !hasEmailLogin && !hasPhoneLogin && !hasGoogleLogin && hasWeixinLogin && !isMiniProgram) {
       handleWechatLogin()
+      return
+    }
+
+    if(hasWeixinMiniLogin && isMiniProgram) {
+      handleWeixinMiniLogin()
       return
     }
     

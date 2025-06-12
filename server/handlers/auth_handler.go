@@ -18,21 +18,22 @@ import (
 
 // AuthHandler Authentication handler
 type AuthHandler struct {
-	useAccountAuth bool
-	accountAuth    *auth.AccountAuth
-	emailAuth      *auth.EmailAuth
-	googleOAuth    *auth.GoogleOAuth
-	weixinLogin    *auth.WeixinLogin
-	phoneAuth      *auth.PhoneAuth
-	twoFactor      *auth.TwoFactorAuth
-	jwtService     *auth.JWTService
-	sessionMgr     *auth.SessionManager
-	redisStore     *auth.RedisStore
-	storage        *storage.StorageClient
-	avatarService  *auth.AvatarService
-	avatarHandler  *AvatarHandler
-	config         *config.Config
-	logger         *log.Logger
+	useAccountAuth  bool
+	accountAuth     *auth.AccountAuth
+	emailAuth       *auth.EmailAuth
+	googleOAuth     *auth.GoogleOAuth
+	weixinLogin     *auth.WeixinLogin
+	weixinMiniLogin *auth.WeixinMiniLogin
+	phoneAuth       *auth.PhoneAuth
+	twoFactor       *auth.TwoFactorAuth
+	jwtService      *auth.JWTService
+	sessionMgr      *auth.SessionManager
+	redisStore      *auth.RedisStore
+	storage         *storage.StorageClient
+	avatarService   *auth.AvatarService
+	avatarHandler   *AvatarHandler
+	config          *config.Config
+	logger          *log.Logger
 }
 
 // NewAuthHandler Create new authentication handler
@@ -42,6 +43,7 @@ func NewAuthHandler(
 	emailAuth *auth.EmailAuth,
 	googleOAuth *auth.GoogleOAuth,
 	weixinLogin *auth.WeixinLogin,
+	weixinMiniLogin *auth.WeixinMiniLogin,
 	phoneAuth *auth.PhoneAuth,
 	twoFactor *auth.TwoFactorAuth,
 	jwtService *auth.JWTService,
@@ -51,21 +53,22 @@ func NewAuthHandler(
 	avatarService *auth.AvatarService,
 	config *config.Config) *AuthHandler {
 	return &AuthHandler{
-		useAccountAuth: useAccountAuth,
-		accountAuth:    accountAuth,
-		emailAuth:      emailAuth,
-		googleOAuth:    googleOAuth,
-		weixinLogin:    weixinLogin,
-		phoneAuth:      phoneAuth,
-		twoFactor:      twoFactor,
-		jwtService:     jwtService,
-		sessionMgr:     sessionMgr,
-		redisStore:     redisStore,
-		storage:        storage,
-		avatarService:  avatarService,
-		avatarHandler:  NewAvatarHandler(accountAuth, avatarService),
-		config:         config,
-		logger:         log.New(os.Stdout, "[AUTH] ", log.LstdFlags|log.Lshortfile),
+		useAccountAuth:  useAccountAuth,
+		accountAuth:     accountAuth,
+		emailAuth:       emailAuth,
+		googleOAuth:     googleOAuth,
+		weixinLogin:     weixinLogin,
+		weixinMiniLogin: weixinMiniLogin,
+		phoneAuth:       phoneAuth,
+		twoFactor:       twoFactor,
+		jwtService:      jwtService,
+		sessionMgr:      sessionMgr,
+		redisStore:      redisStore,
+		storage:         storage,
+		avatarService:   avatarService,
+		avatarHandler:   NewAvatarHandler(accountAuth, avatarService),
+		config:          config,
+		logger:          log.New(os.Stdout, "[AUTH] ", log.LstdFlags|log.Lshortfile),
 	}
 }
 
@@ -89,6 +92,7 @@ func (h *AuthHandler) RegisterRoutes(authGroup *gin.RouterGroup, cfg *config.Con
 
 	trustedClient := middleware.TrustedClient(cfg)
 	authGroup.GET("/login/verify", trustedClient, h.LoginVerify)
+	authGroup.GET("/login/mini_program", h.WeixinMiniLogin)
 
 	// Email login related routes
 	if h.emailAuth != nil {
@@ -112,6 +116,10 @@ func (h *AuthHandler) RegisterRoutes(authGroup *gin.RouterGroup, cfg *config.Con
 		authGroup.GET("/weixin/url", h.WeixinLoginURL)
 		// authGroup.GET("/weixin/login", h.WeixinLoginHandler)
 		authGroup.GET("/weixin/callback", h.WeixinCallback)
+	}
+
+	if h.weixinMiniLogin != nil {
+		authGroup.GET("/weixin/miniprogram", h.WeixinMiniLogin)
 	}
 
 	// Phone login related routes
@@ -168,6 +176,11 @@ func (h *AuthHandler) GetSupportedProviders(c *gin.Context) {
 	// Add WeChat login method
 	if h.weixinLogin != nil {
 		providers = append(providers, "weixin")
+	}
+
+	// Add WeChat Mini Program login method
+	if h.weixinMiniLogin != nil {
+		providers = append(providers, "weixin_mini")
 	}
 
 	// Add phone login method

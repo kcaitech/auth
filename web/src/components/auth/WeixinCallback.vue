@@ -44,7 +44,7 @@ const handleWeixinCallback = async () => {
     }
 
     serverApi.updateAuthData(client_id, undefined)
-    
+    // https://account.vextra.cn/wechat/callback?code=xxx&state=123
     // 调用后端 API 处理微信登录
     // 如果成功后端直接302跳转，否则是登陆失败了
     const res = await serverApi.handleWeixinCallback(code, state)
