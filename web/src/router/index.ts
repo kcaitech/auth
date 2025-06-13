@@ -34,20 +34,6 @@ const routes = [
     component: () => import('../components/auth/WeixinCallback.vue'),
   },
   {
-    path: '/wechat/miniprogram',
-    name: 'WeixinMiniLogin',
-    meta: {
-      requireAuth: true,
-    },
-    component: () => import('../components/auth/WeixinMiniLogin.vue'),
-    beforeEnter: () => {
-      const urlParams = new URLSearchParams(window.location.search)
-      const client_id = urlParams.get('client_id') || ''
-      const redirect_uri = urlParams.get('redirect_url') || undefined
-      serverApi.updateAuthData(client_id, redirect_uri)
-    }
-  },
-  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('../views/NotFound.vue'),
