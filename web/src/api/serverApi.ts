@@ -133,13 +133,6 @@ class ServerApi {
         return response.data
     }
 
-    // 微信小程序登录
-    async weixinMiniLogin(code: string): Promise<AuthResponse> {
-        const response = await axios.get('/weixin/miniprogram', { params: { code, client_id: this.clientId, redirect_uri: this.redirectUri } })
-        this.updateUserInfo(response.data)
-        return response.data
-    }
-
     // 当前已经登陆，直接回调
     async handleLoginRedirect(): Promise<void> {
         const response = await axios.get('/login/redirect', { params: { client_id: this.clientId, redirect_uri: this.redirectUri } })

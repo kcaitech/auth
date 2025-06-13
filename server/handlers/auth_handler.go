@@ -92,7 +92,6 @@ func (h *AuthHandler) RegisterRoutes(authGroup *gin.RouterGroup, cfg *config.Con
 
 	trustedClient := middleware.TrustedClient(cfg)
 	authGroup.GET("/login/verify", trustedClient, h.LoginVerify)
-	authGroup.GET("/login/mini_program", h.WeixinMiniLogin)
 
 	// Email login related routes
 	if h.emailAuth != nil {

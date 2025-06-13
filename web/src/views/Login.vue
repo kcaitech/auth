@@ -235,7 +235,7 @@ onMounted(async () => {
 
   try {
     // 如果只有微信登录
-    if (!hasAccountLogin && !hasEmailLogin && !hasPhoneLogin && !hasGoogleLogin) {
+    if (!hasAccountLogin && !hasEmailLogin && !hasPhoneLogin && !hasGoogleLogin && hasWeixinLogin) {
       handleWechatLogin()
       return
     }
