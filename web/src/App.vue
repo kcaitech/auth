@@ -3,7 +3,7 @@ the MIT License. */
 
 <template>
   <div class="app-container">
-    <header v-if="!isLanguage" class="site-header">
+    <header class="site-header">
       <div class="header-right">
         <LanguageSwitcher />
       </div>
@@ -16,23 +16,7 @@ the MIT License. */
 
 <script lang="ts" setup>
 import LanguageSwitcher from "@/components/LanguageSwitcher.vue";
-import { ref, watch } from "vue";
-import { useRoute } from "vue-router";
 
-const route = useRoute();
-const isLanguage = ref(false);
-
-watch(
-  () => route.path,
-  (newVal) => {
-    console.log(newVal,'newVal');
-    if (newVal.includes("miniprogram")) {
-      isLanguage.value = true;
-    }
-  }
-,{
-  immediate: true
-});
 </script>
 
 <style>
