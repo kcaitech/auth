@@ -7,9 +7,11 @@ package auth
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"log"
+	mathRand "math/rand"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -157,9 +159,16 @@ func (w *WeixinMiniLogin) CreateUserFromWeixin(weixinInfo *WeixinUserInfo) (*Use
 		}
 	}
 
-	avatarURL, err := w.avatarService.DownloadAndUploadAvatar(userID, weixinInfo.HeadImgURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to process avatar: %w", err)
+	// 处理头像URL - 小程序登录时可能为空
+	var avatarURL string
+	if weixinInfo.HeadImgURL != "" {
+		// 只有当头像URL不为空时才尝试下载和上传
+		avatarURL, err = w.avatarService.DownloadAndUploadAvatar(userID, weixinInfo.HeadImgURL)
+		if err != nil {
+			// 头像处理失败不应该阻止用户创建，记录日志但继续
+			log.Printf("failed to process avatar for user %s: %v", userID, err)
+			avatarURL = "" // 设置为空，允许后续更新
+		}
 	}
 
 	tx := w.db.Begin()
@@ -184,11 +193,28 @@ func (w *WeixinMiniLogin) CreateUserFromWeixin(weixinInfo *WeixinUserInfo) (*Use
 	}
 
 	now := time.Now()
+
+	// 处理昵称 - 小程序登录时可能为空，使用默认值
+	nickname := weixinInfo.Nickname
+	if nickname == "" {
+		// 生成 wx_{sha256后12位}{4位随机数字} 格式的昵称
+		hash := sha256.Sum256([]byte(weixinInfo.UnionID))
+		hashStr := fmt.Sprintf("%x", hash)
+		// 取 sha256 的后12位
+		hashSuffix := hashStr[len(hashStr)-12:]
+
+		// 生成4位随机数字
+		randomNum := mathRand.Intn(10000)
+		randomStr := fmt.Sprintf("%04d", randomNum)
+
+		nickname = fmt.Sprintf("wx_%s%s", hashSuffix, randomStr)
+	}
+
 	user := &User{
 		UserID:    userID,
 		Password:  string(hashedPassword),
 		Status:    UserStatusActive,
-		Nickname:  weixinInfo.Nickname,
+		Nickname:  nickname,
 		Avatar:    avatarURL,
 		CreatedAt: now,
 		UpdatedAt: now,
@@ -203,6 +229,7 @@ func (w *WeixinMiniLogin) CreateUserFromWeixin(weixinInfo *WeixinUserInfo) (*Use
 		UserID:         userID,
 		WeixinUserInfo: *weixinInfo,
 	}
+	// 更新处理后的头像URL
 	weixinUser.HeadImgURL = avatarURL
 
 	if err := tx.Create(weixinUser).Error; err != nil {
@@ -215,6 +242,73 @@ func (w *WeixinMiniLogin) CreateUserFromWeixin(weixinInfo *WeixinUserInfo) (*Use
 	}
 
 	return user, nil
+}
+
+// UpdateUserProfile 更新小程序用户的个人信息（昵称和头像）
+func (w *WeixinMiniLogin) UpdateUserProfile(userID string, nickname string, avatarURL string) error {
+	tx := w.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// 处理头像上传（如果提供了头像URL）
+	var processedAvatarURL string
+	if avatarURL != "" {
+		var err error
+		processedAvatarURL, err = w.avatarService.DownloadAndUploadAvatar(userID, avatarURL)
+		if err != nil {
+			log.Printf("failed to process avatar for user %s: %v", userID, err)
+			// 头像处理失败不影响昵称更新
+			processedAvatarURL = ""
+		}
+	}
+
+	// 准备更新数据
+	updates := make(map[string]interface{})
+	if nickname != "" {
+		updates["nickname"] = nickname
+	}
+	if processedAvatarURL != "" {
+		updates["avatar"] = processedAvatarURL
+	}
+	if len(updates) > 0 {
+		updates["updated_at"] = time.Now()
+	}
+
+	// 更新用户表
+	if len(updates) > 0 {
+		if err := tx.Model(&User{}).Where("user_id = ?", userID).Updates(updates).Error; err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to update user profile: %w", err)
+		}
+	}
+
+	// 更新微信用户表
+	weixinUpdates := make(map[string]interface{})
+	if nickname != "" {
+		weixinUpdates["nickname"] = nickname
+	}
+	if processedAvatarURL != "" {
+		weixinUpdates["head_img_url"] = processedAvatarURL
+	}
+	if len(weixinUpdates) > 0 {
+		weixinUpdates["updated_at"] = time.Now()
+		if err := tx.Model(&WeixinUser{}).Where("user_id = ?", userID).Updates(weixinUpdates).Error; err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to update weixin user profile: %w", err)
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("failed to commit profile updates: %w", err)
+	}
+
+	return nil
 }
 
 // AutoMigrate 自动迁移数据库表结构

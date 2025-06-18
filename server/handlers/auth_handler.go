@@ -119,6 +119,7 @@ func (h *AuthHandler) RegisterRoutes(authGroup *gin.RouterGroup, cfg *config.Con
 
 	if h.weixinMiniLogin != nil {
 		authGroup.GET("/weixin/miniprogram", h.WeixinMiniLogin)
+		authGroup.PUT("/weixin/miniprogram/profile", h.AuthRequired(), h.WeixinMiniUpdateProfile)
 	}
 
 	// Phone login related routes

@@ -72,3 +72,53 @@ func (h *AuthHandler) WeixinMiniLogin(c *gin.Context) {
 		"expire_time": auth.TokenExpiration,
 	})
 }
+
+// WeixinMiniUpdateProfile 更新小程序用户的个人信息
+func (h *AuthHandler) WeixinMiniUpdateProfile(c *gin.Context) {
+	if h.weixinMiniLogin == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "WeChat mini program login is not enabled"})
+		return
+	}
+
+	// 从token中获取用户ID（需要中间件验证）
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	userIDStr, ok := userID.(string)
+	if !ok {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	// 解析请求参数
+	var req struct {
+		Nickname  string `json:"nickname"`
+		AvatarURL string `json:"avatar_url"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+
+	// 验证至少提供一个要更新的字段
+	if req.Nickname == "" && req.AvatarURL == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "At least one field (nickname or avatar_url) must be provided"})
+		return
+	}
+
+	// 更新用户信息
+	err := h.weixinMiniLogin.UpdateUserProfile(userIDStr, req.Nickname, req.AvatarURL)
+	if err != nil {
+		h.logger.Printf("Failed to update user profile for user %s: %v", userIDStr, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update profile"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Profile updated successfully",
+	})
+}
