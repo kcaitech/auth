@@ -38,5 +38,5 @@ func main() {
 	// 打印哈希结果
 	fmt.Printf("原始密码: %s\n", *password)
 	fmt.Printf("哈希密码: %s\n", string(hashedPassword))
-	fmt.Printf("该哈希可以复制到config.json文件的\"password\"字段中\n")
+	fmt.Printf("该哈希可以复制到config.yaml文件的\"password\"字段中\n")
 }

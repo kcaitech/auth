@@ -9,12 +9,12 @@ import (
 	"errors"
 )
 
-type StorageConf struct {
-	Provider Provider `yaml:"provider" json:"provider"`
-	Minio    Config   `yaml:"minio" json:"minio"`
-	S3       Config   `yaml:"s3" json:"s3"`
-	Oss      Config   `yaml:"oss" json:"oss"`
-}
+// type StorageConf struct {
+// 	Provider Provider `yaml:"provider" json:"provider"`
+// 	Minio    Config   `yaml:"minio" json:"minio"`
+// 	S3       Config   `yaml:"s3" json:"s3"`
+// 	Oss      Config   `yaml:"oss" json:"oss"`
+// }
 
 type StorageClient struct {
 	Client Client
@@ -22,20 +22,20 @@ type StorageClient struct {
 	// AttatchBucket Bucket
 }
 
-func NewStorageClient(config *StorageConf) (*StorageClient, error) {
+func NewStorageClient(config *Config) (*StorageClient, error) {
 	var client Client
 	var err error
 	var bucketConfig BucketConfig
 	switch config.Provider {
 	case MINIO:
-		client, err = NewMinioClient(&config.Minio.ClientConfig)
-		bucketConfig = config.Minio.BucketConfig
+		client, err = NewMinioClient(&config.ClientConfig)
+		bucketConfig = config.BucketConfig
 	case S3:
-		client, err = NewS3Client(&config.S3.ClientConfig)
-		bucketConfig = config.S3.BucketConfig
+		client, err = NewS3Client(&config.ClientConfig)
+		bucketConfig = config.BucketConfig
 	case OSS:
-		client, err = NewOSSClient(&config.Oss.ClientConfig)
-		bucketConfig = config.Oss.BucketConfig
+		client, err = NewOSSClient(&config.ClientConfig)
+		bucketConfig = config.BucketConfig
 	default:
 		return nil, errors.New("不支持的provider")
 	}

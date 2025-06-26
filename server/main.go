@@ -40,9 +40,11 @@ var (
 	globalRedisStore *auth.RedisStore
 )
 
+const port = 80
+
 func main() {
 	// Parse command line arguments
-	configPath := flag.String("config", "config/config.json", "Configuration file path")
+	configPath := flag.String("config", "config/config.yaml", "Configuration file path")
 	flag.Parse()
 
 	// Load configuration file
@@ -67,16 +69,6 @@ func main() {
 		log.Fatalf("Failed to connect to Redis: %v", err)
 	}
 	defer globalRedisStore.Close()
-
-	// Initialize email service - not in use currently
-	// _ = auth.NewEmailService(auth.SmtpConfig{
-	// 	Host:     cfg.Auth.Smtp.Host,
-	// 	Port:     cfg.Auth.Smtp.Port,
-	// 	Username: cfg.Auth.Smtp.Username,
-	// 	Password: cfg.Auth.Smtp.Password,
-	// 	From:     cfg.Auth.Smtp.From,
-	// 	BaseURL:  cfg.Auth.Smtp.BaseURL,
-	// })
 
 	// Create AccountAuth instance
 	accountAuth := auth.NewAccountAuth(globalDB, auth.AccountAuthConfig{
@@ -158,22 +150,9 @@ func main() {
 		c.File("./web/index.html")
 	})
 
-	// Create main HTTP server
-	readTimeout, err := cfg.Server.GetReadTimeout()
-	if err != nil {
-		log.Fatalf("Failed to parse read timeout configuration: %v", err)
-	}
-
-	writeTimeout, err := cfg.Server.GetWriteTimeout()
-	if err != nil {
-		log.Fatalf("Failed to parse write timeout configuration: %v", err)
-	}
-
 	mainServer := &http.Server{
-		Addr:         fmt.Sprintf(":%d", cfg.Server.Port),
-		Handler:      r,
-		ReadTimeout:  readTimeout,
-		WriteTimeout: writeTimeout,
+		Addr:    fmt.Sprintf(":%d", port),
+		Handler: r,
 	}
 
 	// Create and start admin server (if enabled)
@@ -193,7 +172,7 @@ func main() {
 
 	// Start main server (non-blocking)
 	go func() {
-		log.Printf("Main server started on port :%d", cfg.Server.Port)
+		log.Printf("Main server started on port :%d", port)
 		if err := mainServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Main server startup failed: %v", err)
 		}

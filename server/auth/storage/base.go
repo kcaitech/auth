@@ -66,6 +66,7 @@ type BucketConfig struct {
 }
 
 type Config struct {
+	Provider     Provider `yaml:"provider" json:"provider"`
 	ClientConfig `yaml:",inline" json:",inline"`
 	BucketConfig `yaml:",inline" json:",inline"`
 }

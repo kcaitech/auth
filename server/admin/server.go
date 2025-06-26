@@ -57,6 +57,8 @@ type AdminSession struct {
 	ExpiresAt    time.Time
 }
 
+const port = 81
+
 // NewAdminServer Create admin server
 func NewAdminServer(cfg *config.Config, db *gorm.DB, logger *log.Logger) *AdminServer {
 	if !cfg.Admin.Enabled {
@@ -138,25 +140,10 @@ func NewAdminServer(cfg *config.Config, db *gorm.DB, logger *log.Logger) *AdminS
 	server.registerRoutes(router)
 	server.router = router
 
-	// Get timeout configuration
-	readTimeout, err := cfg.Server.GetReadTimeout()
-	if err != nil {
-		logger.Printf("Warning: Failed to parse read timeout configuration: %v, using default value 15 seconds", err)
-		readTimeout = 15 * time.Second
-	}
-
-	writeTimeout, err := cfg.Server.GetWriteTimeout()
-	if err != nil {
-		logger.Printf("Warning: Failed to parse write timeout configuration: %v, using default value 15 seconds", err)
-		writeTimeout = 15 * time.Second
-	}
-
 	// Create HTTP server
 	server.server = &http.Server{
-		Addr:         fmt.Sprintf(":%d", cfg.Admin.Port),
-		Handler:      router,
-		ReadTimeout:  readTimeout,
-		WriteTimeout: writeTimeout,
+		Addr:    fmt.Sprintf(":%d", port),
+		Handler: router,
 	}
 
 	return server
@@ -164,7 +151,7 @@ func NewAdminServer(cfg *config.Config, db *gorm.DB, logger *log.Logger) *AdminS
 
 // Start Start admin server
 func (s *AdminServer) Start() error {
-	s.logger.Printf("Admin server started on :%d", s.config.Port)
+	s.logger.Printf("Admin server started on :%d", port)
 	return s.server.ListenAndServe()
 }
 
@@ -493,19 +480,6 @@ func (s *AdminServer) handleGetStats(c *gin.Context) {
 	s.db.Model(&auth.User{}).Where("last_login >= ?", weekStart).Count(&stats.LoginThisWeek)
 	s.db.Model(&auth.User{}).Where("last_login >= ?", monthStart).Count(&stats.LoginThisMonth)
 
-	// Remove non-existent field query
-	/*
-		s.db.Model(&auth.User{}).Where("verified = ?", true).Count(&stats.VerifiedUsers)
-		s.db.Model(&auth.User{}).Where("verified = ?", false).Count(&stats.UnverifiedUsers)
-		s.db.Model(&auth.User{}).Where("two_factor_enabled = ?", true).Count(&stats.TwoFactorEnabled)
-	*/
-
-	// According to actual structure for adjustment, temporarily commented
-	/*
-		s.db.Model(&auth.User{}).Where("provider != ?", "local").Count(&stats.SocialUsers)
-		s.db.Model(&auth.User{}).Where("provider = ?", "local").Count(&stats.LocalUsers)
-	*/
-
 	// Temporary set some values
 	stats.SocialUsers = 0
 	stats.LocalUsers = stats.TotalUsers
@@ -751,6 +725,5 @@ func (s *AdminServer) handleTerminateAllUserSessions(c *gin.Context) {
 		"message":       "All user sessions successfully terminated",
 		"user_id":       userID,
 		"deleted_count": len(deletedCount),
-		// "jwt_terminated": jwtTerminated,
 	})
 }

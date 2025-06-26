@@ -22,22 +22,19 @@ docker-compose up -d
 
 ### 2. 修改配置文件
 
-如果需要，可以修改 `server/config/config.json` 文件中的数据库和Redis配置：
+如果需要，可以修改 `server/config/config.yaml` 文件中的数据库和Redis配置：
 
-```json
-{
-    "database": {
-        "host": "localhost",  // 如果在Docker中运行应用，可能需要改为"mysql"
-        "port": 3306,
-        "username": "root",
-        "password": "password",
-        "database": "kcauth"
-    },
-    "redis": {
-        "host": "localhost",  // 如果在Docker中运行应用，可能需要改为"redis"
-        "port": 6379
-    }
-}
+```yaml
+database:
+  host: "localhost"  # 如果在Docker中运行应用，可能需要改为"mysql"
+  port: 3306
+  username: "root"
+  password: "password"
+  database: "kcauth"
+
+redis:
+  host: "localhost"  # 如果在Docker中运行应用，可能需要改为"redis"
+  port: 6379
 ```
 
 ### 3. 运行服务器
