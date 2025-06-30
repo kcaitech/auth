@@ -145,6 +145,8 @@ func main() {
 			c.JSON(http.StatusNotFound, gin.H{"error": "auth endpoint not found"})
 			return
 		}
+		// 设置缓存时间为15分钟
+		c.Header("Cache-Control", "public, max-age=900")
 		// log.Println("Redirecting to index.html")
 		// 其他所有请求返回前端index.html
 		c.File("./web/index.html")

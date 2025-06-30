@@ -212,6 +212,8 @@ func (s *AdminServer) registerRoutes(r *gin.Engine) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "auth endpoint not found"})
 			return
 		}
+		// 设置缓存时间为15分钟
+		c.Header("Cache-Control", "public, max-age=900")
 		// Otherwise, return admin UI entry point
 		c.File("./admin-web/index.html")
 	})
