@@ -96,7 +96,7 @@ type WeixinUserInfo struct {
 	City       string `json:"city"`
 	Country    string `json:"country"`
 	HeadImgURL string `json:"headimgurl"`
-	UnionID    string `json:"union_id" gorm:"unique"`
+	UnionID    string `json:"unionid" gorm:"unique"`
 }
 
 // WeixinErrorResponse WeChat error response
