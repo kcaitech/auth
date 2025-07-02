@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -179,8 +180,11 @@ func main() {
 		log.Fatalf("开始事务失败: %v", tx.Error)
 	}
 
-	// 迁移用户数据
+	// 更新旧用户的userId
 	for _, oldUser := range oldUsers {
+		if oldUser.WxUnionId == "" {
+			continue
+		}
 
 		randomPassword := make([]byte, 16)
 		if _, err := rand.Read(randomPassword); err != nil {
@@ -193,49 +197,69 @@ func main() {
 			log.Fatalf("failed to encrypt password: %v", err)
 		}
 
-		// 准备新用户数据
-		newUser := User{
-			UserID:    fmt.Sprintf("%d", oldUser.ID),
-			Password:  string(hashedPassword), // 默认密码
-			Status:    "active",
-			Nickname:  oldUser.Nickname,
-			Avatar:    oldUser.Avatar,
-			LastLogin: oldUser.WxRefreshTokenCreateTime,
-			CreatedAt: oldUser.CreatedAt,
-			UpdatedAt: time.Now(),
-		}
-
-		// 更新或创建用户
-		if err := tx.Save(&newUser).Error; err != nil {
-			tx.Rollback()
-			log.Fatalf("保存用户数据失败: %v", err)
-		}
-
-		// 如果有微信信息，创建或更新微信用户
-		if oldUser.WxOpenId != "" || oldUser.WxMpOpenId != "" || oldUser.WxUnionId != "" {
-			openID := oldUser.WxOpenId
-			if openID == "" {
-				openID = oldUser.WxMpOpenId
-			}
-
-			weixinUser := WeixinUser{
-				UserID: newUser.UserID,
-				WeixinUserInfo: WeixinUserInfo{
-					OpenID:     openID,
-					Nickname:   oldUser.Nickname,
-					HeadImgURL: oldUser.Avatar,
-					UnionID:    oldUser.WxUnionId,
-				},
-				CreatedAt: oldUser.CreatedAt,
-				UpdatedAt: time.Now(),
-			}
-
-			if err := tx.Save(&weixinUser).Error; err != nil {
+		wxuser := WeixinUser{}
+		targetDB.Model(&WeixinUser{}).Where("unionid = ?", oldUser.WxUnionId).First(&wxuser)
+		if wxuser.UserID == "" { // 如果微信用户不存在，则创建用户
+			// 生成新的用户ID
+			newUserID, err := GenerateUserID()
+			if err != nil {
 				tx.Rollback()
-				log.Fatalf("保存微信用户数据失败: %v", err)
+				log.Fatalf("生成用户ID失败: %v", err)
+			}
+
+			user := User{}
+			user.UserID = newUserID
+			user.Password = string(hashedPassword)
+			user.Status = "active"
+			user.Nickname = oldUser.Nickname
+			user.Avatar = oldUser.Avatar
+			user.LastLogin = oldUser.WxRefreshTokenCreateTime
+			user.CreatedAt = oldUser.CreatedAt
+
+			if err := tx.Save(&user).Error; err != nil {
+				tx.Rollback()
+				log.Fatalf("保存用户数据失败: %v", err)
+			}
+
+		} else {
+			// 判断wxuser.UserID是否是数字字符串
+			if _, err := strconv.Atoi(wxuser.UserID); err == nil {
+				// 是数字字符串，则更新用户ID
+				newUserID, err := GenerateUserID()
+				if err != nil {
+					tx.Rollback()
+					log.Fatalf("生成用户ID失败: %v", err)
+				}
+
+				user := User{}
+				user.UserID = newUserID
+				user.Password = string(hashedPassword)
+				user.Status = "active"
+				user.Nickname = oldUser.Nickname
+				user.Avatar = oldUser.Avatar
+				user.LastLogin = oldUser.WxRefreshTokenCreateTime
+				user.CreatedAt = oldUser.CreatedAt
+
+				if err := tx.Save(&user).Error; err != nil {
+					tx.Rollback()
+					log.Fatalf("保存用户数据失败: %v", err)
+				}
+
+				// 更新微信用户ID
+				wxuser.UserID = user.UserID
+				if err := tx.Save(&wxuser).Error; err != nil {
+					tx.Rollback()
+					log.Fatalf("保存微信用户数据失败: %v", err)
+				}
 			}
 		}
 	}
+
+	// 删除用户id为纯数字的用户
+	tx.Model(&User{}).Where("user_id REGEXP ?", "^[0-9]+$").Delete(&User{})
+
+	// 删除微信用户里unionid为空的用户
+	tx.Model(&WeixinUser{}).Where("unionid = ?", "").Delete(&WeixinUser{})
 
 	// 提交事务
 	if err := tx.Commit().Error; err != nil {
