@@ -96,7 +96,7 @@ type WeixinUserInfo struct {
 	City       string `json:"city"`
 	Country    string `json:"country"`
 	HeadImgURL string `json:"headimgurl"`
-	UnionID    string `json:"unionid" gorm:"unique"`
+	UnionID    string `json:"union_id" gorm:"unique"`
 }
 
 // WeixinErrorResponse WeChat error response
@@ -198,7 +198,7 @@ func main() {
 		}
 
 		wxuser := WeixinUser{}
-		targetDB.Model(&WeixinUser{}).Where("unionid = ?", oldUser.WxUnionId).First(&wxuser)
+		targetDB.Model(&WeixinUser{}).Where("union_id = ?", oldUser.WxUnionId).First(&wxuser)
 		if wxuser.UserID == "" { // 如果微信用户不存在，则创建用户
 			// 生成新的用户ID
 			newUserID, err := GenerateUserID()
@@ -219,6 +219,24 @@ func main() {
 			if err := tx.Save(&user).Error; err != nil {
 				tx.Rollback()
 				log.Fatalf("保存用户数据失败: %v", err)
+			}
+
+			// 创建微信用户
+			wxuser.UserID = user.UserID
+			wxuser.OpenID = oldUser.WxOpenId
+			wxuser.Nickname = oldUser.Nickname
+			// wxuser.Sex = oldUser.Sex
+			// wxuser.Province = oldUser.Province
+			// wxuser.City = oldUser.City
+			// wxuser.Country = oldUser.Country
+			wxuser.HeadImgURL = oldUser.Avatar
+			wxuser.UnionID = oldUser.WxUnionId
+			wxuser.CreatedAt = oldUser.CreatedAt
+			wxuser.UpdatedAt = oldUser.UpdatedAt
+
+			if err := tx.Save(&wxuser).Error; err != nil {
+				tx.Rollback()
+				log.Fatalf("保存微信用户数据失败: %v", err)
 			}
 
 		} else {
@@ -259,7 +277,17 @@ func main() {
 	tx.Model(&User{}).Where("user_id REGEXP ?", "^[0-9]+$").Delete(&User{})
 
 	// 删除微信用户里unionid为空的用户
-	tx.Model(&WeixinUser{}).Where("unionid = ?", "").Delete(&WeixinUser{})
+	tx.Model(&WeixinUser{}).Where("union_id = ?", "").Delete(&WeixinUser{})
+
+	// 删除user里有，wxuser里没有的用户
+	var existingWxUserIDs []string
+	tx.Model(&WeixinUser{}).Select("user_id").Find(&existingWxUserIDs)
+	if len(existingWxUserIDs) > 0 {
+		tx.Model(&User{}).Where("user_id NOT IN ?", existingWxUserIDs).Delete(&User{})
+	} else {
+		// 如果没有微信用户，删除所有用户
+		// tx.Model(&User{}).Delete(&User{})
+	}
 
 	// 提交事务
 	if err := tx.Commit().Error; err != nil {
