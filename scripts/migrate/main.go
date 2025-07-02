@@ -186,6 +186,7 @@ func main() {
 	// 更新旧用户的userId
 	for _, oldUser := range oldUsers {
 		if oldUser.WxUnionId == "" {
+			log.Printf("用户%s没有unionid", oldUser.Uid)
 			continue
 		}
 
@@ -232,7 +233,7 @@ func main() {
 			// wxuser.Province = oldUser.Province
 			// wxuser.City = oldUser.City
 			// wxuser.Country = oldUser.Country
-			wxuser.HeadImgURL = oldUser.Avatar
+			// wxuser.HeadImgURL = oldUser.Avatar
 			wxuser.UnionID = oldUser.WxUnionId
 			wxuser.CreatedAt = oldUser.CreatedAt
 			wxuser.UpdatedAt = oldUser.UpdatedAt
@@ -257,8 +258,8 @@ func main() {
 				user.Password = string(hashedPassword)
 				user.Status = "active"
 				user.Nickname = oldUser.Nickname
-				user.Avatar = oldUser.Avatar
-				user.LastLogin = oldUser.WxRefreshTokenCreateTime
+				// user.Avatar = oldUser.Avatar
+				// user.LastLogin = oldUser.WxRefreshTokenCreateTime
 				user.CreatedAt = oldUser.CreatedAt
 
 				if err := tx.Save(&user).Error; err != nil {
@@ -276,22 +277,22 @@ func main() {
 		}
 	}
 
-	// 删除用户id为纯数字的用户
-	tx.Model(&User{}).Where("user_id REGEXP ?", "^[0-9]+$").Delete(&User{})
+	// // 删除用户id为纯数字的用户
+	// tx.Model(&User{}).Where("user_id REGEXP ?", "^[0-9]+$").Delete(&User{})
 
-	// 删除微信用户里unionid为空的用户
-	tx.Model(&WeixinUser{}).Where("user_id REGEXP ?", "^[0-9]+$").Delete(&WeixinUser{})
-	tx.Model(&WeixinUser{}).Where("union_id = ?", "").Delete(&WeixinUser{})
+	// // 删除微信用户里unionid为空的用户
+	// tx.Model(&WeixinUser{}).Where("user_id REGEXP ?", "^[0-9]+$").Delete(&WeixinUser{})
+	// tx.Model(&WeixinUser{}).Where("union_id = ?", "").Delete(&WeixinUser{})
 
-	// 删除user里有，wxuser里没有的用户
-	var existingWxUserIDs []string
-	tx.Model(&WeixinUser{}).Select("user_id").Find(&existingWxUserIDs)
-	if len(existingWxUserIDs) > 0 {
-		tx.Model(&User{}).Where("user_id NOT IN ?", existingWxUserIDs).Delete(&User{})
-	} else {
-		// 如果没有微信用户，删除所有用户
-		// tx.Model(&User{}).Delete(&User{})
-	}
+	// // 删除user里有，wxuser里没有的用户
+	// var existingWxUserIDs []string
+	// tx.Model(&WeixinUser{}).Select("user_id").Find(&existingWxUserIDs)
+	// if len(existingWxUserIDs) > 0 {
+	// 	tx.Model(&User{}).Where("user_id NOT IN ?", existingWxUserIDs).Delete(&User{})
+	// } else {
+	// 	// 如果没有微信用户，删除所有用户
+	// 	// tx.Model(&User{}).Delete(&User{})
+	// }
 
 	// 提交事务
 	if err := tx.Commit().Error; err != nil {
