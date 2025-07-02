@@ -228,6 +228,9 @@ func main() {
 			// 创建微信用户
 			wxuser.UserID = user.UserID
 			wxuser.OpenID = oldUser.WxOpenId
+			if wxuser.OpenID == "" {
+				wxuser.OpenID = oldUser.WxMpOpenId
+			}
 			wxuser.Nickname = oldUser.Nickname
 			// wxuser.Sex = oldUser.Sex
 			// wxuser.Province = oldUser.Province
