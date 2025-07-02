@@ -186,7 +186,7 @@ func main() {
 	// 更新旧用户的userId
 	for _, oldUser := range oldUsers {
 		if oldUser.WxUnionId == "" {
-			log.Printf("用户%s没有unionid", oldUser.Uid)
+			log.Printf("用户%s - %s 没有unionid", oldUser.Nickname, oldUser.Uid)
 			continue
 		}
 
@@ -202,8 +202,8 @@ func main() {
 		}
 
 		wxuser := WeixinUser{}
-		targetDB.Model(&WeixinUser{}).Where("union_id = ?", oldUser.WxUnionId).First(&wxuser)
-		if wxuser.UserID == "" { // 如果微信用户不存在，则创建用户
+		result := tx.Model(&WeixinUser{}).Where("union_id = ?", oldUser.WxUnionId).First(&wxuser)
+		if result.Error != nil && result.Error == gorm.ErrRecordNotFound { // 如果微信用户不存在，则创建用户
 			// 生成新的用户ID
 			newUserID, err := GenerateUserID()
 			if err != nil {
@@ -285,14 +285,14 @@ func main() {
 	// tx.Model(&WeixinUser{}).Where("union_id = ?", "").Delete(&WeixinUser{})
 
 	// // 删除user里有，wxuser里没有的用户
-	// var existingWxUserIDs []string
-	// tx.Model(&WeixinUser{}).Select("user_id").Find(&existingWxUserIDs)
-	// if len(existingWxUserIDs) > 0 {
-	// 	tx.Model(&User{}).Where("user_id NOT IN ?", existingWxUserIDs).Delete(&User{})
-	// } else {
-	// 	// 如果没有微信用户，删除所有用户
-	// 	// tx.Model(&User{}).Delete(&User{})
-	// }
+	var existingWxUserIDs []string
+	tx.Model(&WeixinUser{}).Select("user_id").Find(&existingWxUserIDs)
+	if len(existingWxUserIDs) > 0 {
+		tx.Model(&User{}).Where("user_id NOT IN ?", existingWxUserIDs).Delete(&User{})
+	} else {
+		// 如果没有微信用户，删除所有用户
+		// tx.Model(&User{}).Delete(&User{})
+	}
 
 	// 提交事务
 	if err := tx.Commit().Error; err != nil {
