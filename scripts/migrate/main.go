@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
+	"regexp"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -180,6 +180,9 @@ func main() {
 		log.Fatalf("开始事务失败: %v", tx.Error)
 	}
 
+	// 编译正则表达式，用于检查是否为纯数字字符串
+	numericRegex := regexp.MustCompile(`^[0-9]+$`)
+
 	// 更新旧用户的userId
 	for _, oldUser := range oldUsers {
 		if oldUser.WxUnionId == "" {
@@ -240,8 +243,8 @@ func main() {
 			}
 
 		} else {
-			// 判断wxuser.UserID是否是数字字符串
-			if _, err := strconv.Atoi(wxuser.UserID); err == nil {
+			// 判断wxuser.UserID是否是数字字符串，使用正则表达式能处理任意大小的数字
+			if numericRegex.MatchString(wxuser.UserID) {
 				// 是数字字符串，则更新用户ID
 				newUserID, err := GenerateUserID()
 				if err != nil {
@@ -277,6 +280,7 @@ func main() {
 	tx.Model(&User{}).Where("user_id REGEXP ?", "^[0-9]+$").Delete(&User{})
 
 	// 删除微信用户里unionid为空的用户
+	tx.Model(&WeixinUser{}).Where("user_id REGEXP ?", "^[0-9]+$").Delete(&WeixinUser{})
 	tx.Model(&WeixinUser{}).Where("union_id = ?", "").Delete(&WeixinUser{})
 
 	// 删除user里有，wxuser里没有的用户
