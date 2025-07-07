@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -21,6 +23,7 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/redis"
 	"github.com/gin-contrib/static"
+	"github.com/gin-gonic/contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/pquerna/otp"
 	"gorm.io/driver/mysql"
@@ -41,6 +44,43 @@ var (
 )
 
 const port = 80
+
+var StaticFileSuffix = []string{".html", ".js", ".css", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2", ".ttf"}
+
+func isStaticFile(path string) bool {
+	// 先获取path后缀
+	suffix := filepath.Ext(path)
+	if suffix == "" {
+		return false
+	}
+	return slices.Contains(StaticFileSuffix, suffix)
+}
+
+const staticFilePath = "/app/web"
+
+func joinPath(dir, path string) string {
+	if !strings.HasPrefix(path, "/") {
+		return dir + "/" + path
+	}
+	return dir + path
+}
+
+func onNotFound(c *gin.Context) {
+	path := c.Request.URL.Path
+	if path == "/api" || strings.HasPrefix(path, "/api/") {
+		c.JSON(http.StatusNotFound, gin.H{"error": "auth endpoint not found"})
+		return
+	}
+
+	if isStaticFile(path) {
+		c.File(joinPath(staticFilePath, path))
+		return
+	}
+
+	// 设置缓存时间为15分钟
+	c.Header("Cache-Control", "public, max-age=900")
+	c.File(staticFilePath + "/index.html")
+}
 
 func main() {
 	// Parse command line arguments
@@ -90,13 +130,7 @@ func main() {
 	}
 
 	// Create Gin engine
-	r := gin.Default()
-
-	// Initialize authentication handler
-	var authHandler *handlers.AuthHandler
-	if err := initAuthHandler(cfg, accountAuth, &authHandler, r); err != nil {
-		log.Fatalf("Failed to initialize authentication handler: %v", err)
-	}
+	r := gin.New()
 
 	// Add CORS middleware
 	corsConfig := cors.DefaultConfig()
@@ -105,6 +139,19 @@ func main() {
 	corsConfig.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Authorization"}
 	corsConfig.AllowCredentials = true
 	r.Use(cors.New(corsConfig))
+
+	// web server
+	r.Use(gzip.Gzip(gzip.DefaultCompression))
+	r.Use(static.Serve("/", static.LocalFile(staticFilePath, false))) // 前端工程
+	r.NoRoute(onNotFound)
+
+	// Add health check endpoint
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"status": "healthy",
+			"time":   time.Now().Format(time.RFC3339),
+		})
+	})
 
 	// Initialize session middleware
 	store, err := redis.NewStore(10, "tcp", cfg.Redis.GetRedisAddr(), cfg.Redis.Password, []byte("secret"))
@@ -122,35 +169,13 @@ func main() {
 	rateLimiter := middleware.RateLimiter{}
 	r.Use(rateLimiter.RateLimitMiddleware())
 
-	// Add health check endpoint
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"status": "healthy",
-			"time":   time.Now().Format(time.RFC3339),
-		})
-	})
-
+	// Initialize authentication handler
+	var authHandler *handlers.AuthHandler
+	if err := initAuthHandler(cfg, accountAuth, &authHandler); err != nil {
+		log.Fatalf("Failed to initialize authentication handler: %v", err)
+	}
 	// Register routes
 	authHandler.RegisterRoutes(r.Group("/api"), cfg)
-
-	// 添加静态文件服务
-	// 前端静态文件
-	r.Use(static.Serve("/", static.LocalFile("./web/", false))) // 前端工程
-	// 添加 favicon.ico 路由
-	// r.StaticFile("/favicon.ico", "./web/favicon.ico")
-	// 将前端其他请求重定向到index.html以支持单页应用
-	r.NoRoute(func(c *gin.Context) {
-		// 如果是API请求，返回404
-		if c.Request.URL.Path == "/api" || strings.HasPrefix(c.Request.URL.Path, "/api/") {
-			c.JSON(http.StatusNotFound, gin.H{"error": "auth endpoint not found"})
-			return
-		}
-		// 设置缓存时间为15分钟
-		c.Header("Cache-Control", "public, max-age=900")
-		// log.Println("Redirecting to index.html")
-		// 其他所有请求返回前端index.html
-		c.File("./web/index.html")
-	})
 
 	mainServer := &http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
@@ -205,7 +230,7 @@ func main() {
 	log.Println("Main server has been shut down")
 }
 
-func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler **handlers.AuthHandler, r *gin.Engine) error {
+func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler **handlers.AuthHandler) error {
 	// Initialize email authentication
 	var emailAuth *auth.EmailAuth
 	if containsProvider(cfg.Auth.EnabledProviders, "email") && cfg.Auth.Smtp.Host != "" {
