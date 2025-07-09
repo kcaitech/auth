@@ -16,10 +16,10 @@ import (
 )
 
 const (
-	RedisPrefixUser              = common.RedisPrefixUser
-	RedisPrefixLoginAttempts     = common.RedisPrefixLoginAttempts
-	RedisPrefixVerification      = common.RedisPrefixVerification
-	RedisPrefixVerificationToken = common.RedisPrefixVerificationToken
+	RedisPrefixUser              = common.RedisKeyUser
+	RedisPrefixLoginAttempts     = common.RedisKeyLoginAttempts
+	RedisPrefixVerification      = common.RedisKeyVerification
+	RedisPrefixVerificationToken = common.RedisKeyVerificationToken
 )
 
 // AccountRedisStore Account-related Redis storage service

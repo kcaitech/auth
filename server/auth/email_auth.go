@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	RedisPrefixEmailPreregister = common.RedisPrefixEmailPreregister
+	RedisPrefixEmailPreregister = common.RedisKeyEmailPreregister
 )
 
 // Email User Model

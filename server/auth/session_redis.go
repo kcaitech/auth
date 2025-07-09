@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	RedisPrefixSession = common.RedisPrefixSession
+	RedisPrefixSession = common.RedisKeySession
 )
 
 // SessionRedisStore Session-related Redis storage service

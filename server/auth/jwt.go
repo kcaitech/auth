@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	RedisPrefixJWTKey = common.RedisPrefixJWTKey
+	RedisPrefixJWTKey = common.RedisKeyJWTKey
 )
 
 type JWTConfig struct {

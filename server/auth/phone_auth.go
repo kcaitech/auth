@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	RedisPrefixPhonePreregister = common.RedisPrefixPhonePreregister
+	RedisPrefixPhonePreregister = common.RedisKeyPhonePreregister
 )
 
 // PhoneUser Phone user model

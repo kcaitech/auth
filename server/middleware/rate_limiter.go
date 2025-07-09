@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	RedisPrefixRateLimit = common.RedisPrefixRateLimit
+	RedisPrefixRateLimit = common.RedisKeyRateLimit
 )
 
 // RedisStore Redis storage service
