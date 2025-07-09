@@ -71,18 +71,6 @@ func (s *SessionManager) RefreshSession(userID string, sessionID string, duratio
 	return s.CreateSession(userID, session)
 }
 
-// Generate session ID
-// func (s *SessionManager) GenerateSessionID() (string, error) {
-// 	b := make([]byte, 32)
-// 	_, err := rand.Read(b)
-// 	if err != nil {
-// 		return "", fmt.Errorf("failed to generate random bytes: %w", err)
-// 	}
-
-// 	// Use base62 encoding (numbers + uppercase and lowercase letters) to shorten ID length
-// 	return Base62Encode(b), nil
-// }
-
 // Create a new user session
 func (s *SessionManager) CreateUserSession(userID string, ip, userAgent string, duration time.Duration) (*Session, error) {
 	// Check if a session with the same IP and UserAgent exists
@@ -251,7 +239,7 @@ func (s *SessionManager) HasSessionWithIPAndUserAgent(userId, ip, userAgent stri
 
 // Get session timeout
 func (s *SessionManager) GetSessionTTL(sessionID string) (time.Duration, error) {
-	sessionKey := fmt.Sprintf("session:%s", sessionID)
+	sessionKey := fmt.Sprintf("%s%s", RedisPrefixSession, sessionID)
 	ttl, err := s.redis.client.TTL(context.Background(), sessionKey).Result()
 	if err != nil {
 		return 0, fmt.Errorf("failed to get session timeout: %w", err)
@@ -271,7 +259,7 @@ func (s *SessionManager) GetSessionTTL(sessionID string) (time.Duration, error) 
 // Session expiration cleaner (called by scheduled task)
 // Clean up sessions that are about to expire (e.g., notify users 24 hours in advance)
 func (s *SessionManager) NotifyExpiringSessionsToUsers() ([]string, error) {
-	pattern := "session:*"
+	pattern := fmt.Sprintf("%s*", RedisPrefixSession)
 	var cursor uint64
 	var notifiedUserIDs []string
 	notifiedMap := make(map[string]bool)

@@ -6,12 +6,14 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"kcaitech.com/kcauth/server/auth"
+	"kcaitech.com/kcauth/server/common"
 )
 
 // WeixinLoginURL Get WeChat login URL
@@ -26,7 +28,7 @@ func (h *AuthHandler) WeixinLoginURL(c *gin.Context) {
 
 	// Generate unique client identifier
 	clientID := c.ClientIP() + "-" + c.Request.UserAgent()
-	stateKey := "weixin_oauth_state:" + clientID
+	stateKey := fmt.Sprintf("%s%s", common.RedisPrefixWeixinState, clientID)
 
 	// Store state in Redis with a reasonable expiration time (e.g., 15 minutes)
 	if err := h.redisStore.Set(stateKey, state, time.Minute*15); err != nil {
@@ -59,7 +61,7 @@ func (h *AuthHandler) WeixinLoginHandler(c *gin.Context) {
 
 	// Generate unique client identifier
 	clientID := c.ClientIP() + "-" + c.Request.UserAgent()
-	stateKey := "weixin_oauth_state:" + clientID
+	stateKey := fmt.Sprintf("%s%s", common.RedisPrefixWeixinState, clientID)
 
 	// Store state in Redis with a reasonable expiration time (e.g., 15 minutes)
 	if err := h.redisStore.Set(stateKey, state, time.Minute*15); err != nil {
@@ -98,7 +100,7 @@ func (h *AuthHandler) WeixinCallback(c *gin.Context) {
 	}
 
 	// Get expected state from Redis
-	stateKey := "weixin_oauth_state:" + clientID
+	stateKey := fmt.Sprintf("%s%s", common.RedisPrefixWeixinState, clientID)
 	var expectedState string
 	if err := h.redisStore.Get(stateKey, &expectedState); err != nil {
 		h.logger.Printf("Failed to get OAuth state from Redis: %v", err)

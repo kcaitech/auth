@@ -50,9 +50,9 @@ func NewRedisStore(addr, password string, db int) (*RedisStore, error) {
 }
 
 // IncrRateLimit Increment rate limit counter and return current value
-func (rs *RedisStore) IncrRateLimit(ip string, window time.Duration) (int, error) {
+func (rs *RedisStore) IncrRateLimit(id string, window time.Duration) (int, error) {
 	// 使用 Redis 的 INCR 命令增加计数
-	key := fmt.Sprintf("%s%s", RedisPrefixRateLimit, ip)
+	key := fmt.Sprintf("%s%s", RedisPrefixRateLimit, id)
 	count, err := rs.Client.Incr(rs.Ctx, key).Result()
 	if err != nil {
 		return 0, err
@@ -67,14 +67,14 @@ func (rs *RedisStore) IncrRateLimit(ip string, window time.Duration) (int, error
 }
 
 // StoreRateLimit Store rate limit information
-func (rs *RedisStore) StoreRateLimit(ip string, count int, window time.Duration) error {
-	key := fmt.Sprintf("%s%s", RedisPrefixRateLimit, ip)
+func (rs *RedisStore) StoreRateLimit(id string, count int, window time.Duration) error {
+	key := fmt.Sprintf("%s%s", RedisPrefixRateLimit, id)
 	return rs.Client.Set(rs.Ctx, key, count, window).Err()
 }
 
 // GetRateLimit Get rate limit information
-func (rs *RedisStore) GetRateLimit(ip string) (int, error) {
-	key := fmt.Sprintf("%s%s", RedisPrefixRateLimit, ip)
+func (rs *RedisStore) GetRateLimit(id string) (int, error) {
+	key := fmt.Sprintf("%s%s", RedisPrefixRateLimit, id)
 	count, err := rs.Client.Get(rs.Ctx, key).Int()
 	if err == redis.Nil {
 		return 0, nil
@@ -83,8 +83,8 @@ func (rs *RedisStore) GetRateLimit(ip string) (int, error) {
 }
 
 // DeleteRateLimit Delete rate limit information
-func (rs *RedisStore) DeleteRateLimit(ip string) error {
-	key := fmt.Sprintf("%s%s", RedisPrefixRateLimit, ip)
+func (rs *RedisStore) DeleteRateLimit(id string) error {
+	key := fmt.Sprintf("%s%s", RedisPrefixRateLimit, id)
 	return rs.Client.Del(rs.Ctx, key).Err()
 }
 
