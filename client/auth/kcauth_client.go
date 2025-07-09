@@ -599,7 +599,7 @@ func (c *KCAuthClient) LoginVerify(code string, gin *gin.Context) (*LoginVerifyR
 }
 
 // GetUsersInfo 批量获取用户信息
-func (c *KCAuthClient) GetUsersInfo(accessToken string, userIDs []string) ([]UserInfo, error) {
+func (c *KCAuthClient) GetUsersInfo(accessToken string, userIDs []string) ([]UserInfo, error, int) {
 	// 创建请求体
 	reqBody := struct {
 		UserIDs []string `json:"user_ids"`
@@ -610,14 +610,14 @@ func (c *KCAuthClient) GetUsersInfo(accessToken string, userIDs []string) ([]Use
 	// 将请求体转换为 JSON
 	jsonData, err := json.Marshal(reqBody)
 	if err != nil {
-		return nil, fmt.Errorf("序列化请求数据失败: %v", err)
+		return nil, fmt.Errorf("序列化请求数据失败: %v", err), http.StatusInternalServerError
 	}
 
 	// 创建请求
 	req, err := http.NewRequest("POST", c.AuthServerURL+"/api/users", bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Println("创建请求失败", err)
-		return nil, fmt.Errorf("创建请求失败: %v", err)
+		return nil, fmt.Errorf("创建请求失败: %v", err), http.StatusInternalServerError
 	}
 
 	// 设置请求头
@@ -629,22 +629,22 @@ func (c *KCAuthClient) GetUsersInfo(accessToken string, userIDs []string) ([]Use
 	// 发送请求
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("发送请求失败: %v", err)
+		return nil, fmt.Errorf("发送请求失败: %v", err), http.StatusInternalServerError
 	}
 	defer resp.Body.Close()
 
 	// 检查响应状态
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusUnauthorized {
-			return nil, errors.New("无效的访问令牌或客户端认证失败")
+			return nil, errors.New("无效的访问令牌或客户端认证失败"), http.StatusUnauthorized
 		}
 		var errResp struct {
 			Error string `json:"error"`
 		}
 		if err := json.NewDecoder(resp.Body).Decode(&errResp); err != nil {
-			return nil, fmt.Errorf("获取用户信息失败: %d", resp.StatusCode)
+			return nil, fmt.Errorf("获取用户信息失败: %d", resp.StatusCode), http.StatusInternalServerError
 		}
-		return nil, errors.New(errResp.Error)
+		return nil, errors.New(errResp.Error), http.StatusInternalServerError
 	}
 
 	// 解析响应
@@ -652,10 +652,10 @@ func (c *KCAuthClient) GetUsersInfo(accessToken string, userIDs []string) ([]Use
 		Users []UserInfo `json:"users"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("解析响应数据失败: %v", err)
+		return nil, fmt.Errorf("解析响应数据失败: %v", err), http.StatusInternalServerError
 	}
 
-	return result.Users, nil
+	return result.Users, nil, http.StatusInternalServerError
 }
 
 // logout
