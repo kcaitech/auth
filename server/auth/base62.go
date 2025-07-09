@@ -99,35 +99,6 @@ func GenerateUserID() (string, error) {
 	return GenerateBase62String(10)
 }
 
-func GenerateBase62ID() (string, error) {
-	b := make([]byte, 16) // 16 bytes, the length of a uuid, generates about 22 characters
-	_, err := rand.Read(b)
-	if err != nil {
-		return "", fmt.Errorf("failed to generate random bytes: %w", err)
-	}
-	// Use base62 encoding (digits + uppercase and lowercase letters) to shorten ID length
-	return Base62Encode(b), nil
-}
-
-func GenerateByteID() ([]byte, error) {
-	b := make([]byte, 16)
-	_, err := rand.Read(b)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate random bytes: %w", err)
-	}
-	return b, nil
-}
-
-// func GenerateBase62IDWithLen(length int) (string, error) {
-// 	b := make([]byte, length) // 16 bytes, the length of a uuid
-// 	_, err := rand.Read(b)
-// 	if err != nil {
-// 		return "", fmt.Errorf("failed to generate random bytes: %w", err)
-// 	}
-// 	// Use base62 encoding (digits + uppercase and lowercase letters) to shorten ID length
-// 	return Base62Encode(b), nil
-// }
-
 // generateBase62String Generates a random base62 string of specified length
 func GenerateBase62String(length int) (string, error) {
 	result := make([]byte, length)

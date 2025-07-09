@@ -12,8 +12,14 @@ import (
 	"math/big"
 	"time"
 
+	"kcaitech.com/kcauth/server/common"
+
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
+)
+
+const (
+	RedisPrefixPhonePreregister = common.RedisPrefixPhonePreregister
 )
 
 // PhoneUser Phone user model
@@ -321,7 +327,7 @@ func (a *PhoneAuth) PhonePreregister(phone, password, nickname string) (string, 
 	}
 
 	// Store pre-registration information in Redis
-	preregKey := fmt.Sprintf("phone_prereg:%s:%s", phone, code)
+	preregKey := fmt.Sprintf("%s%s:%s", RedisPrefixPhonePreregister, phone, code)
 	if err := a.redis.Set(preregKey, preregInfo, a.verificationExpiry); err != nil {
 		return "", fmt.Errorf("failed to store pre-registration information: %w", err)
 	}
@@ -380,7 +386,7 @@ func (a *PhoneAuth) VerifyPhoneAndRegister(phone, code string) (*User, error) {
 	}
 
 	// Try to get pre-registration information
-	preregKey := fmt.Sprintf("phone_prereg:%s:%s", phone, code)
+	preregKey := fmt.Sprintf("%s%s:%s", RedisPrefixPhonePreregister, phone, code)
 	var preregInfo PhonePreregisterInfo
 	if err := a.redis.Get(preregKey, &preregInfo); err != nil {
 		return nil, ErrInvalidToken("Pre-registration information not found or expired, please register again")

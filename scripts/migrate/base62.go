@@ -109,14 +109,14 @@ func GenerateBase62ID() (string, error) {
 	return Base62Encode(b), nil
 }
 
-func GenerateByteID() ([]byte, error) {
-	b := make([]byte, 16)
-	_, err := rand.Read(b)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate random bytes: %w", err)
-	}
-	return b, nil
-}
+// func GenerateByteID() ([]byte, error) {
+// 	b := make([]byte, 16)
+// 	_, err := rand.Read(b)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to generate random bytes: %w", err)
+// 	}
+// 	return b, nil
+// }
 
 // func GenerateBase62IDWithLen(length int) (string, error) {
 // 	b := make([]byte, length) // 16 bytes, the length of a uuid

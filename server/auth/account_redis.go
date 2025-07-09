@@ -12,6 +12,14 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
+	"kcaitech.com/kcauth/server/common"
+)
+
+const (
+	RedisPrefixUser              = common.RedisPrefixUser
+	RedisPrefixLoginAttempts     = common.RedisPrefixLoginAttempts
+	RedisPrefixVerification      = common.RedisPrefixVerification
+	RedisPrefixVerificationToken = common.RedisPrefixVerificationToken
 )
 
 // AccountRedisStore Account-related Redis storage service
@@ -30,7 +38,7 @@ func NewAccountRedisStore(client *redis.Client) *AccountRedisStore {
 
 // CacheUser Cache user information
 func (rs *AccountRedisStore) CacheUser(user *User) error {
-	key := fmt.Sprintf("user:%s", user.UserID)
+	key := fmt.Sprintf("%s%s", RedisPrefixUser, user.UserID)
 	data, err := json.Marshal(user)
 	if err != nil {
 		return fmt.Errorf("failed to serialize user data: %w", err)
@@ -42,7 +50,7 @@ func (rs *AccountRedisStore) CacheUser(user *User) error {
 
 // GetCachedUser Get cached user information
 func (rs *AccountRedisStore) GetCachedUser(userID string) (*User, error) {
-	key := fmt.Sprintf("user:%s", userID)
+	key := fmt.Sprintf("%s%s", RedisPrefixUser, userID)
 	data, err := rs.client.Get(rs.ctx, key).Bytes()
 	if err != nil {
 		if err == redis.Nil {
@@ -61,19 +69,19 @@ func (rs *AccountRedisStore) GetCachedUser(userID string) (*User, error) {
 
 // InvalidateUserCache Invalidate user cache
 func (rs *AccountRedisStore) InvalidateUserCache(userID string) error {
-	key := fmt.Sprintf("user:%s", userID)
+	key := fmt.Sprintf("%s%s", RedisPrefixUser, userID)
 	return rs.client.Del(rs.ctx, key).Err()
 }
 
 // CacheLoginAttempts Cache login attempt count
 func (rs *AccountRedisStore) CacheLoginAttempts(userID string, ip string, count int, duration time.Duration) error {
-	key := fmt.Sprintf("login_attempts:%s:%s", userID, ip)
+	key := fmt.Sprintf("%s%s:%s", RedisPrefixLoginAttempts, userID, ip)
 	return rs.client.Set(rs.ctx, key, count, duration).Err()
 }
 
 // GetLoginAttempts Get login attempt count
 func (rs *AccountRedisStore) GetLoginAttempts(userID string, ip string) (int, error) {
-	key := fmt.Sprintf("login_attempts:%s:%s", userID, ip)
+	key := fmt.Sprintf("%s%s:%s", RedisPrefixLoginAttempts, userID, ip)
 	count, err := rs.client.Get(rs.ctx, key).Int()
 	if err == redis.Nil {
 		return 0, nil
@@ -86,7 +94,7 @@ func (rs *AccountRedisStore) GetLoginAttempts(userID string, ip string) (int, er
 
 // IncrLoginAttempts Increment login attempt count
 func (rs *AccountRedisStore) IncrLoginAttempts(userID string, ip string, duration time.Duration) (int, error) {
-	key := fmt.Sprintf("login_attempts:%s:%s", userID, ip)
+	key := fmt.Sprintf("%s%s:%s", RedisPrefixLoginAttempts, userID, ip)
 	pipe := rs.client.Pipeline()
 	incr := pipe.Incr(rs.ctx, key)
 	pipe.Expire(rs.ctx, key, duration)
@@ -99,7 +107,7 @@ func (rs *AccountRedisStore) IncrLoginAttempts(userID string, ip string, duratio
 
 // ResetLoginAttempts Reset login attempt count
 func (rs *AccountRedisStore) ResetLoginAttempts(userID string, ip string) error {
-	key := fmt.Sprintf("login_attempts:%s:%s", userID, ip)
+	key := fmt.Sprintf("%s%s:%s", RedisPrefixLoginAttempts, userID, ip)
 	return rs.client.Del(rs.ctx, key).Err()
 }
 
@@ -146,7 +154,7 @@ func (rs *AccountRedisStore) StoreVerification(verificationType VerificationType
 		CreatedAt:  time.Now(),
 	}
 
-	key := fmt.Sprintf("verification:%s:%s", string(verificationType), identifier)
+	key := fmt.Sprintf("%s%s:%s", RedisPrefixVerification, string(verificationType), identifier)
 	err := rs.Set(key, verification, expiry)
 	if err != nil {
 		return fmt.Errorf("failed to store verification information: %w", err)
@@ -162,7 +170,7 @@ func (rs *AccountRedisStore) StoreVerification(verificationType VerificationType
 
 // GetVerification Get verification information
 func (rs *AccountRedisStore) GetVerification(verificationType VerificationType, identifier string) (*Verification, error) {
-	key := fmt.Sprintf("verification:%s:%s", string(verificationType), identifier)
+	key := fmt.Sprintf("%s%s:%s", RedisPrefixVerification, string(verificationType), identifier)
 	var verification Verification
 	err := rs.Get(key, &verification)
 	if err != nil {
@@ -179,7 +187,7 @@ func (rs *AccountRedisStore) GetVerification(verificationType VerificationType, 
 
 // DeleteVerification Delete verification information
 func (rs *AccountRedisStore) DeleteVerification(verificationType VerificationType, identifier string, token string) error {
-	key := fmt.Sprintf("verification:%s:%s", string(verificationType), identifier)
+	key := fmt.Sprintf("%s%s:%s", RedisPrefixVerification, string(verificationType), identifier)
 	err := rs.Delete(key)
 	if err != nil {
 		return fmt.Errorf("failed to delete verification information: %w", err)
@@ -194,7 +202,7 @@ func (rs *AccountRedisStore) DeleteVerification(verificationType VerificationTyp
 }
 
 func (rs *AccountRedisStore) GetVerificationByToken(verificationType VerificationType, token string) (*Verification, error) {
-	key := fmt.Sprintf("verification:token:%s", token)
+	key := fmt.Sprintf("%s%s", RedisPrefixVerificationToken, token)
 	var identifier string
 	err := rs.Get(key, &identifier)
 	if err != nil {
@@ -217,14 +225,14 @@ func (rs *AccountRedisStore) GetVerificationByToken(verificationType Verificatio
 // UpdateVerification Update verification information
 func (rs *AccountRedisStore) UpdateVerification(verificationType VerificationType, identifier string, oldToken string, newToken string, expiry time.Duration) error {
 	// Delete old token association
-	keyIdentifier := fmt.Sprintf("verification:token:%s", oldToken)
+	keyIdentifier := fmt.Sprintf("%s%s", RedisPrefixVerificationToken, oldToken)
 	err := rs.Delete(keyIdentifier)
 	if err != nil {
 		return fmt.Errorf("failed to delete old verification token association: %w", err)
 	}
 
 	// Get verification information
-	key := fmt.Sprintf("verification:%s:%s", string(verificationType), identifier)
+	key := fmt.Sprintf("%s%s:%s", RedisPrefixVerification, string(verificationType), identifier)
 	var verification Verification
 	err = rs.Get(key, &verification)
 	if err != nil {
@@ -242,7 +250,7 @@ func (rs *AccountRedisStore) UpdateVerification(verificationType VerificationTyp
 	}
 
 	// Add new token association
-	err = rs.Set(fmt.Sprintf("verification:token:%s", newToken), identifier, expiry)
+	err = rs.Set(fmt.Sprintf("%s%s", RedisPrefixVerificationToken, newToken), identifier, expiry)
 	if err != nil {
 		return fmt.Errorf("failed to add new verification token association: %w", err)
 	}

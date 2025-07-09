@@ -16,6 +16,12 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
+
+	"kcaitech.com/kcauth/server/common"
+)
+
+const (
+	RedisPrefixEmailPreregister = common.RedisPrefixEmailPreregister
 )
 
 // Email User Model
@@ -193,7 +199,7 @@ func (a *EmailAuth) EmailPreregister(email, password, nickname, title, content s
 	}
 
 	// Store pre-registration information in Redis
-	preregKey := fmt.Sprintf("email_prereg:%s:%s", email, token)
+	preregKey := fmt.Sprintf("%s%s:%s", RedisPrefixEmailPreregister, email, token)
 	if err := a.redis.Set(preregKey, preregInfo, a.verificationExpiry); err != nil {
 		return "", fmt.Errorf("failed to store pre-registration information: %w", err)
 	}
@@ -324,7 +330,7 @@ func (a *EmailAuth) VerifyEmail(token string) (*User, error) {
 	email := verification.Identifier
 
 	// Try to get pre-registration information
-	preregKey := fmt.Sprintf("email_prereg:%s:%s", email, token)
+	preregKey := fmt.Sprintf("%s%s:%s", RedisPrefixEmailPreregister, email, token)
 	var preregInfo EmailPreregisterInfo
 	if err := a.redis.Get(preregKey, &preregInfo); err != nil {
 		return nil, ErrInvalidToken("Pre-registration information not found or expired, please register again")

@@ -12,6 +12,13 @@ import (
 	"time"
 
 	"github.com/go-redis/redis/v8"
+
+	"kcaitech.com/kcauth/server/common"
+)
+
+const (
+	RedisPrefixSession     = common.RedisPrefixSession
+	RedisPrefixUserSession = common.RedisPrefixUserSession
 )
 
 // SessionRedisStore Session-related Redis storage service
@@ -30,7 +37,7 @@ func NewSessionRedisStore(client *redis.Client) *SessionRedisStore {
 
 // StoreSession Store session information
 func (rs *SessionRedisStore) StoreSession(userID string, sessionID string, session *Session, expiry time.Duration) error {
-	key := fmt.Sprintf("session:%s:%s", userID, sessionID)
+	key := fmt.Sprintf("%s%s:%s", RedisPrefixSession, userID, sessionID)
 	data, err := json.Marshal(session)
 	if err != nil {
 		return fmt.Errorf("failed to serialize session data: %w", err)
@@ -41,31 +48,31 @@ func (rs *SessionRedisStore) StoreSession(userID string, sessionID string, sessi
 
 // StoreUserSessionList Store user session list
 func (rs *SessionRedisStore) StoreUserSessionList(userID string, sessionID string) error {
-	key := fmt.Sprintf("user_sessions:%s", userID)
+	key := fmt.Sprintf("%s%s", RedisPrefixUserSession, userID)
 	return rs.client.SAdd(rs.ctx, key, sessionID).Err()
 }
 
 // GetUserSessionList Get user session list
 func (rs *SessionRedisStore) GetUserSessionList(userID string) ([]string, error) {
-	key := fmt.Sprintf("user_sessions:%s", userID)
+	key := fmt.Sprintf("%s%s", RedisPrefixUserSession, userID)
 	return rs.client.SMembers(rs.ctx, key).Result()
 }
 
 // DeleteUserSessionList Delete user session list
 func (rs *SessionRedisStore) DeleteUserSessionList(userID string) error {
-	key := fmt.Sprintf("user_sessions:%s", userID)
+	key := fmt.Sprintf("%s%s", RedisPrefixUserSession, userID)
 	return rs.client.Del(rs.ctx, key).Err()
 }
 
 // UpdateUserSessionList Update user session list
 func (rs *SessionRedisStore) RemoveUserSessionList(userID string, sessionIDs []string) error {
-	key := fmt.Sprintf("user_sessions:%s", userID)
+	key := fmt.Sprintf("%s%s", RedisPrefixUserSession, userID)
 	return rs.client.SRem(rs.ctx, key, sessionIDs).Err()
 }
 
 // GetSession Get session information
 func (rs *SessionRedisStore) GetSession(userID, sessionID string) (*Session, error) {
-	key := fmt.Sprintf("session:%s:%s", userID, sessionID)
+	key := fmt.Sprintf("%s%s:%s", RedisPrefixSession, userID, sessionID)
 	data, err := rs.client.Get(rs.ctx, key).Bytes()
 	if err != nil {
 		if err == redis.Nil {
@@ -84,7 +91,7 @@ func (rs *SessionRedisStore) GetSession(userID, sessionID string) (*Session, err
 
 // DeleteSession Delete session information
 func (rs *SessionRedisStore) DeleteSession(userID, sessionID string) error {
-	key := fmt.Sprintf("session:%s:%s", userID, sessionID)
+	key := fmt.Sprintf("%s%s:%s", RedisPrefixSession, userID, sessionID)
 	return rs.client.Del(rs.ctx, key).Err()
 }
 
@@ -100,13 +107,13 @@ func (rs *SessionRedisStore) DeleteSession(userID, sessionID string) error {
 
 // GetSessionTTL Get session expiration time
 func (rs *SessionRedisStore) GetSessionTTL(userID, sessionID string) (time.Duration, error) {
-	key := fmt.Sprintf("session:%s:%s", userID, sessionID)
+	key := fmt.Sprintf("%s%s:%s", RedisPrefixSession, userID, sessionID)
 	return rs.client.TTL(rs.ctx, key).Result()
 }
 
 // ExtendSession Extend session expiration time
 func (rs *SessionRedisStore) ExtendSession(userID, sessionID string, expiry time.Duration) error {
-	key := fmt.Sprintf("session:%s:%s", userID, sessionID)
+	key := fmt.Sprintf("%s%s:%s", RedisPrefixSession, userID, sessionID)
 	return rs.client.Expire(rs.ctx, key, expiry).Err()
 }
 
@@ -130,7 +137,7 @@ func (rs *SessionRedisStore) GetSessionsData(userID string, sessionIDs []string)
 	cmds := make([]*redis.StringCmd, len(sessionIDs))
 
 	for i, id := range sessionIDs {
-		key := fmt.Sprintf("session:%s:%s", userID, id)
+		key := fmt.Sprintf("%s%s:%s", RedisPrefixSession, userID, id)
 		cmds[i] = pipe.Get(rs.ctx, key)
 	}
 

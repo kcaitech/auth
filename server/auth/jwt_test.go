@@ -15,21 +15,6 @@ import (
 // Test secret key
 var testSecretKey = []byte("test-secret-key-for-jwt-testing")
 
-// Create JWTService for testing
-// func setupJWTService() *JWTService {
-// 	// Create mock RedisStore
-// 	mockRedis := &RedisStore{
-// 		client: redis.NewClient(&redis.Options{
-// 			Addr: "localhost:6379", // Use local Redis or mock
-// 		}),
-// 		ctx: context.Background(),
-// 	}
-
-// 	return NewJWTService(mockRedis, JWTConfig{
-// 		Issuer: "kcauth-test",
-// 	})
-// }
-
 // Create a simplified GenerateJWT function for testing
 func testGenerateJWT(userID string) (string, error) {
 	// Create Claims

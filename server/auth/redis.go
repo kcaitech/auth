@@ -14,19 +14,6 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-// prefix
-const (
-	PrefixSession         = "session:"
-	PrefixUser            = "user:"
-	PrefixToken           = "token:"
-	PrefixRateLimit       = "ratelimit:"
-	PrefixLoginAttempts   = "login_attempts:"
-	PrefixGoogleState     = "google_oauth_state:"
-	PrefixWeixinState     = "weixin_oauth_state:"
-	PrefixEmailState      = "email_state:"
-	PrefixEmailVerifyCode = "email_verify_code:"
-)
-
 // RedisStore Redis storage service (general functionality)
 type RedisStore struct {
 	client *redis.Client

@@ -6,11 +6,18 @@
 package auth
 
 import (
+	"crypto/rand"
 	"fmt"
 	"time"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/golang-jwt/jwt/v5"
+
+	"kcaitech.com/kcauth/server/common"
+)
+
+const (
+	RedisPrefixJWTKey = common.RedisPrefixJWTKey
 )
 
 type JWTConfig struct {
@@ -25,10 +32,9 @@ type JWTService struct {
 
 // Define JWT Claims structure
 type CustomClaims struct {
-	UserID string `json:"user_id"`
-	// Email     string `json:"email"`
+	UserID    string `json:"user_id"`
 	SessionID string `json:"session_id"`
-	// KeyID     string `json:"kid"`        // For key rotation
+	KID       string `json:"kid"`        // For key rotation
 	TokenType string `json:"token_type"` // Identifies whether it's an access token or refresh token
 	jwt.RegisteredClaims
 }
@@ -50,13 +56,25 @@ type JWTSession struct {
 }
 
 const (
-	jwtKeyPrefix           = "jwt:key:"         // Prefix for JWT keys in Redis
 	defaultKeyTTL          = 24 * time.Hour     // Default key expiration time
 	TokenExpiration        = 2 * time.Hour      // Default token expiration time
 	RefreshTokenExpiration = 7 * 24 * time.Hour // Refresh token expiration time
 	AccessTokenType        = "access"           // Access token type
 	RefreshTokenType       = "refresh"          // Refresh token type
 )
+
+func generateByteSecret() ([]byte, error) {
+	b := make([]byte, 16)
+	_, err := rand.Read(b)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate random bytes: %w", err)
+	}
+	return b, nil
+}
+
+func generateKeyID() (string, error) {
+	return GenerateBase62String(8)
+}
 
 // NewJWTService Create new JWT service
 func NewJWTService(redis *RedisStore, config JWTConfig) *JWTService {
@@ -67,28 +85,14 @@ func NewJWTService(redis *RedisStore, config JWTConfig) *JWTService {
 }
 
 // getKeyID Generate key ID
-func (s *JWTService) getKeyID(userID string, sessionID string, tokenType string) string {
-	// data := fmt.Sprintf("%s:%s:%d", userID, sessionID, time.Now().UnixNano())
-	// hash := sha256.Sum256([]byte(data))
-	// return hex.EncodeToString(hash[:])
-	return fmt.Sprintf("%s:%s:%s", userID, sessionID, tokenType)
+func (s *JWTService) getKeyID(userID string, sessionID string, tokenType string, keyID string) string {
+	return fmt.Sprintf("%s%s:%s:%s:%s", RedisPrefixJWTKey, userID, sessionID, tokenType, keyID)
 }
-
-// generateSecretKey Generate secret key
-// func (s *JWTService) generateSecretKey() (string, error) {
-// 	b := make([]byte, 32)
-// 	_, err := rand.Read(b)
-// 	if err != nil {
-// 		return "", fmt.Errorf("failed to generate random bytes: %w", err)
-// 	}
-// 	// Use base62 encoding (numbers + uppercase and lowercase letters) to shorten ID length
-// 	return Base62Encode(b), nil
-// }
 
 // storeKey Store key to Redis
 func (s *JWTService) storeKey(keyID string, key []byte, ttl time.Duration) error {
 	return s.redis.client.Set(s.redis.ctx,
-		jwtKeyPrefix+keyID,
+		keyID,
 		key,
 		ttl,
 	).Err()
@@ -96,7 +100,7 @@ func (s *JWTService) storeKey(keyID string, key []byte, ttl time.Duration) error
 
 // getKey Get key from Redis
 func (s *JWTService) getKey(keyID string) ([]byte, error) {
-	keyStr, err := s.redis.client.Get(s.redis.ctx, jwtKeyPrefix+keyID).Bytes()
+	keyStr, err := s.redis.client.Get(s.redis.ctx, keyID).Bytes()
 	if err != nil {
 		if err == redis.Nil {
 			return nil, fmt.Errorf("key not found")
@@ -110,8 +114,13 @@ func (s *JWTService) getKey(keyID string) ([]byte, error) {
 // generateToken Generate specified type of token
 func (s *JWTService) generateToken(userID string, sessionID, tokenType string, expiration time.Duration) (string, string, error) {
 	// Generate new key ID and key
-	keyID := s.getKeyID(userID, sessionID, tokenType)
-	secretKey, err := GenerateByteID()
+	_keyID, err := generateKeyID()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to generate key ID: %w", err)
+	}
+
+	keyID := s.getKeyID(userID, sessionID, tokenType, _keyID)
+	secretKey, err := generateByteSecret()
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate secret key: %w", err)
 	}
@@ -123,10 +132,9 @@ func (s *JWTService) generateToken(userID string, sessionID, tokenType string, e
 	}
 	// Create Claims
 	claims := CustomClaims{
-		UserID: userID,
-		// Email:     email,
+		UserID:    userID,
 		SessionID: sessionID,
-		// KeyID:     keyID,
+		KID:       _keyID,
 		TokenType: tokenType,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(now.Add(expiration)),
@@ -137,7 +145,6 @@ func (s *JWTService) generateToken(userID string, sessionID, tokenType string, e
 
 	// Create Token
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	// token.Header["kid"] = keyID
 
 	// Sign Token
 	tokenString, err := token.SignedString(secretKey)
@@ -187,7 +194,7 @@ func (s *JWTService) ValidateJWT(tokenString string) (*CustomClaims, error) {
 		if now.After(claims.ExpiresAt.Time) {
 			return nil, fmt.Errorf("token expired")
 		}
-		keyID := s.getKeyID(claims.UserID, claims.SessionID, claims.TokenType)
+		keyID := s.getKeyID(claims.UserID, claims.SessionID, claims.TokenType, claims.KID)
 
 		// Get key from Redis
 		secretKey, err := s.getKey(keyID)
@@ -239,10 +246,10 @@ func (s *JWTService) RevokeJWT(tokenString string) error {
 		return fmt.Errorf("invalid token: %w", err)
 	}
 
-	keyID := s.getKeyID(claims.UserID, claims.SessionID, claims.TokenType)
+	keyID := s.getKeyID(claims.UserID, claims.SessionID, claims.TokenType, claims.KID)
 
 	// Delete key from Redis
-	return s.redis.client.Del(s.redis.ctx, jwtKeyPrefix+keyID).Err()
+	return s.redis.client.Del(s.redis.ctx, keyID).Err()
 }
 
 // RevokeRefreshJWT Specifically revoke refresh token
@@ -257,9 +264,9 @@ func (s *JWTService) RevokeRefreshJWT(refreshTokenString string) error {
 	if claims.TokenType != RefreshTokenType {
 		return fmt.Errorf("token is not a refresh token")
 	}
-	keyID := s.getKeyID(claims.UserID, claims.SessionID, claims.TokenType)
+	keyID := s.getKeyID(claims.UserID, claims.SessionID, claims.TokenType, claims.KID)
 	// Delete key from Redis
-	return s.redis.client.Del(s.redis.ctx, jwtKeyPrefix+keyID).Err()
+	return s.redis.client.Del(s.redis.ctx, keyID).Err()
 }
 
 // RevokeTokenPair Revoke both access token and refresh token
@@ -277,32 +284,27 @@ func (s *JWTService) RevokeTokenPair(accessToken, refreshToken string) error {
 	return nil
 }
 
-// RevokeJWTByID Revoke token with specified ID
-func (s *JWTService) RevokeJWTByID(userID string, sessionID string) error {
-	keyID := s.getKeyID(userID, sessionID, RefreshTokenType)
-	if err := s.redis.client.Del(s.redis.ctx, jwtKeyPrefix+keyID).Err(); err != nil {
-		return fmt.Errorf("failed to revoke refresh token: %w", err)
+func (s *JWTService) revokeJWTByID(userID string, sessionID string, tokenType string) error {
+	keyID := s.getKeyID(userID, sessionID, tokenType, "")
+	keys, err := s.redis.client.Keys(s.redis.ctx, keyID+"*").Result()
+	if err != nil {
+		return fmt.Errorf("failed to find keys: %w", err)
 	}
-	keyID = s.getKeyID(userID, sessionID, AccessTokenType)
-	if err := s.redis.client.Del(s.redis.ctx, jwtKeyPrefix+keyID).Err(); err != nil {
-		return fmt.Errorf("failed to revoke access token: %w", err)
+	for _, key := range keys {
+		if err := s.redis.client.Del(s.redis.ctx, key).Err(); err != nil {
+			return fmt.Errorf("failed to revoke token: %w", err)
+		}
 	}
 	return nil
 }
 
-// RevokeAllUserTokens Revoke all tokens for a user
-// func (s *JWTService) RevokeAllUserTokens(sessionID string) error {
-// 	// Use pattern matching to find all keys related to this session
-// 	pattern := jwtKeyPrefix + "*" + sessionID + "*"
-// 	keys, err := s.redis.client.Keys(s.redis.ctx, pattern).Result()
-// 	if err != nil {
-// 		return fmt.Errorf("failed to find session keys: %w", err)
-// 	}
-
-// 	// If keys are found, delete them
-// 	if len(keys) > 0 {
-// 		return s.redis.client.Del(s.redis.ctx, keys...).Err()
-// 	}
-
-// 	return nil
-// }
+// RevokeJWTByID Revoke token with specified ID
+func (s *JWTService) RevokeJWTByID(userID string, sessionID string) error {
+	if err := s.revokeJWTByID(userID, sessionID, RefreshTokenType); err != nil {
+		return fmt.Errorf("failed to revoke refresh token: %w", err)
+	}
+	if err := s.revokeJWTByID(userID, sessionID, AccessTokenType); err != nil {
+		return fmt.Errorf("failed to revoke access token: %w", err)
+	}
+	return nil
+}
