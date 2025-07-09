@@ -2,12 +2,10 @@ package common
 
 // prefix
 const (
-	RedisPrefixSession           = "session:"
-	RedisPrefixUserSession       = "user_sessions:"
-	RedisPrefixUser              = "user:"
-	RedisPrefixToken             = "token:"
-	RedisPrefixRateLimit         = "ratelimit:"
-	RedisPrefixLoginAttempts     = "login_attempts:"
+	RedisPrefixSession           = "session:"        // + userID + sessionID -> session info
+	RedisPrefixUser              = "user:"           // + userID -> user info
+	RedisPrefixRateLimit         = "ratelimit:"      // + ip -> access count
+	RedisPrefixLoginAttempts     = "login_attempts:" // + userID + ip -> login attempts count
 	RedisPrefixGoogleState       = "google_oauth_state:"
 	RedisPrefixWeixinState       = "weixin_oauth_state:"
 	RedisPrefixEmailState        = "email_state:"

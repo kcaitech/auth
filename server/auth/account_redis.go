@@ -160,7 +160,7 @@ func (rs *AccountRedisStore) StoreVerification(verificationType VerificationType
 		return fmt.Errorf("failed to store verification information: %w", err)
 	}
 
-	err = rs.Set(fmt.Sprintf("verification:token:%s", token), identifier, expiry)
+	err = rs.Set(fmt.Sprintf("%s%s", RedisPrefixVerificationToken, token), identifier, expiry)
 	if err != nil {
 		return fmt.Errorf("failed to store verification information (2): %w", err)
 	}
@@ -192,7 +192,7 @@ func (rs *AccountRedisStore) DeleteVerification(verificationType VerificationTyp
 	if err != nil {
 		return fmt.Errorf("failed to delete verification information: %w", err)
 	}
-	key = fmt.Sprintf("verification:token:%s", token)
+	key = fmt.Sprintf("%s%s", RedisPrefixVerificationToken, token)
 	err = rs.Delete(key)
 	if err != nil {
 		return fmt.Errorf("failed to delete verification information (2): %w", err)

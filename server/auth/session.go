@@ -42,11 +42,6 @@ func (s *SessionManager) CreateSession(userId string, session *Session) error {
 		return fmt.Errorf("failed to save session: %w", err)
 	}
 
-	// Save user session list
-	if err := s.redis.StoreUserSessionList(userId, session.ID); err != nil {
-		return fmt.Errorf("failed to save user session list: %w", err)
-	}
-
 	return nil
 }
 
@@ -162,11 +157,6 @@ func (s *SessionManager) DeleteUserSessions(userID string) ([]string, error) {
 		}
 	}
 
-	// Delete user session list
-	if err := s.redis.RemoveUserSessionList(userID, deletedSessionIDs); err != nil {
-		return deletedSessionIDs, err
-	}
-
 	return deletedSessionIDs, nil
 }
 
@@ -181,7 +171,7 @@ type SessionStats struct {
 // Get active session statistics
 func (s *SessionManager) GetSessionStats() (*SessionStats, error) {
 	// Use pattern matching to get all session keys
-	pattern := "session:*"
+	pattern := fmt.Sprintf("%s*", RedisPrefixSession)
 	keys, err := s.redis.client.Keys(context.Background(), pattern).Result()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get session keys: %w", err)
@@ -237,12 +227,6 @@ func (s *SessionManager) GetSessionStats() (*SessionStats, error) {
 
 // Check if a session with the specified IP and UserAgent exists (to prevent session fixation attacks)
 func (s *SessionManager) HasSessionWithIPAndUserAgent(userId, ip, userAgent string) (*Session, error) {
-	// Use pattern matching to get all session keys
-	// pattern := "session:*"
-	// keys, err := s.redis.client.Keys(context.Background(), pattern).Result()
-	// if err != nil {
-	// 	return false, fmt.Errorf("failed to get session keys: %w", err)
-	// }
 
 	keys, err := s.redis.GetUserSessionList(userId)
 	if err != nil {
