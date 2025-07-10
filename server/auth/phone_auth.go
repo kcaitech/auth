@@ -22,15 +22,6 @@ const (
 	RedisPrefixPhonePreregister = common.RedisKeyPhonePreregister
 )
 
-// PhoneUser Phone user model
-type PhoneUser struct {
-	UserID string `json:"user_id" gorm:"primarykey"` // Associated with User table's user ID
-	Phone  string `json:"phone" gorm:"unique"`       // Phone number, used as login credential
-	// Verified  bool      `json:"verified" gorm:"default:false"` // Whether the phone number is verified
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
 // SMSService SMS service interface
 type SMSService interface {
 	SendVerificationSMS(phone, code string) error

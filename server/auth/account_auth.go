@@ -52,20 +52,6 @@ type LoginAttempt struct {
 	CreatedAt time.Time
 }
 
-// User User Model
-type User struct { // Automatically generated ID
-	UserID        string     `json:"user_id" gorm:"primarykey"` // Login identifier, for normal accounts this is the login account, for email accounts it's automatically generated
-	Password      string     `json:"-" gorm:"not null"`
-	Status        UserStatus `json:"status" gorm:"not null;default:'active'"`
-	Nickname      string     `json:"nickname" gorm:"size:50"` // Nickname
-	Avatar        string     `json:"avatar" gorm:"size:255"`  // Avatar URL
-	LastLogin     *time.Time `json:"last_login"`
-	LoginAttempts int        `json:"login_attempts" gorm:"default:0"`
-	LastAttempt   *time.Time `json:"last_attempt"`
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at"`
-}
-
 // Extended AccountAuth
 type AccountAuth struct {
 	db                *gorm.DB
@@ -164,45 +150,6 @@ func (a *AccountAuth) Login(userID string, password string) (*User, error) {
 	return user, nil
 }
 
-// VerifyPassword Verify password
-// func (a *AccountAuth) VerifyPassword(userID string, password string) error {
-// 	user, err := a.GetUserByID(userID)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-// 		return ErrInvalidPassword("Invalid account or password")
-// 	}
-// 	return nil
-// }
-
-// CreateUser Create new user
-func (a *AccountAuth) CreateUser(user *User) error {
-	// Check if UserID already exists
-	var count int64
-	if err := a.db.Model(&User{}).Where("user_id = ?", user.UserID).Count(&count).Error; err != nil {
-		return err
-	}
-	if count > 0 {
-		return ErrUserIDTaken("Account ID is already in use")
-	}
-
-	// Need to encrypt password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
-	if err != nil {
-		return err
-	}
-	user.Password = string(hashedPassword)
-
-	// Set creation time and update time
-	now := time.Now()
-	user.CreatedAt = now
-	user.UpdatedAt = now
-	// user.LastAttempt = now
-
-	return a.db.Create(user).Error
-}
-
 // UpdateUser Update user information
 func (a *AccountAuth) UpdateUser(user *User) error {
 	user.UpdatedAt = time.Now()
@@ -275,7 +222,7 @@ func (a *AccountAuth) ChangePassword(userID string, oldPassword, newPassword str
 }
 
 // Register User registration (normal account)
-func (a *AccountAuth) Register(userID string, password string) error {
+func (a *AccountAuth) Register(userID string, password string, nickname string) error {
 
 	if userID == "" {
 		return ErrInvalidInput("Account ID must be provided for normal account")
@@ -303,7 +250,7 @@ func (a *AccountAuth) Register(userID string, password string) error {
 		// LastAttempt: now,
 		CreatedAt: now,
 		UpdatedAt: now,
-		Nickname:  userID,
+		Nickname:  nickname,
 	}
 
 	if err := a.db.Create(user).Error; err != nil {

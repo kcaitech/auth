@@ -44,11 +44,11 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	user := &auth.User{
 		UserID:   req.Username,
 		Password: req.Password,
-		Status:   auth.UserStatusActive,
+		// Status:   auth.UserStatusActive,
 		Nickname: req.Username,
 	}
 
-	if err := h.accountAuth.CreateUser(user); err != nil {
+	if err := h.accountAuth.Register(user.UserID, user.Password, user.Nickname); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -88,15 +88,15 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	// avata转换为url
-	if user.Avatar != "" {
-		url, err := h.avatarService.GetAvatarURL(user.Avatar)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		user.Avatar = url
-	}
+	// // avata转换为url
+	// if user.Avatar != "" {
+	// 	url, err := h.avatarService.GetAvatarURL(user.Avatar)
+	// 	if err != nil {
+	// 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	// 		return
+	// 	}
+	// 	user.Avatar = url
+	// }
 
 	c.SetCookie("refreshToken", tokenPair.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
 	c.JSON(http.StatusOK, gin.H{

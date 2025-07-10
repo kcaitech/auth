@@ -24,15 +24,6 @@ const (
 	RedisPrefixEmailPreregister = common.RedisKeyEmailPreregister
 )
 
-// Email User Model
-type EmailUser struct {
-	UserID string `json:"user_id" gorm:"primarykey"` // User ID associated with the User table
-	Email  string `json:"email" gorm:"unique"`       // Email, used as login credential
-	// Verified  bool      `json:"verified" gorm:"default:false"` // Whether the email has been verified
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
 // Extended AccountAuth
 type EmailAuth struct {
 	db *gorm.DB

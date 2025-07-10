@@ -49,29 +49,10 @@ type WeixinLoginResponse struct {
 	UnionID      string `json:"unionid"`
 }
 
-// WeixinUserInfo WeChat user information
-type WeixinUserInfo struct {
-	OpenID     string `json:"openid" gorm:"unique"`
-	Nickname   string `json:"nickname"`
-	Sex        int    `json:"sex"`
-	Province   string `json:"province"`
-	City       string `json:"city"`
-	Country    string `json:"country"`
-	HeadImgURL string `json:"headimgurl"`
-	UnionID    string `json:"unionid" gorm:"unique"`
-}
-
 // WeixinErrorResponse WeChat error response
 type WeixinErrorResponse struct {
 	ErrCode int    `json:"errcode"`
 	ErrMsg  string `json:"errmsg"`
-}
-
-type WeixinUser struct {
-	UserID string `json:"user_id" gorm:"primarykey"`
-	WeixinUserInfo
-	CreatedAt time.Time
-	UpdatedAt time.Time
 }
 
 // WeixinLogin WeChat login handler struct

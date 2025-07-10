@@ -33,17 +33,6 @@ type GoogleUserInfo struct {
 	Picture string `json:"picture"`
 }
 
-type GoogleUser struct {
-	UserID        string `json:"user_id" gorm:"primarykey"`
-	GoogleID      string `json:"google_id" gorm:"index"`
-	Email         string `json:"email" gorm:"index"`
-	VerifiedEmail bool   `json:"verified_email"`
-	Name          string `json:"name"`
-	Picture       string `json:"picture"`
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
-}
-
 // GoogleOAuthConfig configuration options
 type GoogleOAuthConfig struct {
 	ClientID      string

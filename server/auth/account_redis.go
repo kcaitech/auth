@@ -150,8 +150,8 @@ func (rs *AccountRedisStore) StoreVerification(verificationType VerificationType
 		Type:       verificationType,
 		Token:      token,
 		Identifier: identifier,
-		ExpiresAt:  time.Now().Add(expiry),
-		CreatedAt:  time.Now(),
+		// ExpiresAt:  time.Now().Add(expiry),
+		CreatedAt: time.Now(),
 	}
 
 	key := fmt.Sprintf("%s%s:%s", RedisPrefixVerification, string(verificationType), identifier)
@@ -178,9 +178,9 @@ func (rs *AccountRedisStore) GetVerification(verificationType VerificationType, 
 	}
 
 	// Check if expired
-	if verification.ExpiresAt.Before(time.Now()) {
-		return nil, NewAppError(ErrCodeInvalidToken, "Verification token has expired", nil)
-	}
+	// if verification.ExpiresAt.Before(time.Now()) {
+	// 	return nil, NewAppError(ErrCodeInvalidToken, "Verification token has expired", nil)
+	// }
 
 	return &verification, nil
 }
@@ -241,7 +241,7 @@ func (rs *AccountRedisStore) UpdateVerification(verificationType VerificationTyp
 
 	// Update token and expiration time
 	verification.Token = newToken
-	verification.ExpiresAt = time.Now().Add(expiry)
+	// verification.ExpiresAt = time.Now().Add(expiry)
 
 	// Save updated verification information
 	err = rs.Set(key, verification, expiry)
