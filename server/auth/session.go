@@ -160,13 +160,9 @@ type SessionStats struct {
 func (s *SessionManager) GetSessionStats() (*SessionStats, error) {
 	// Use pattern matching to get all session keys
 	pattern := fmt.Sprintf("%s*", RedisPrefixSession)
-	keys, err := s.redis.client.Keys(context.Background(), pattern).Result()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get session keys: %w", err)
-	}
 
 	stats := &SessionStats{
-		TotalSessions: len(keys),
+		TotalSessions: 0,
 	}
 
 	// Store unique user IDs
@@ -174,32 +170,52 @@ func (s *SessionManager) GetSessionStats() (*SessionStats, error) {
 
 	// Time point 24 hours ago
 	activeTime := time.Now().Add(-24 * time.Hour)
+	// Use the SCAN command to scan all session keys
 
-	// Iterate through all session keys
-	for _, key := range keys {
-		// Get session data
-		data, err := s.redis.client.Get(context.Background(), key).Bytes()
+	var cursor uint64 = 0
+	for {
+		keys, _cursor, err := s.redis.client.Scan(context.Background(), cursor, pattern, 100).Result()
 		if err != nil {
-			// Ignore non-existent keys
-			if errors.Is(err, redis.Nil) {
+			return nil, fmt.Errorf("failed to get session keys: %w", err)
+		}
+		cursor = _cursor
+
+		if len(keys) == 0 {
+			break
+		}
+
+		stats.TotalSessions += len(keys)
+
+		// Iterate through all session keys
+		for _, key := range keys {
+			// Get session data
+			data, err := s.redis.client.Get(context.Background(), key).Bytes()
+			if err != nil {
+				// Ignore non-existent keys
+				if errors.Is(err, redis.Nil) {
+					continue
+				}
+				return nil, fmt.Errorf("failed to get session data: %w", err)
+			}
+
+			// Parse session data
+			var session Session
+			if err := json.Unmarshal(data, &session); err != nil {
+				// Ignore unparseable session data
 				continue
 			}
-			return nil, fmt.Errorf("failed to get session data: %w", err)
+
+			// Record unique users
+			userIDMap[session.UserID] = true
+
+			// Check if it's an active session (within 24 hours)
+			if session.UpdatedAt.After(activeTime) {
+				stats.ActiveSessions++
+			}
 		}
 
-		// Parse session data
-		var session Session
-		if err := json.Unmarshal(data, &session); err != nil {
-			// Ignore unparseable session data
-			continue
-		}
-
-		// Record unique users
-		userIDMap[session.UserID] = true
-
-		// Check if it's an active session (within 24 hours)
-		if session.UpdatedAt.After(activeTime) {
-			stats.ActiveSessions++
+		if cursor == 0 {
+			break
 		}
 	}
 
