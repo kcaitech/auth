@@ -8,6 +8,7 @@ package auth
 import (
 	"crypto/rand"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -72,7 +73,7 @@ func generateByteSecret() ([]byte, error) {
 	return b, nil
 }
 
-func generateKeyID() (string, error) {
+func generateKID() (string, error) {
 	return GenerateBase62String(8)
 }
 
@@ -114,7 +115,7 @@ func (s *JWTService) getKey(keyID string) ([]byte, error) {
 // generateToken Generate specified type of token
 func (s *JWTService) generateToken(userID string, sessionID, tokenType string, expiration time.Duration) (string, string, error) {
 	// Generate new key ID and key
-	_keyID, err := generateKeyID()
+	_keyID, err := generateKID()
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate key ID: %w", err)
 	}
@@ -199,6 +200,7 @@ func (s *JWTService) ValidateJWT(tokenString string) (*CustomClaims, error) {
 		// Get key from Redis
 		secretKey, err := s.getKey(keyID)
 		if err != nil {
+			log.Println("failed to get key:", err.Error(), keyID)
 			return nil, fmt.Errorf("failed to get key: %w", err)
 		}
 
