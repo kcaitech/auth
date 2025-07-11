@@ -61,7 +61,7 @@ type Bucket interface {
 }
 
 type BucketConfig struct {
-	BucketName string `yaml:"bucketName" json:"bucketName"`
+	AuthBucket string `yaml:"authBucket" json:"authBucket"`
 	// AttatchBucketName string `yaml:"attatchBucketName" json:"attatchBucketName"`
 }
 

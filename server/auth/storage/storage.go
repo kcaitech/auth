@@ -47,7 +47,7 @@ func NewStorageClient(config *Config) (*StorageClient, error) {
 	return &StorageClient{
 		Client: client,
 		Bucket: client.NewBucket(&BucketConfig{
-			BucketName: bucketConfig.BucketName,
+			AuthBucket: bucketConfig.AuthBucket,
 		}),
 		// AttatchBucket: client.NewBucket(&BucketConfig{
 		// 	BucketName: bucketConfig.attatchBucketName,

@@ -46,7 +46,7 @@ func (that *OSSClient) NewBucket(config *BucketConfig) Bucket {
 		config: config,
 		client: that,
 	}
-	instance.bucket, _ = that.client.Bucket(config.BucketName)
+	instance.bucket, _ = that.client.Bucket(config.AuthBucket)
 	instance.That = instance
 	return instance
 }
@@ -137,7 +137,7 @@ func (that *OSSBucket) GenerateAccessKey(authPath string, authOp int, expires in
 				"Action": authOpList,
 				"Effect": "Allow",
 				"Resource": []string{
-					"acs:oss:*:*:" + that.config.BucketName + "/" + authPath,
+					"acs:oss:*:*:" + that.config.AuthBucket + "/" + authPath,
 				},
 			},
 		},
