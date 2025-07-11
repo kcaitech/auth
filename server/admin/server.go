@@ -14,7 +14,6 @@ import (
 	"net"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gin-contrib/sessions"
@@ -39,28 +38,14 @@ type AdminServer struct {
 	db         *gorm.DB
 	router     *gin.Engine
 	server     *http.Server
-	sessions   map[string]*AdminSession
-	sessionMu  sync.Mutex
 	logger     *log.Logger
 	redis      *auth.RedisStore
 	sessionMgr *auth.SessionManager
 	jwtService *auth.JWTService
 }
 
-// AdminSession Administrator session
-type AdminSession struct {
-	Username     string
-	Roles        []string
-	IP           string
-	UserAgent    string
-	LastActivity time.Time
-	ExpiresAt    time.Time
-}
-
-const port = 81
-
 // NewAdminServer Create admin server
-func NewAdminServer(cfg *config.Config, db *gorm.DB, logger *log.Logger) *AdminServer {
+func NewAdminServer(cfg *config.Config, db *gorm.DB, logger *log.Logger, webFilePath string, port int) *AdminServer {
 	if !cfg.Admin.Enabled {
 		return nil
 	}
@@ -103,7 +88,6 @@ func NewAdminServer(cfg *config.Config, db *gorm.DB, logger *log.Logger) *AdminS
 	server := &AdminServer{
 		config:     &cfg.Admin,
 		db:         db,
-		sessions:   make(map[string]*AdminSession),
 		logger:     logger,
 		redis:      redisStore,
 		sessionMgr: sessionManager,
@@ -131,13 +115,13 @@ func NewAdminServer(cfg *config.Config, db *gorm.DB, logger *log.Logger) *AdminS
 		HttpOnly: true,
 		Secure:   cfg.Admin.RequireTLS,
 	})
-	router.Use(sessions.Sessions("admin_session", store))
+	router.Use(sessions.Sessions("kcauth_admin_session", store))
 
 	// Add IP restriction middleware
 	router.Use(server.ipRestrictionMiddleware())
 
 	// Register routes
-	server.registerRoutes(router)
+	server.registerRoutes(router, webFilePath)
 	server.router = router
 
 	// Create HTTP server
@@ -151,7 +135,7 @@ func NewAdminServer(cfg *config.Config, db *gorm.DB, logger *log.Logger) *AdminS
 
 // Start Start admin server
 func (s *AdminServer) Start() error {
-	s.logger.Printf("Admin server started on :%d", port)
+	s.logger.Printf("Admin server started on :%s", s.server.Addr)
 	return s.server.ListenAndServe()
 }
 
@@ -167,7 +151,7 @@ func (s *AdminServer) Shutdown(ctx context.Context) error {
 }
 
 // Register routes
-func (s *AdminServer) registerRoutes(r *gin.Engine) {
+func (s *AdminServer) registerRoutes(r *gin.Engine, webFilePath string) {
 	// Public routes
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -198,12 +182,8 @@ func (s *AdminServer) registerRoutes(r *gin.Engine) {
 		admin.POST("/logout", s.handleLogout)
 	}
 
-	// Static file routes
-	// r.Static("/assets", "./admin/assets")
-
 	// 添加静态文件服务
-	// r.Static("/", "./admin-web/")
-	r.Use(static.Serve("/", static.LocalFile("./admin-web/", false))) // 前端工程
+	r.Use(static.Serve("/", static.LocalFile(webFilePath, false))) // 前端工程
 
 	// All other routes redirect to admin UI entry point
 	r.NoRoute(func(c *gin.Context) {
@@ -215,7 +195,7 @@ func (s *AdminServer) registerRoutes(r *gin.Engine) {
 		// 设置缓存时间为15分钟
 		c.Header("Cache-Control", "public, max-age=900")
 		// Otherwise, return admin UI entry point
-		c.File("./admin-web/index.html")
+		c.File(webFilePath + "/index.html")
 	})
 }
 
@@ -336,13 +316,6 @@ func (s *AdminServer) authMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Update session activity time
-		s.sessionMu.Lock()
-		if adminSession, exists := s.sessions[username.(string)]; exists {
-			adminSession.LastActivity = time.Now()
-		}
-		s.sessionMu.Unlock()
-
 		// Set user information and roles to context
 		c.Set("username", username)
 		c.Set("roles", roles)
@@ -404,18 +377,6 @@ func (s *AdminServer) handleLogin(c *gin.Context) {
 		return
 	}
 
-	// Record active session
-	s.sessionMu.Lock()
-	s.sessions[matchedAccount.Username] = &AdminSession{
-		Username:     matchedAccount.Username,
-		Roles:        matchedAccount.Roles,
-		IP:           c.ClientIP(),
-		UserAgent:    c.Request.UserAgent(),
-		LastActivity: time.Now(),
-		ExpiresAt:    time.Now().Add(time.Duration(s.config.SessionTTL) * time.Minute),
-	}
-	s.sessionMu.Unlock()
-
 	s.logger.Printf("User %s login successful, IP: %s", matchedAccount.Username, c.ClientIP())
 
 	c.JSON(http.StatusOK, gin.H{
@@ -427,14 +388,6 @@ func (s *AdminServer) handleLogin(c *gin.Context) {
 // Logout handler
 func (s *AdminServer) handleLogout(c *gin.Context) {
 	session := sessions.Default(c)
-	username := session.Get(sessionUserKey)
-
-	// Delete session
-	s.sessionMu.Lock()
-	if username != nil {
-		delete(s.sessions, username.(string))
-	}
-	s.sessionMu.Unlock()
 
 	session.Clear()
 	session.Save()

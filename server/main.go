@@ -20,8 +20,7 @@ import (
 	"time"
 
 	"github.com/gin-contrib/cors"
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/redis"
+
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/contrib/gzip"
 	"github.com/gin-gonic/gin"
@@ -43,7 +42,11 @@ var (
 	globalRedisStore *auth.RedisStore
 )
 
-const port = 80
+const defaultConfigFilePath = "config/config.yaml"
+const defaultPort = 80
+const defaultWebFilePath = "/app/web"
+const defaultAdminPort = 81
+const defaultAdminWebFilePath = "/app/admin-web"
 
 var StaticFileSuffix = []string{".html", ".js", ".css", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2", ".ttf"}
 
@@ -56,8 +59,6 @@ func isStaticFile(path string) bool {
 	return slices.Contains(StaticFileSuffix, suffix)
 }
 
-const staticFilePath = "/app/web"
-
 func joinPath(dir, path string) string {
 	if !strings.HasPrefix(path, "/") {
 		return dir + "/" + path
@@ -65,26 +66,34 @@ func joinPath(dir, path string) string {
 	return dir + path
 }
 
-func onNotFound(c *gin.Context) {
-	path := c.Request.URL.Path
-	if path == "/api" || strings.HasPrefix(path, "/api/") {
-		c.JSON(http.StatusNotFound, gin.H{"error": "auth endpoint not found"})
-		return
+func onNotFound(webFilePath string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+
+		path := c.Request.URL.Path
+		if path == "/api" || strings.HasPrefix(path, "/api/") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "auth endpoint not found"})
+			return
+		}
+
+		if isStaticFile(path) {
+			c.File(joinPath(webFilePath, path))
+			return
+		}
+
+		// 设置缓存时间为15分钟
+		c.Header("Cache-Control", "public, max-age=900")
+		c.File(webFilePath + "/index.html")
 	}
 
-	if isStaticFile(path) {
-		c.File(joinPath(staticFilePath, path))
-		return
-	}
-
-	// 设置缓存时间为15分钟
-	c.Header("Cache-Control", "public, max-age=900")
-	c.File(staticFilePath + "/index.html")
 }
 
 func main() {
 	// Parse command line arguments
-	configPath := flag.String("config", "config/config.yaml", "Configuration file path")
+	configPath := flag.String("config", defaultConfigFilePath, "Configuration file path")
+	webFilePath := flag.String("web", defaultWebFilePath, "Web file path")
+	port := flag.Int("port", defaultPort, "Port")
+	adminPort := flag.Int("admin-port", defaultAdminPort, "Admin port")
+	adminWebFilePath := flag.String("admin-web", defaultAdminWebFilePath, "Admin web file path")
 	flag.Parse()
 
 	// Load configuration file
@@ -142,8 +151,8 @@ func main() {
 
 	// web server
 	r.Use(gzip.Gzip(gzip.DefaultCompression))
-	r.Use(static.Serve("/", static.LocalFile(staticFilePath, false))) // 前端工程
-	r.NoRoute(onNotFound)
+	r.Use(static.Serve("/", static.LocalFile(*webFilePath, false))) // 前端工程
+	r.NoRoute(onNotFound(*webFilePath))
 
 	// Add health check endpoint
 	r.GET("/health", func(c *gin.Context) {
@@ -154,11 +163,11 @@ func main() {
 	})
 
 	// Initialize session middleware
-	store, err := redis.NewStore(10, "tcp", cfg.Redis.GetRedisAddr(), cfg.Redis.Password, []byte("secret"))
-	if err != nil {
-		log.Fatalf("Failed to initialize Redis session storage: %v", err)
-	}
-	r.Use(sessions.Sessions("kcauth_session", store))
+	// store, err := redis.NewStore(10, "tcp", cfg.Redis.GetRedisAddr(), cfg.Redis.Password, []byte("secret"))
+	// if err != nil {
+	// 	log.Fatalf("Failed to initialize Redis session storage: %v", err)
+	// }
+	// r.Use(sessions.Sessions("kcauth_session", store))
 
 	r.Use(auth.ErrorHandler())
 
@@ -178,7 +187,7 @@ func main() {
 	authHandler.RegisterRoutes(r.Group("/api"), cfg)
 
 	mainServer := &http.Server{
-		Addr:    fmt.Sprintf(":%d", port),
+		Addr:    fmt.Sprintf(":%d", *port),
 		Handler: r,
 	}
 
@@ -186,7 +195,7 @@ func main() {
 	var adminServer *admin.AdminServer
 	if cfg.Admin.Enabled {
 		logger := log.New(os.Stdout, "[ADMIN] ", log.LstdFlags)
-		adminServer = admin.NewAdminServer(cfg, globalDB, logger)
+		adminServer = admin.NewAdminServer(cfg, globalDB, logger, *adminWebFilePath, *adminPort)
 
 		if adminServer != nil {
 			go func() {
@@ -199,7 +208,7 @@ func main() {
 
 	// Start main server (non-blocking)
 	go func() {
-		log.Printf("Main server started on port :%d", port)
+		log.Printf("Main server started on port :%d", defaultPort)
 		if err := mainServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Main server startup failed: %v", err)
 		}
