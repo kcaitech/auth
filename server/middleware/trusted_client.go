@@ -46,8 +46,15 @@ func TrustedClient(_config *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		clientIP := c.ClientIP()
 
-		// 本地访问直接通过，不需要验证客户端
+		// 本地访问直接通过，构建一个拥有所有权限的trustedClient
 		if isLocalIP(clientIP) {
+			localClient := &config.TrustedClient{
+				ClientID:     "local",
+				ClientSecret: "",
+				AllowedIPs:   []string{clientIP},
+				Scopes:       []string{"read:users"},
+			}
+			c.Set("trusted_client", localClient)
 			c.Next()
 			return
 		}
