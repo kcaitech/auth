@@ -48,6 +48,8 @@ const defaultWebFilePath = "/app/web"
 const defaultAdminPort = 81
 const defaultAdminWebFilePath = "/app/admin-web"
 
+const API_ROUTER_PATH = config.API_ROUTER_PATH
+
 var StaticFileSuffix = []string{".html", ".js", ".css", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2", ".ttf"}
 
 func isStaticFile(path string) bool {
@@ -70,7 +72,7 @@ func onNotFound(webFilePath string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 
 		path := c.Request.URL.Path
-		if path == "/api" || strings.HasPrefix(path, "/api/") {
+		if path == API_ROUTER_PATH || strings.HasPrefix(path, API_ROUTER_PATH+"/") {
 			c.JSON(http.StatusNotFound, gin.H{"error": "auth endpoint not found"})
 			return
 		}
@@ -184,7 +186,7 @@ func main() {
 		log.Fatalf("Failed to initialize authentication handler: %v", err)
 	}
 	// Register routes
-	authHandler.RegisterRoutes(r.Group("/api"), cfg)
+	authHandler.RegisterRoutes(r.Group(API_ROUTER_PATH), cfg)
 
 	mainServer := &http.Server{
 		Addr:    fmt.Sprintf(":%d", *port),
