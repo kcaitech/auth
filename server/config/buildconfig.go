@@ -7,6 +7,6 @@ const (
 	ADMIN_ROUTER_PATH = "/api"
 )
 
-func defaultConfig(config *Config) {
+func confirmConfig(config *Config) {
 
 }

@@ -173,10 +173,10 @@ func LoadConfig(path string) (*Config, error) {
 	}
 
 	config := &Config{}
-	defaultConfig(config)
 	if err := yaml.Unmarshal(file, config); err != nil {
 		return nil, err
 	}
+	confirmConfig(config)
 
 	return config, nil
 }
