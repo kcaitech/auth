@@ -210,9 +210,9 @@ func main() {
 
 	// Start main server (non-blocking)
 	go func() {
-		log.Printf("Main server started on port :%d", defaultPort)
+		log.Printf("Server started on port :%d", *port)
 		if err := mainServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Main server startup failed: %v", err)
+			log.Fatalf("Server startup failed: %v", err)
 		}
 	}()
 
