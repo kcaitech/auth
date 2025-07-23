@@ -724,22 +724,8 @@ func (h *AuthHandler) LoginVerify(c *gin.Context) {
 	clientID := c.Query("client_id")
 	code := c.Query("code")
 
-	if clientID == "" || code == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing client_id or code"})
-		return
-	}
-
-	// Check if client_id is in trusted clients
-	var trustedClient *config.TrustedClient
-	for _, client := range h.config.TrustedClients {
-		if client.ClientID == clientID {
-			trustedClient = &client
-			break
-		}
-	}
-
-	if trustedClient == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized client"})
+	if code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing code"})
 		return
 	}
 
