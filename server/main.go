@@ -275,7 +275,7 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 	}
 
 	// Initialize avatar service
-	avatarService := auth.NewAvatarService(storageClient.Bucket, cfg.StorageUrl.Auth)
+	avatarService := auth.NewAvatarService(storageClient.Bucket, cfg.StorageUrl.Attatch)
 
 	// Initialize Google OAuth
 	var googleOAuth *auth.GoogleOAuth

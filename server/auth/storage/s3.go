@@ -79,7 +79,7 @@ func (that *S3Bucket) PutObject(putObjectInput *PutObjectInput) (*UploadInfo, er
 	}
 	uploader := s3manager.NewUploader(that.client.sess)
 	result, err := uploader.Upload(&s3manager.UploadInput{
-		Bucket:      aws.String(that.config.AuthBucket),
+		Bucket:      aws.String(that.config.AttatchBucket),
 		Key:         aws.String(putObjectInput.ObjectName),
 		Body:        putObjectInput.Reader,
 		ContentType: aws.String(putObjectInput.ContentType),
@@ -98,7 +98,7 @@ func (that *S3Bucket) PutObject(putObjectInput *PutObjectInput) (*UploadInfo, er
 
 func (that *S3Bucket) GetObjectInfo(objectName string) (*ObjectInfo, error) {
 	result, err := that.client.client.HeadObject(&s3.HeadObjectInput{
-		Bucket: aws.String(that.config.AuthBucket),
+		Bucket: aws.String(that.config.AttatchBucket),
 		Key:    aws.String(objectName),
 	})
 	if err != nil {
@@ -111,7 +111,7 @@ func (that *S3Bucket) GetObjectInfo(objectName string) (*ObjectInfo, error) {
 
 func (that *S3Bucket) GetObject(objectName string) ([]byte, error) {
 	result, err := that.client.client.GetObject(&s3.GetObjectInput{
-		Bucket: aws.String(that.config.AuthBucket),
+		Bucket: aws.String(that.config.AttatchBucket),
 		Key:    aws.String(objectName),
 	})
 	if err != nil {
@@ -154,7 +154,7 @@ func (that *S3Bucket) GenerateAccessKey(authPath string, authOp int, expires int
 				"Action": authOpList,
 				"Effect": "Allow",
 				"Resource": []string{
-					"arn:aws:s3:::" + that.config.AuthBucket + "/" + authPath,
+					"arn:aws:s3:::" + that.config.AttatchBucket + "/" + authPath,
 				},
 			},
 		},
@@ -183,8 +183,8 @@ func (that *S3Bucket) GenerateAccessKey(authPath string, authOp int, expires int
 
 func (that *S3Bucket) CopyObject(srcPath string, destPath string) (*UploadInfo, error) {
 	_, err := that.client.client.CopyObject(&s3.CopyObjectInput{
-		CopySource: aws.String(that.config.AuthBucket + "/" + srcPath),
-		Bucket:     aws.String(that.config.AuthBucket),
+		CopySource: aws.String(that.config.AttatchBucket + "/" + srcPath),
+		Bucket:     aws.String(that.config.AttatchBucket),
 		Key:        aws.String(destPath),
 	})
 	if err != nil {
@@ -198,7 +198,7 @@ func (that *S3Bucket) CopyDirectory(srcDirPath string, destDirPath string) (*Upl
 		return nil, errors.New("路径不能为空")
 	}
 	if err := that.client.client.ListObjectsV2Pages(&s3.ListObjectsV2Input{
-		Bucket:    aws.String(that.config.AuthBucket),
+		Bucket:    aws.String(that.config.AttatchBucket),
 		Prefix:    aws.String(srcDirPath),
 		Delimiter: nil,
 	}, func(result *s3.ListObjectsV2Output, b bool) bool {
@@ -215,7 +215,7 @@ func (that *S3Bucket) CopyDirectory(srcDirPath string, destDirPath string) (*Upl
 // DeleteObject 删除对象
 func (that *S3Bucket) DeleteObject(objectName string) error {
 	_, err := that.client.client.DeleteObject(&s3.DeleteObjectInput{
-		Bucket: aws.String(that.config.AuthBucket),
+		Bucket: aws.String(that.config.AttatchBucket),
 		Key:    aws.String(objectName),
 	})
 	if err != nil {

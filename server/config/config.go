@@ -26,7 +26,7 @@ type Config struct {
 }
 
 type StorageUrlConfig struct {
-	Auth string `json:"auth" yaml:"auth"`
+	Attatch string `json:"attatch" yaml:"attatch"`
 }
 
 // ServerConfig Server configuration

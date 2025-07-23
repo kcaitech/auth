@@ -73,7 +73,7 @@ func (that *MinioBucket) PutObject(putObjectInput *PutObjectInput) (*UploadInfo,
 	}
 	result, err := that.client.client.PutObject(
 		context.Background(),
-		that.config.AuthBucket,
+		that.config.AttatchBucket,
 		putObjectInput.ObjectName,
 		putObjectInput.Reader,
 		putObjectInput.ObjectSize,
@@ -92,7 +92,7 @@ func (that *MinioBucket) PutObject(putObjectInput *PutObjectInput) (*UploadInfo,
 func (that *MinioBucket) GetObjectInfo(objectName string) (*ObjectInfo, error) {
 	objectInfo, err := that.client.client.StatObject(
 		context.Background(),
-		that.config.AuthBucket,
+		that.config.AttatchBucket,
 		objectName,
 		minio.StatObjectOptions{},
 	)
@@ -107,7 +107,7 @@ func (that *MinioBucket) GetObjectInfo(objectName string) (*ObjectInfo, error) {
 func (that *MinioBucket) GetObject(objectName string) ([]byte, error) {
 	object, err := that.client.client.GetObject(
 		context.Background(),
-		that.config.AuthBucket,
+		that.config.AttatchBucket,
 		objectName,
 		minio.GetObjectOptions{},
 	)
@@ -151,7 +151,7 @@ func (that *MinioBucket) GenerateAccessKey(authPath string, authOp int, expires 
 				"Action": authOpList,
 				"Effect": "Allow",
 				"Resource": []string{
-					"arn:aws:s3:::" + that.config.AuthBucket + "/" + authPath,
+					"arn:aws:s3:::" + that.config.AttatchBucket + "/" + authPath,
 				},
 			},
 		},
@@ -189,11 +189,11 @@ func (that *MinioBucket) CopyObject(srcPath string, destPath string) (*UploadInf
 	_, err := that.client.client.CopyObject(
 		context.Background(),
 		minio.CopyDestOptions{
-			Bucket: that.config.AuthBucket,
+			Bucket: that.config.AttatchBucket,
 			Object: destPath,
 		},
 		minio.CopySrcOptions{
-			Bucket: that.config.AuthBucket,
+			Bucket: that.config.AttatchBucket,
 			Object: srcPath,
 		},
 	)
@@ -207,7 +207,7 @@ func (that *MinioBucket) CopyDirectory(srcDirPath string, destDirPath string) (*
 	if srcDirPath == "" || srcDirPath == "/" || destDirPath == "" || destDirPath == "/" {
 		return nil, errors.New("路径不能为空")
 	}
-	for objectInfo := range that.client.client.ListObjects(context.Background(), that.config.AuthBucket, minio.ListObjectsOptions{
+	for objectInfo := range that.client.client.ListObjects(context.Background(), that.config.AttatchBucket, minio.ListObjectsOptions{
 		Prefix:    srcDirPath,
 		Recursive: true,
 	}) {
@@ -224,7 +224,7 @@ func (that *MinioBucket) CopyDirectory(srcDirPath string, destDirPath string) (*
 func (that *MinioBucket) DeleteObject(objectName string) error {
 	err := that.client.client.RemoveObject(
 		context.Background(),
-		that.config.AuthBucket,
+		that.config.AttatchBucket,
 		objectName,
 		minio.RemoveObjectOptions{},
 	)
