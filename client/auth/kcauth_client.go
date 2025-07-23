@@ -25,14 +25,14 @@ import (
 
 // KCAuthClient JWT客户端
 type KCAuthClient struct {
-	AuthServerURL string           // 认证服务URL
-	HTTPClient    *http.Client     // HTTP客户端
-	Timeout       time.Duration    // 请求超时时间
-	tokenCache    map[string]int64 // 令牌缓存，用于减少对认证服务的请求
-	cacheMutex    sync.RWMutex     // 缓存锁
-	cacheExpiry   time.Duration    // 缓存过期时间
-	ClientID      string           // 客户端ID
-	ClientSecret  string           // 客户端密钥
+	APIAddr      string           // 认证服务URL
+	HTTPClient   *http.Client     // HTTP客户端
+	Timeout      time.Duration    // 请求超时时间
+	tokenCache   map[string]int64 // 令牌缓存，用于减少对认证服务的请求
+	cacheMutex   sync.RWMutex     // 缓存锁
+	cacheExpiry  time.Duration    // 缓存过期时间
+	ClientID     string           // 客户端ID
+	ClientSecret string           // 客户端密钥
 }
 
 // 需要与服务端定义的 Claims 结构一致
@@ -59,9 +59,9 @@ type LoginVerifyResponse struct {
 }
 
 // NewAuthClient 创建新的JWT客户端
-func NewAuthClient(authServerURL string, clientID string, clientSecret string) *KCAuthClient {
+func NewAuthClient(apiAddr string, clientID string, clientSecret string) *KCAuthClient {
 	return &KCAuthClient{
-		AuthServerURL: authServerURL,
+		APIAddr: apiAddr,
 		HTTPClient: &http.Client{
 			// 在测试环境中跳过SSL证书验证
 			Transport: &http.Transport{
@@ -96,7 +96,7 @@ func getJWTClaims(accessToken string) (*CustomClaims, error) {
 // remoteValidateToken 验证令牌
 func (c *KCAuthClient) remoteValidateToken(accessToken string) (bool, error) {
 	// 创建请求
-	req, err := http.NewRequest("POST", c.AuthServerURL+"/api/token/validate", nil)
+	req, err := http.NewRequest("POST", c.APIAddr+"/token/validate", nil)
 	if err != nil {
 		log.Println("创建请求失败", err)
 		return false, err
@@ -331,12 +331,12 @@ func (c *KCAuthClient) getUserInfo(accessToken string, url string) (*UserInfo, e
 
 // GetUserInfo 获取用户信息
 func (c *KCAuthClient) GetUserInfo(accessToken string) (*UserInfo, error) {
-	return c.getUserInfo(accessToken, c.AuthServerURL+"/api/user")
+	return c.getUserInfo(accessToken, c.APIAddr+"/user")
 }
 
 // GetUserInfo 获取用户信息
 func (c *KCAuthClient) GetUserInfoById(accessToken string, userId string) (*UserInfo, error) {
-	return c.getUserInfo(accessToken, fmt.Sprintf("%s/api/user/%s", c.AuthServerURL, userId))
+	return c.getUserInfo(accessToken, fmt.Sprintf("%s/user/%s", c.APIAddr, userId))
 }
 
 // UpdateUserInfo 更新用户信息
@@ -348,7 +348,7 @@ func (c *KCAuthClient) UpdateUserInfo(accessToken string, userInfo *UserInfo) er
 	}
 
 	// 创建请求
-	req, err := http.NewRequest("PUT", c.AuthServerURL+"/api/user", bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("PUT", c.APIAddr+"/user", bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Println("创建请求失败", err)
 		return err
@@ -401,7 +401,7 @@ func (c *KCAuthClient) UpdateAvatar(accessToken string, fileData []byte, fileNam
 	}
 
 	// 创建请求
-	req, err := http.NewRequest("POST", c.AuthServerURL+"/api/avatar/upload", body)
+	req, err := http.NewRequest("POST", c.APIAddr+"/avatar/upload", body)
 	if err != nil {
 		log.Println("创建请求失败", err)
 		return "", fmt.Errorf("创建请求失败: %v", err)
@@ -442,7 +442,7 @@ func (c *KCAuthClient) UpdateAvatar(accessToken string, fileData []byte, fileNam
 // DeleteAvatar 删除用户头像
 func (c *KCAuthClient) DeleteAvatar(accessToken string) error {
 	// 创建请求
-	req, err := http.NewRequest("DELETE", c.AuthServerURL+"/api/avatar", nil)
+	req, err := http.NewRequest("DELETE", c.APIAddr+"/avatar", nil)
 	if err != nil {
 		log.Println("创建请求失败", err)
 		return fmt.Errorf("创建请求失败: %v", err)
@@ -475,7 +475,7 @@ func (c *KCAuthClient) DeleteAvatar(accessToken string) error {
 // RefreshToken 刷新访问令牌
 func (c *KCAuthClient) RefreshToken(refreshToken string, gin *gin.Context) (string, int, error) {
 	// 创建请求
-	req, err := http.NewRequest("POST", c.AuthServerURL+"/api/token/refresh", nil)
+	req, err := http.NewRequest("POST", c.APIAddr+"/token/refresh", nil)
 	if err != nil {
 		log.Println("创建请求失败", err)
 		return "", 0, fmt.Errorf("创建请求失败: %v", err)
@@ -543,8 +543,8 @@ func (c *KCAuthClient) RefreshToken(refreshToken string, gin *gin.Context) (stri
 // LoginVerify 验证登录code
 func (c *KCAuthClient) LoginVerify(code string, gin *gin.Context) (*LoginVerifyResponse, error) {
 	// 创建请求URL
-	url := fmt.Sprintf("%s/api/login/verify?client_id=%s&code=%s",
-		c.AuthServerURL,
+	url := fmt.Sprintf("%s/login/verify?client_id=%s&code=%s",
+		c.APIAddr,
 		c.ClientID,
 		code,
 	)
@@ -614,7 +614,7 @@ func (c *KCAuthClient) GetUsersInfo(accessToken string, userIDs []string) ([]Use
 	}
 
 	// 创建请求
-	req, err := http.NewRequest("POST", c.AuthServerURL+"/api/users", bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest("POST", c.APIAddr+"/users", bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Println("创建请求失败", err)
 		return nil, fmt.Errorf("创建请求失败: %v", err), http.StatusInternalServerError
@@ -661,7 +661,7 @@ func (c *KCAuthClient) GetUsersInfo(accessToken string, userIDs []string) ([]Use
 // logout
 func (c *KCAuthClient) Logout(accessToken string) error {
 	// 创建请求
-	req, err := http.NewRequest("POST", c.AuthServerURL+"/api/logout", nil)
+	req, err := http.NewRequest("POST", c.APIAddr+"/logout", nil)
 	if err != nil {
 		return fmt.Errorf("创建请求失败: %v", err)
 	}
@@ -688,7 +688,7 @@ func (c *KCAuthClient) Logout(accessToken string) error {
 // WeixinMiniLogin 微信小程序登录
 func (c *KCAuthClient) WeixinMiniLogin(code string, gin *gin.Context) (*LoginVerifyResponse, error) {
 	// 创建请求URL
-	url := fmt.Sprintf("%s/api/weixin/miniprogram?code=%s", c.AuthServerURL, code)
+	url := fmt.Sprintf("%s/weixin/miniprogram?code=%s", c.APIAddr, code)
 
 	// 创建请求
 	req, err := http.NewRequest("GET", url, nil)
