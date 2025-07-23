@@ -180,6 +180,8 @@ func main() {
 	rateLimiter := middleware.RateLimiter{}
 	r.Use(rateLimiter.RateLimitMiddleware())
 
+	r.Use(middleware.AccessLogMiddleware())
+
 	// Initialize authentication handler
 	var authHandler *handlers.AuthHandler
 	if err := initAuthHandler(cfg, accountAuth, &authHandler); err != nil {
