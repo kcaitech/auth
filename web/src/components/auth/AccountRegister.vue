@@ -112,10 +112,7 @@ const handleRegister = async () => {
     isLoading.value = true
     
     // 调用注册函数
-    await serverApi.registerAccount({
-      username: formData.username,
-      password: formData.password,
-    })
+    await serverApi.registerAccount(formData.username, formData.password)
 
   } catch (error: any) {
     // 注册失败，通知父组件
