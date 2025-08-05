@@ -359,7 +359,12 @@ func (h *AuthHandler) GetUsersInfo(c *gin.Context) {
 		return
 	}
 
-	trustedClient, _ := c.Get("trusted_client")
+	trustedClient, exists := c.Get("trusted_client")
+	if !exists {
+		c.JSON(http.StatusForbidden, gin.H{"error": "权限不足"})
+		c.Abort()
+		return
+	}
 	// 验证权限范围
 	hasReadScope := trustedClient.(*config.TrustedClient).HasScope("read:users")
 	if !hasReadScope {
