@@ -3,25 +3,29 @@
  * Licensed under the MIT License.
  */
 
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 
 // https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [vue()],
-  resolve: {
-    alias: {
-      '@': resolve(__dirname, 'src')
+export default defineConfig(({ mode }) => {
+    const env = loadEnv(mode, process.cwd())
+    return {
+        base: env.VITE_BASE_URL,
+        plugins: [vue()],
+        resolve: {
+            alias: {
+                '@': resolve(__dirname, 'src')
+            }
+        },
+        server: {
+            proxy: {
+                '/api': 'http://localhost:8081',
+            }
+        },
+        build: {
+            outDir: 'dist',
+            emptyOutDir: true
+        }
     }
-  },
-  server: {
-    proxy: {
-      '/api': 'http://localhost:8081',
-    }
-  },
-  build: {
-    outDir: 'dist',
-    emptyOutDir: true
-  }
-}) 
+})

@@ -15,4 +15,5 @@ const (
 	RedisKeyVerificationToken = "auth_verification_token:"
 	RedisKeyEmailPreregister  = "auth_email_prereg:"
 	RedisKeyPhonePreregister  = "auth_phone_prereg:"
+	RedisKeyOauthCode         = "auth_oauth_code:"
 )

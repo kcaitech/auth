@@ -15,6 +15,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"kcaitech.com/kcauth/server/auth"
+	"kcaitech.com/kcauth/server/common"
 	"kcaitech.com/kcauth/server/config"
 )
 
@@ -606,24 +607,24 @@ func (h *AuthHandler) LoginRedirect(c *gin.Context) {
 	clientID := c.Query("client_id")
 	redirectURI := c.Query("redirect_uri")
 
-	if clientID == "" || redirectURI == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing client_id or redirect_uri"})
+	if redirectURI == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing redirect_uri"})
 		return
 	}
 
-	// Check if client_id is in trusted clients
-	var trustedClient *config.TrustedClient
-	for _, client := range h.config.TrustedClients {
-		if client.ClientID == clientID {
-			trustedClient = &client
-			break
-		}
-	}
-
-	if trustedClient == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized client"})
-		return
-	}
+	// 后端回调时再验证
+	// var trustedClient *config.TrustedClient
+	// // Check if client_id is in trusted clients
+	// for _, client := range h.config.TrustedClients {
+	// 	if client.ClientID == clientID {
+	// 		trustedClient = &client
+	// 		break
+	// 	}
+	// }
+	// if trustedClient == nil {
+	// 	c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized client"})
+	// 	return
+	// }
 
 	// Get user ID from context (assuming user is already authenticated)
 	userID, exists := c.Get("user_id")
@@ -687,7 +688,7 @@ func (h *AuthHandler) LoginRedirect(c *gin.Context) {
 	}
 
 	// Store code in Redis with user information and session data
-	codeKey := fmt.Sprintf("oauth:code:%s", code)
+	codeKey := fmt.Sprintf("%s%s", common.RedisKeyOauthCode, code)
 	codeData := map[string]interface{}{
 		"user_id":    userIDStr,
 		"client_id":  clientID,
@@ -723,27 +724,13 @@ func (h *AuthHandler) LoginVerify(c *gin.Context) {
 	clientID := c.Query("client_id")
 	code := c.Query("code")
 
-	if clientID == "" || code == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing client_id or code"})
-		return
-	}
-
-	// Check if client_id is in trusted clients
-	var trustedClient *config.TrustedClient
-	for _, client := range h.config.TrustedClients {
-		if client.ClientID == clientID {
-			trustedClient = &client
-			break
-		}
-	}
-
-	if trustedClient == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized client"})
+	if code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing code"})
 		return
 	}
 
 	// Get code data from Redis
-	codeKey := fmt.Sprintf("oauth:code:%s", code)
+	codeKey := fmt.Sprintf("%s%s", common.RedisKeyOauthCode, code)
 	var codeData map[string]interface{}
 	if err := h.redisStore.Get(codeKey, &codeData); err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired code"})

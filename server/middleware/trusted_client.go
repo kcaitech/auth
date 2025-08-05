@@ -49,7 +49,7 @@ func TrustedClient(_config *config.Config) gin.HandlerFunc {
 		// 本地访问直接通过，构建一个拥有所有权限的trustedClient
 		if isLocalIP(clientIP) {
 			localClient := &config.TrustedClient{
-				ClientID:     "local",
+				ClientID:     "",
 				ClientSecret: "",
 				AllowedIPs:   []string{clientIP},
 				Scopes:       []string{"read:users"},

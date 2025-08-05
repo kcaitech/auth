@@ -15,7 +15,7 @@ declare module '*.vue' {
 // Vite环境变量类型声明
 interface ImportMeta {
   readonly env: {
-    readonly VITE_API_BASE_URL: string
+    readonly VITE_API_URL: string
     readonly MODE: string
     readonly DEV: boolean
     readonly PROD: boolean

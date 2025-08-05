@@ -32,6 +32,8 @@ const (
 	sessionRoleKey = "admin_roles"
 )
 
+const ADMIN_ROUTER_PATH = config.ADMIN_ROUTER_PATH
+
 // AdminServer Admin server
 type AdminServer struct {
 	config     *config.AdminConfig
@@ -158,7 +160,7 @@ func (s *AdminServer) registerRoutes(r *gin.Engine, webFilePath string) {
 	})
 
 	// API routes group (requires authentication)
-	admin := r.Group("/api")
+	admin := r.Group(ADMIN_ROUTER_PATH)
 	// Login route
 	admin.POST("/login", s.handleLogin)
 
@@ -188,7 +190,7 @@ func (s *AdminServer) registerRoutes(r *gin.Engine, webFilePath string) {
 	// All other routes redirect to admin UI entry point
 	r.NoRoute(func(c *gin.Context) {
 		// If it's an API request, return 404 error
-		if c.Request.URL.Path == "/api" || strings.HasPrefix(c.Request.URL.Path, "/api/") {
+		if c.Request.URL.Path == ADMIN_ROUTER_PATH || strings.HasPrefix(c.Request.URL.Path, ADMIN_ROUTER_PATH+"/") {
 			c.JSON(http.StatusNotFound, gin.H{"error": "auth endpoint not found"})
 			return
 		}

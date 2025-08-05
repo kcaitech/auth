@@ -48,6 +48,8 @@ const defaultWebFilePath = "/app/web"
 const defaultAdminPort = 81
 const defaultAdminWebFilePath = "/app/admin-web"
 
+const API_ROUTER_PATH = config.API_ROUTER_PATH
+
 var StaticFileSuffix = []string{".html", ".js", ".css", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".woff", ".woff2", ".ttf"}
 
 func isStaticFile(path string) bool {
@@ -70,7 +72,7 @@ func onNotFound(webFilePath string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 
 		path := c.Request.URL.Path
-		if path == "/api" || strings.HasPrefix(path, "/api/") {
+		if path == API_ROUTER_PATH || strings.HasPrefix(path, API_ROUTER_PATH+"/") {
 			c.JSON(http.StatusNotFound, gin.H{"error": "auth endpoint not found"})
 			return
 		}
@@ -178,13 +180,15 @@ func main() {
 	rateLimiter := middleware.RateLimiter{}
 	r.Use(rateLimiter.RateLimitMiddleware())
 
+	r.Use(middleware.AccessLogMiddleware())
+
 	// Initialize authentication handler
 	var authHandler *handlers.AuthHandler
 	if err := initAuthHandler(cfg, accountAuth, &authHandler); err != nil {
 		log.Fatalf("Failed to initialize authentication handler: %v", err)
 	}
 	// Register routes
-	authHandler.RegisterRoutes(r.Group("/api"), cfg)
+	authHandler.RegisterRoutes(r.Group(API_ROUTER_PATH), cfg)
 
 	mainServer := &http.Server{
 		Addr:    fmt.Sprintf(":%d", *port),
@@ -208,9 +212,9 @@ func main() {
 
 	// Start main server (non-blocking)
 	go func() {
-		log.Printf("Main server started on port :%d", defaultPort)
+		log.Printf("Server started on port :%d", *port)
 		if err := mainServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Main server startup failed: %v", err)
+			log.Fatalf("Server startup failed: %v", err)
 		}
 	}()
 
@@ -271,7 +275,7 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 	}
 
 	// Initialize avatar service
-	avatarService := auth.NewAvatarService(storageClient.Bucket, cfg.StorageUrl.Auth)
+	avatarService := auth.NewAvatarService(storageClient.Bucket, cfg.StorageUrl.Attatch)
 
 	// Initialize Google OAuth
 	var googleOAuth *auth.GoogleOAuth

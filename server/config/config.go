@@ -26,7 +26,7 @@ type Config struct {
 }
 
 type StorageUrlConfig struct {
-	Auth string `json:"auth" yaml:"auth"`
+	Attatch string `json:"attatch" yaml:"attatch"`
 }
 
 // ServerConfig Server configuration
@@ -176,6 +176,7 @@ func LoadConfig(path string) (*Config, error) {
 	if err := yaml.Unmarshal(file, config); err != nil {
 		return nil, err
 	}
+	confirmConfig(config)
 
 	return config, nil
 }

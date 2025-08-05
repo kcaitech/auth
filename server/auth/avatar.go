@@ -103,7 +103,7 @@ func (s *AvatarService) UploadAvatar(userID string, file *multipart.FileHeader) 
 		ContentType: fmt.Sprintf("image/%s", format),
 	})
 	if err != nil {
-		return "", errors.Wrap(err, "上传头像失败")
+		return "", errors.Wrap(err, "上传头像失败1")
 	}
 
 	// 返回可访问的URL

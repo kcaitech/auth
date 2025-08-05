@@ -8,13 +8,13 @@ import axios from 'axios'
 // Vite环境变量类型声明
 declare interface ImportMeta {
   readonly env: {
-    readonly VITE_API_BASE_URL: string
+    readonly VITE_API_URL: string
   }
 }
 
 // 创建 axios 实例
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || '',
+  baseURL: import.meta.env.VITE_API_URL || '',
   timeout: 10000,
   withCredentials: true
 })
