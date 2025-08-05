@@ -11,7 +11,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"kcaitech.com/kcauth/server/auth"
-	"kcaitech.com/kcauth/server/config"
 )
 
 // PhoneRegisterRequest Phone registration request
@@ -50,109 +49,12 @@ type PhoneResetPasswordRequest struct {
 	NewPassword string `json:"new_password" binding:"required"`
 }
 
-// PhoneHandler Phone authentication handler
-type PhoneHandler struct {
-	phoneAuth     *auth.PhoneAuth
-	sessionMgr    *auth.SessionManager
-	jwtService    *auth.JWTService
-	verifyCodeTTL int
-	config        *config.Config
-	avatarService *auth.AvatarService
-}
-
-// NewPhoneHandler Create phone authentication handler
-func NewPhoneHandler(
-	phoneAuth *auth.PhoneAuth,
-	sessionMgr *auth.SessionManager,
-	jwtService *auth.JWTService,
-	avatarService *auth.AvatarService,
-	config *config.Config,
-) *PhoneHandler {
-	return &PhoneHandler{
-		phoneAuth:     phoneAuth,
-		sessionMgr:    sessionMgr,
-		jwtService:    jwtService,
-		verifyCodeTTL: 300, // Default 5 minutes
-		config:        config,
-	}
-}
-
-// RegisterRoutes Register routes
-func (h *PhoneHandler) RegisterRoutes(router *gin.RouterGroup) {
-	phoneGroup := router.Group("/phone")
-	{
-		// Phone pre-registration - send verification code
-		phoneGroup.POST("/preregister", h.PhonePreregister)
-		// Verify phone number and complete registration
-		phoneGroup.POST("/verify-register", h.VerifyPhoneAndRegister)
-		// Resend verification code
-		phoneGroup.POST("/resend-verification", h.ResendPhoneVerification)
-		// Login with phone number + password
-		phoneGroup.POST("/login", h.PhoneLogin)
-		// Send login verification code
-		phoneGroup.POST("/send-login-code", h.SendLoginSMS)
-		// Login with phone number + verification code
-		phoneGroup.POST("/code-login", h.PhoneCodeLogin)
-		// Initiate password reset - send verification code
-		phoneGroup.POST("/reset-password/init", h.InitiatePasswordReset)
-		// Complete password reset
-		phoneGroup.POST("/reset-password/complete", h.CompletePasswordReset)
-	}
-}
-
-// Login Handle phone password login request
-func (h *PhoneHandler) Login(c *gin.Context) {
-	var req PhoneLoginRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
-		return
-	}
-
-	// Try to login
-	user, err := h.phoneAuth.PhoneLogin(req.Phone, req.Password)
-	if err != nil {
-		// Return appropriate status code and message based on error type
-		status := http.StatusUnauthorized
-		message := "Invalid phone number or password"
-
-		if appErr, ok := err.(*auth.AppError); ok {
-			if appErr.Code == auth.ErrCodeEmailNotVerified {
-				message = "Phone number not verified, please verify first"
-			}
-		}
-
-		c.JSON(status, gin.H{"error": message})
-		return
-	}
-
-	// Create session and JWT token
-	session, err := h.sessionMgr.CreateUserSession(user.UserID, c.ClientIP(), c.GetHeader("User-Agent"), auth.TokenExpiration+time.Hour)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
-		return
-	}
-
-	token, err := h.jwtService.GenerateTokenPair(user.UserID, session.ID)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
-		return
-	}
-
-	c.SetCookie("refreshToken", token.RefreshToken, int(auth.RefreshTokenExpiration.Seconds()), "/", "", true, true)
-	// Login successful, return user information and token
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Login successful",
-		"token":   token.AccessToken,
-		"user": gin.H{
-			"user_id":  user.UserID,
-			"nickname": user.Nickname,
-			"avatar":   user.Avatar,
-		},
-	})
-}
+const (
+	verifyCodeTTL = 300 // Default 5 minutes
+)
 
 // PhoneCodeLogin Phone number + verification code login
-func (h *PhoneHandler) PhoneCodeLogin(c *gin.Context) {
+func (h *AuthHandler) PhoneCodeLogin(c *gin.Context) {
 	var req PhoneCodeLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
@@ -193,7 +95,7 @@ func (h *PhoneHandler) PhoneCodeLogin(c *gin.Context) {
 }
 
 // SendVerificationCode Handle send verification code request
-func (h *PhoneHandler) SendVerificationCode(c *gin.Context) {
+func (h *AuthHandler) SendVerificationCode(c *gin.Context) {
 	var req SendVerificationCodeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
@@ -231,13 +133,13 @@ func (h *PhoneHandler) SendVerificationCode(c *gin.Context) {
 	// Send successful
 	c.JSON(http.StatusOK, gin.H{
 		"message":     "Verification code has been sent",
-		"expires_in":  h.verifyCodeTTL,
+		"expires_in":  verifyCodeTTL,
 		"development": devInfo,
 	})
 }
 
 // VerifyPhone Handle verify phone number request
-func (h *PhoneHandler) VerifyPhone(c *gin.Context) {
+func (h *AuthHandler) VerifyPhone(c *gin.Context) {
 	var req VerifyPhoneRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
@@ -254,8 +156,8 @@ func (h *PhoneHandler) VerifyPhone(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Phone number verification successful"})
 }
 
-// InitiatePasswordReset Initiate password reset
-func (h *PhoneHandler) InitiatePasswordReset(c *gin.Context) {
+// PhoneInitiatePasswordReset Initiate password reset
+func (h *AuthHandler) PhoneInitiatePasswordReset(c *gin.Context) {
 	var req struct {
 		Phone string `json:"phone" binding:"required"`
 	}
@@ -292,52 +194,13 @@ func (h *PhoneHandler) InitiatePasswordReset(c *gin.Context) {
 	// Send successful
 	c.JSON(http.StatusOK, gin.H{
 		"message":     "Password reset verification code has been sent",
-		"expires_in":  h.verifyCodeTTL,
+		"expires_in":  verifyCodeTTL,
 		"development": devInfo,
 	})
 }
 
-// ResetPassword Handle reset password request
-func (h *PhoneHandler) ResetPassword(c *gin.Context) {
-	var req PhoneResetPasswordRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
-		return
-	}
-
-	// Complete password reset
-	if err := h.phoneAuth.CompletePasswordReset(req.Code, req.Phone, req.NewPassword); err != nil {
-		var status int
-		var message string
-
-		switch appErr := err.(type) {
-		case *auth.AppError:
-			switch appErr.Code {
-			case auth.ErrCodeInvalidToken:
-				status = http.StatusBadRequest
-				message = "Invalid or expired verification code"
-			case auth.ErrCodeWeakPassword:
-				status = http.StatusBadRequest
-				message = "Password too weak, please use a stronger password"
-			default:
-				status = http.StatusInternalServerError
-				message = "Failed to reset password, please try again later"
-			}
-		default:
-			status = http.StatusInternalServerError
-			message = "Failed to reset password, please try again later"
-		}
-
-		c.JSON(status, gin.H{"error": message})
-		return
-	}
-
-	// Reset successful
-	c.JSON(http.StatusOK, gin.H{"message": "Password reset successful"})
-}
-
 // PhonePreregister Phone pre-registration - send verification code
-func (h *PhoneHandler) PhonePreregister(c *gin.Context) {
+func (h *AuthHandler) PhonePreregister(c *gin.Context) {
 	var req struct {
 		Phone    string `json:"phone" binding:"required"`
 		Password string `json:"password" binding:"required"`
@@ -364,7 +227,7 @@ func (h *PhoneHandler) PhonePreregister(c *gin.Context) {
 }
 
 // ResendPhoneVerification Resend phone verification code
-func (h *PhoneHandler) ResendPhoneVerification(c *gin.Context) {
+func (h *AuthHandler) ResendPhoneVerification(c *gin.Context) {
 	var req struct {
 		Phone string `json:"phone" binding:"required"`
 	}
@@ -388,7 +251,7 @@ func (h *PhoneHandler) ResendPhoneVerification(c *gin.Context) {
 }
 
 // VerifyPhoneAndRegister Verify phone number and complete registration
-func (h *PhoneHandler) VerifyPhoneAndRegister(c *gin.Context) {
+func (h *AuthHandler) VerifyPhoneAndRegister(c *gin.Context) {
 	var req struct {
 		Phone string `json:"phone" binding:"required"`
 		Code  string `json:"code" binding:"required"`
@@ -440,7 +303,7 @@ func (h *PhoneHandler) VerifyPhoneAndRegister(c *gin.Context) {
 }
 
 // PhoneLogin Phone number + password login
-func (h *PhoneHandler) PhoneLogin(c *gin.Context) {
+func (h *AuthHandler) PhoneLogin(c *gin.Context) {
 	var req PhoneLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
@@ -499,7 +362,7 @@ func (h *PhoneHandler) PhoneLogin(c *gin.Context) {
 }
 
 // SendLoginSMS Send login verification code
-func (h *PhoneHandler) SendLoginSMS(c *gin.Context) {
+func (h *AuthHandler) SendLoginSMS(c *gin.Context) {
 	var req struct {
 		Phone string `json:"phone" binding:"required"`
 	}
@@ -537,13 +400,13 @@ func (h *PhoneHandler) SendLoginSMS(c *gin.Context) {
 	// Send successful
 	c.JSON(http.StatusOK, gin.H{
 		"message":     "Login verification code has been sent",
-		"expires_in":  h.verifyCodeTTL,
+		"expires_in":  verifyCodeTTL,
 		"development": devInfo,
 	})
 }
 
 // CompletePasswordReset Complete password reset
-func (h *PhoneHandler) CompletePasswordReset(c *gin.Context) {
+func (h *AuthHandler) PhoneCompletePasswordReset(c *gin.Context) {
 	var req PhoneResetPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})

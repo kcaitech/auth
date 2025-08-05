@@ -123,10 +123,22 @@ func (h *AuthHandler) RegisterRoutes(authGroup *gin.RouterGroup, cfg *config.Con
 
 	// Phone login related routes
 	if h.phoneAuth != nil {
-		// Create phone handler
-		phoneHandler := NewPhoneHandler(h.phoneAuth, h.sessionMgr, h.jwtService, h.avatarService, h.config)
-		// Register phone authentication routes
-		phoneHandler.RegisterRoutes(authGroup)
+		// Phone pre-registration - send verification code
+		authGroup.POST("/phone/preregister", h.PhonePreregister)
+		// Verify phone number and complete registration
+		authGroup.POST("/phone/verify-register", h.VerifyPhoneAndRegister)
+		// Resend verification code
+		authGroup.POST("/phone/resend-verification", h.ResendPhoneVerification)
+		// Login with phone number + password
+		authGroup.POST("/phone/login", h.PhoneLogin)
+		// Send login verification code
+		authGroup.POST("/phone/send-login-code", h.SendLoginSMS)
+		// Login with phone number + verification code
+		authGroup.POST("/phone/code-login", h.PhoneCodeLogin)
+		// Initiate password reset - send verification code
+		authGroup.POST("/phone/reset-password/init", h.PhoneInitiatePasswordReset)
+		// Complete password reset
+		authGroup.POST("/phone/reset-password/complete", h.PhoneCompletePasswordReset)
 	}
 
 	// Two-factor authentication related routes

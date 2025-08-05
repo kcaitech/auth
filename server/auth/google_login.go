@@ -224,16 +224,17 @@ func (g *GoogleOAuth) GetUserByGoogleID(googleID, email string) (*User, error) {
 	var googleUser GoogleUser
 	var userID string
 	err := g.db.Where("google_id = ?", googleID).First(&googleUser).Error
-	if err == nil {
+	switch err {
+	case nil:
 		userID = googleUser.UserID
-	} else if err == gorm.ErrRecordNotFound {
+	case gorm.ErrRecordNotFound:
 		var googleUserWithSameEmail EmailUser
 		err = g.db.Where("email = ?", email).First(&googleUserWithSameEmail).Error
 		if err != nil {
 			return nil, err // Not found, return nil to let subsequent flow handle
 		}
 		userID = googleUserWithSameEmail.UserID
-	} else {
+	default:
 		return nil, err
 	}
 
