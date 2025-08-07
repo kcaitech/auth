@@ -305,23 +305,9 @@ func (g *GoogleOAuth) CreateUserFromGoogle(googleInfo *GoogleUserInfo) (*User, e
 	}
 
 	// Generate random UserID
-	userID, err := GenerateUserID()
+	userID, err := GenerateUserID(g.db)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate random ID: %v", err)
-	}
-
-	// Ensure UserID is unique
-	for {
-		var count int64
-		g.db.Model(&User{}).Where("user_id = ?", userID).Count(&count)
-		if count == 0 {
-			break
-		}
-		// Generate a new UserID
-		userID, err = GenerateUserID()
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate random ID: %v", err)
-		}
 	}
 
 	// Download and upload avatar

@@ -47,7 +47,6 @@ type AuthConfig struct {
 	Google           GoogleConfig     `json:"google" yaml:"google"`
 	Weixin           WeixinConfig     `json:"weixin" yaml:"weixin"`
 	WeixinMini       WeixinMiniConfig `json:"weixin_mini" yaml:"weixin_mini"`
-	TwoFactor        TwoFactorConfig  `json:"two_factor" yaml:"two_factor"`
 	Smtp             SmtpConfig       `json:"smtp" yaml:"smtp"`
 	SMS              SMSConfig        `json:"sms" yaml:"sms"` // New: SMS configuration
 }
@@ -89,15 +88,6 @@ type SMSConfig struct {
 	SignName   string `json:"sign_name" yaml:"sign_name"`     // SMS signature
 	TemplateID string `json:"template_id" yaml:"template_id"` // Template ID
 	Region     string `json:"region" yaml:"region"`           // Region
-}
-
-// TwoFactorConfig Two-factor authentication configuration
-type TwoFactorConfig struct {
-	Enabled    bool   `json:"enabled" yaml:"enabled"`
-	Issuer     string `json:"issuer" yaml:"issuer"`
-	Period     uint   `json:"period" yaml:"period"`
-	Digits     uint   `json:"digits" yaml:"digits"`
-	SecretSize uint   `json:"secret_size" yaml:"secret_size"`
 }
 
 // AdminConfig Administrator configuration
@@ -176,7 +166,6 @@ func LoadConfig(path string) (*Config, error) {
 	if err := yaml.Unmarshal(file, config); err != nil {
 		return nil, err
 	}
-	confirmConfig(config)
 
 	return config, nil
 }

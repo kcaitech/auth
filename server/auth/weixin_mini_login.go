@@ -142,21 +142,9 @@ func (w *WeixinMiniLogin) GetUserByWeixinID(unionID string) (*User, error) {
 
 // CreateUserFromWeixin 从微信用户信息创建系统用户
 func (w *WeixinMiniLogin) CreateUserFromWeixin(weixinInfo *WeixinUserInfo) (*User, error) {
-	userID, err := GenerateUserID()
+	userID, err := GenerateUserID(w.db)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate random ID: %v", err)
-	}
-
-	for {
-		var count int64
-		w.db.Model(&User{}).Where("user_id = ?", userID).Count(&count)
-		if count == 0 {
-			break
-		}
-		userID, err = GenerateUserID()
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate random ID: %v", err)
-		}
 	}
 
 	// 处理头像URL - 小程序登录时可能为空

@@ -1,4 +1,4 @@
 .VSCodeCounter
 .DS_Store
 package-lock.json
-server/server.exe
+server/server*

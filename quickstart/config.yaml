@@ -1,0 +1,35 @@
+db:
+  user: "root"
+  password: "password"
+  host: "mysql"
+  port: 3306
+  database: "kcauth"
+  charset: "utf8mb4"
+
+redis:
+  addr: "redis:6379"
+  password: ""
+  db: 0
+
+storage:
+  provider: "minio"
+  endpoint: "minio:9000"
+  region: "zhuhai-1"
+  accessKeyID: "T64JKDV276dJp10"
+  secretAccessKey: "1JzdCtZqgiys22q"
+  stsAccessKeyID: "user"
+  stsSecretAccessKey: "LRfETL5HGUGAGv9"
+  attatchBucket: "attatch"
+
+storage_public_url:
+  attatch: "http://localhost:9000/attatch"
+
+auth:
+  enabled_providers:
+    - "account"
+  jwt:
+    issuer: "kcaitech.com"
+
+auth_admin:
+  enabled: false
+

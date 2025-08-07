@@ -95,10 +95,6 @@ func DecodeBase62ID(id string) ([]byte, error) {
 	return bytes, nil
 }
 
-func GenerateUserID() (string, error) {
-	return GenerateBase62String(10)
-}
-
 // generateBase62String Generates a random base62 string of specified length
 func GenerateBase62String(length int) (string, error) {
 	result := make([]byte, length)

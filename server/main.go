@@ -24,7 +24,6 @@ import (
 	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/contrib/gzip"
 	"github.com/gin-gonic/gin"
-	"github.com/pquerna/otp"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 
@@ -360,20 +359,6 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 		}
 	}
 
-	// Initialize two-factor authentication
-	var twoFactor *auth.TwoFactorAuth
-	if cfg.Auth.TwoFactor.Enabled {
-		twoFactorConfig := &auth.TwoFactorConfig{
-			Issuer:     cfg.Auth.TwoFactor.Issuer,
-			Period:     cfg.Auth.TwoFactor.Period,
-			Digits:     otp.Digits(cfg.Auth.TwoFactor.Digits),
-			Algorithm:  otp.AlgorithmSHA1,
-			SecretSize: cfg.Auth.TwoFactor.SecretSize,
-			WindowSize: 1,
-		}
-		twoFactor = auth.NewTwoFactorAuth(globalDB, twoFactorConfig)
-	}
-
 	// Initialize JWT service
 	jwtService := auth.NewJWTService(globalRedisStore, auth.JWTConfig{Issuer: cfg.Auth.JWT.Issuer})
 
@@ -389,7 +374,6 @@ func initAuthHandler(cfg *config.Config, accountAuth *auth.AccountAuth, handler 
 		weixinLogin,
 		weixinMiniLogin,
 		phoneAuth,
-		twoFactor,
 		jwtService,
 		sessionMgr,
 		globalRedisStore,

@@ -235,23 +235,9 @@ func (a *EmailAuth) RegisterEmailUser(email, password, nickname string) (*User, 
 	}
 
 	// Generate random UserID
-	userID, err := GenerateUserID()
+	userID, err := GenerateUserID(a.db)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate random ID: %v", err)
-	}
-
-	// Ensure UserID is unique
-	for {
-		var count int64
-		a.db.Model(&User{}).Where("user_id = ?", userID).Count(&count)
-		if count == 0 {
-			break
-		}
-		// Generate new UserID
-		userID, err = GenerateUserID()
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate random ID: %v", err)
-		}
 	}
 
 	// If nickname is not provided, use email prefix as default nickname

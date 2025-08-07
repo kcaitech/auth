@@ -1,0 +1,89 @@
+db:
+  user: "root"
+  password: "YOUR_DB_PASSWORD"
+  host: "YOUR_DB_HOST"
+  port: 3306
+  database: "kcauth"
+  charset: "utf8mb4"
+
+redis:
+  addr: "YOUR_REDIS_HOST:6379"
+  password: "YOUR_REDIS_PASSWORD"
+  db: 0
+
+storage:
+  provider: "minio"
+  endpoint: "YOUR_MINIO_ENDPOINT"
+  region: "YOUR_REGION"
+  accessKeyID: "YOUR_ACCESS_KEY_ID"
+  secretAccessKey: "YOUR_SECRET_ACCESS_KEY"
+  stsAccessKeyID: "YOUR_STS_ACCESS_KEY_ID"
+  stsSecretAccessKey: "YOUR_STS_SECRET_ACCESS_KEY"
+  attatchBucket: "attatch"
+
+storage_public_url:
+  attatch: "YOUR_PUBLIC_URL"
+
+auth:
+  enabled_providers:
+    - "weixin"
+    - "weixin_mini"
+  google:
+    client_id: "YOUR_GOOGLE_CLIENT_ID"
+    client_secret: "YOUR_GOOGLE_CLIENT_SECRET"
+    redirect_url: "YOUR_GOOGLE_REDIRECT_URL"
+    scopes:
+      - "https://www.googleapis.com/auth/userinfo.email"
+      - "https://www.googleapis.com/auth/userinfo.profile"
+  weixin:
+    app_id: "YOUR_WEIXIN_APP_ID"
+    app_secret: "YOUR_WEIXIN_APP_SECRET"
+    redirect_url: "YOUR_WEIXIN_REDIRECT_URL"
+    domain_verify_token: "YOUR_WEIXIN_DOMAIN_VERIFY_TOKEN"
+  weixin_mini:
+    app_id: "YOUR_WEIXIN_MINI_APP_ID"
+    app_secret: "YOUR_WEIXIN_MINI_APP_SECRET"
+    grant_type: "authorization_code"
+  sms:
+    provider: "aliyun"
+    access_key: "YOUR_SMS_ACCESS_KEY"
+    secret_key: "YOUR_SMS_SECRET_KEY"
+    sign_name: "验证码"
+    template_id: "YOUR_SMS_TEMPLATE_ID"
+    region: "cn-hangzhou"
+
+  smtp:
+    host: "YOUR_SMTP_HOST"
+    port: 80
+    username: "YOUR_SMTP_USERNAME"
+    password: "YOUR_SMTP_PASSWORD"
+    from: "YOUR_SMTP_FROM"
+  jwt:
+    issuer: "kcaitech.com"
+
+auth_admin:
+  enabled: true
+  secret_key: "YOUR_ADMIN_SECRET_KEY"
+  accounts:
+    - username: "admin"
+      password: "YOUR_ADMIN_PASSWORD_HASH"
+      roles:
+        - "super_admin"
+    - username: "operator"
+      password: "YOUR_OPERATOR_PASSWORD_HASH"
+      roles:
+        - "user_manager"
+  allowed_ips:
+    - "127.0.0.1"
+    - "::1"
+  require_tls: false
+  session_ttl: 30
+  login_timeout: 60
+
+auth_trusted_clients:
+  - client_id: "kcserver"
+    client_secret: "YOUR_TRUSTED_CLIENT_SECRET"
+    allowed_ips:
+      - "*"
+    scopes:
+      - "read:users" 

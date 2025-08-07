@@ -25,7 +25,6 @@ type AuthHandler struct {
 	weixinLogin     *auth.WeixinLogin
 	weixinMiniLogin *auth.WeixinMiniLogin
 	phoneAuth       *auth.PhoneAuth
-	twoFactor       *auth.TwoFactorAuth
 	jwtService      *auth.JWTService
 	sessionMgr      *auth.SessionManager
 	redisStore      *auth.RedisStore
@@ -45,7 +44,6 @@ func NewAuthHandler(
 	weixinLogin *auth.WeixinLogin,
 	weixinMiniLogin *auth.WeixinMiniLogin,
 	phoneAuth *auth.PhoneAuth,
-	twoFactor *auth.TwoFactorAuth,
 	jwtService *auth.JWTService,
 	sessionMgr *auth.SessionManager,
 	redisStore *auth.RedisStore,
@@ -60,7 +58,6 @@ func NewAuthHandler(
 		weixinLogin:     weixinLogin,
 		weixinMiniLogin: weixinMiniLogin,
 		phoneAuth:       phoneAuth,
-		twoFactor:       twoFactor,
 		jwtService:      jwtService,
 		sessionMgr:      sessionMgr,
 		redisStore:      redisStore,
@@ -139,14 +136,6 @@ func (h *AuthHandler) RegisterRoutes(authGroup *gin.RouterGroup, cfg *config.Con
 		authGroup.POST("/phone/reset-password/init", h.PhoneInitiatePasswordReset)
 		// Complete password reset
 		authGroup.POST("/phone/reset-password/complete", h.PhoneCompletePasswordReset)
-	}
-
-	// Two-factor authentication related routes
-	if h.twoFactor != nil {
-		authGroup.POST("/2fa/enable", h.AuthRequired(), h.Enable2FA)
-		authGroup.POST("/2fa/disable", h.AuthRequired(), h.Disable2FA)
-		authGroup.POST("/2fa/verify", h.Verify2FA)
-		authGroup.POST("/2fa/recovery", h.AuthRequired(), h.GenerateRecoveryCodes)
 	}
 
 	// User information related routes
