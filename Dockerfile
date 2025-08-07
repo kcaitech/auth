@@ -21,18 +21,24 @@ RUN go mod download && go mod tidy -v && go build -ldflags "-s -w" -o kcauth ./m
 # Node.js 构建阶段
 FROM node:22-alpine AS web-builder
 
+# 配置 npm 使用公共镜像源，避免认证问题
+RUN npm config set registry https://registry.npmjs.org/ && \
+    npm config set fetch-retries 3 && \
+    npm config set fetch-retry-mintimeout 5000 && \
+    npm config set fetch-retry-maxtimeout 60000
+
 WORKDIR /app
 
 # 构建 web 项目
 COPY web ./web/
 WORKDIR /app/web
-RUN npm i && npm run build
+RUN npm ci --no-audit --no-fund && npm run build
 
 # 构建 admin-web 项目
 WORKDIR /app
 COPY admin-web ./admin-web/
 WORKDIR /app/admin-web
-RUN npm i && npm run build
+RUN npm ci --no-audit --no-fund && npm run build
 
 
 FROM golang:1.23-alpine3.20
