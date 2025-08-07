@@ -32,13 +32,13 @@ WORKDIR /app
 # 构建 web 项目
 COPY web ./web/
 WORKDIR /app/web
-RUN npm ci --no-audit --no-fund && npm run build
+RUN npm install --no-audit --no-fund --prefer-offline && npm run build
 
 # 构建 admin-web 项目
 WORKDIR /app
 COPY admin-web ./admin-web/
 WORKDIR /app/admin-web
-RUN npm ci --no-audit --no-fund && npm run build
+RUN npm install --no-audit --no-fund --prefer-offline && npm run build
 
 
 FROM golang:1.23-alpine3.20
