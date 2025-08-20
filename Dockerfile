@@ -3,12 +3,12 @@ FROM golang:1.23-alpine3.20 AS builder
 
 ENV GO111MODULE=on \
     CGO_ENABLED=0 \
-    GOOS=linux \
-    GOARCH=amd64 \
-    GOPROXY=https://goproxy.cn,direct
+    GOOS=linux
+    # GOARCH=amd64 \
+    # GOPROXY=https://goproxy.cn,direct
 
 RUN set -ex \
-    && sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
+    # && sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories \
     && apk --update add tzdata \
     && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
     && apk --no-cache add ca-certificates
@@ -42,7 +42,7 @@ WORKDIR /app
 
 ENV TZ=Asia/Shanghai
 RUN set -ex \
-    && sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories \
+    # && sed -i 's/dl-cdn.alpinelinux.org/mirrors.ustc.edu.cn/g' /etc/apk/repositories \
     && apk upgrade --no-cache --available \
     && apk add --no-cache fontconfig
 
